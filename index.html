@@ -370,7 +370,7 @@
 
         <div class="card p-4 flex items-center gap-3 flex-wrap">
           <i class="fa-solid fa-circle-info text-slate-300"></i>
-          <p class="text-xs text-slate-500 flex-1 min-w-[240px]">Data pencapaian sales diambil dari export <b>Report GCI</b> (Leads &amp; Booking). Sebuah leads dihitung sudah <b>Booking</b> begitu kolom <b>Nominal Booking SPR</b> terisi angka — apapun status prosesnya (termasuk yang berstatus Reject). Jika masih kosong, statusnya tetap Leads. Impor file Excel setiap bulan untuk memperbarui data dan membandingkan performa antar bulan. Data disimpan otomatis di perangkat ini.</p>
+          <p class="text-xs text-slate-500 flex-1 min-w-[240px]">Data pencapaian sales diambil dari export <b>Report GCI</b> (Leads &amp; Booking). Acuannya dari kolom <b>Status Proses</b>: jika berstatus <b>Leads</b>, dihitung Leads. Selain itu (misalnya Analys Complete, Booking, Booking Cash, Booking + DP, Bank, SP3K, Reject, dll), dihitung sebagai <b>Booking</b>. Impor file Excel setiap bulan untuk memperbarui data dan membandingkan performa antar bulan. Data disimpan otomatis di perangkat ini.</p>
           <label class="btn-primary cursor-pointer">
             <i class="fa-solid fa-file-import mr-1"></i>Impor Data GCI (.xlsx)
             <input type="file" accept=".xlsx,.xls" class="hidden" onchange="importGciExcel(event)">
@@ -1130,13 +1130,12 @@ const GCI_STATUS_LABELS = {
   leads:'Leads', booking:'Booking'
 };
 function classifyGciStatus(row){
-  // Sudah dianggap Booking begitu kolom Nominal Booking SPR terisi (ada angkanya),
-  // berapapun nilainya dan apapun status prosesnya (termasuk yang berstatus Reject
-  // tapi sudah punya Nominal Booking SPR tetap dihitung Booking).
-  // Jika Nominal Booking SPR masih kosong, berarti masih tahap Leads.
-  const spr = row ? row.nominalBookingSpr : null;
-  const hasSpr = spr !== null && spr !== undefined && spr !== '' && Number(spr) > 0;
-  return hasSpr ? 'booking' : 'leads';
+  // Acuannya sekarang dari kolom Status Proses:
+  // - Jika Status Proses = "Leads" -> dihitung Leads.
+  // - Selain itu (Analys Complete, Booking, Booking Cash, Booking + DP, Bank,
+  //   SP3K, Reject, dll) -> dihitung Booking.
+  const status = row && row.status ? String(row.status).trim().toLowerCase() : '';
+  return status === 'leads' ? 'leads' : 'booking';
 }
 function loadGciData(){
   // Local cache only; the authoritative copy now lives in Firestore and is
