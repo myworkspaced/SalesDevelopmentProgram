@@ -147,6 +147,9 @@
       <a href="#" onclick="switchTab('participants');return false" id="nav-participants" class="nav-item">
         <i class="icon fa-solid fa-users"></i><span>Peserta &amp; Progress</span>
       </a>
+      <a href="#" onclick="switchTab('targettraining');return false" id="nav-targettraining" class="nav-item">
+        <i class="icon fa-solid fa-bullseye"></i><span>Target Training</span>
+      </a>
       <a href="#" onclick="switchTab('certificates');return false" id="nav-certificates" class="nav-item">
         <i class="icon fa-solid fa-award"></i><span>Sertifikat</span>
       </a>
@@ -234,6 +237,44 @@
               <i class="fa-solid fa-award text-slate-300"></i>
             </div>
             <p id="kpi-certs" class="text-2xl font-extrabold mono">0</p>
+          </div>
+        </div>
+
+        <div class="card p-5">
+          <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
+            <p class="text-sm font-bold"><i class="fa-solid fa-bullseye mr-1" style="color:var(--brand-600)"></i>Target Training (dari Data Onboarding)</p>
+            <button class="btn-ghost" onclick="switchTab('targettraining')"><i class="fa-solid fa-arrow-right mr-1"></i>Lihat Menu Target Training</button>
+          </div>
+          <p class="text-xs text-slate-400 mb-4">Karyawan baru yang diimpor dari data onboarding, dicocokkan dengan data Peserta untuk memantau siapa yang belum mengikuti training.</p>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="rounded-xl p-4 cursor-pointer hover:shadow-md transition" style="background:#f8fafc;border:1px solid var(--line)" onclick="switchTab('targettraining')">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-[11px] font-bold text-slate-500 uppercase">Total Target</span>
+                <i class="fa-solid fa-user-group text-slate-400"></i>
+              </div>
+              <p id="target-total" class="text-2xl font-extrabold mono text-slate-700">0</p>
+            </div>
+            <div class="rounded-xl p-4 cursor-pointer hover:shadow-md transition" style="background:#fef2f2;border:1px solid #fecaca" onclick="switchTab('targettraining');setTimeout(()=>filterTrainingTargetsByStatus('belum'),0)" title="Klik untuk lihat daftar yang belum training">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-[11px] font-bold text-red-700 uppercase">Belum Training</span>
+                <i class="fa-solid fa-triangle-exclamation text-red-500"></i>
+              </div>
+              <p id="target-belum" class="text-2xl font-extrabold mono text-red-700">0</p>
+            </div>
+            <div class="rounded-xl p-4" style="background:#fffbeb;border:1px solid #fde68a">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-[11px] font-bold text-amber-700 uppercase">Sedang Training</span>
+                <i class="fa-solid fa-spinner text-amber-500"></i>
+              </div>
+              <p id="target-berjalan" class="text-2xl font-extrabold mono text-amber-700">0</p>
+            </div>
+            <div class="rounded-xl p-4" style="background:#f0fdf4;border:1px solid #bbf7d0">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-[11px] font-bold text-emerald-700 uppercase">Sudah Lulus</span>
+                <i class="fa-solid fa-circle-check text-emerald-500"></i>
+              </div>
+              <p id="target-lulus" class="text-2xl font-extrabold mono text-emerald-700">0</p>
+            </div>
           </div>
         </div>
 
@@ -595,6 +636,70 @@
                 </tr>
               </thead>
               <tbody id="participants-list"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= TARGET TRAINING ================= -->
+      <div id="tab-targettraining" class="tab-hidden space-y-6">
+        <div class="card p-5">
+          <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
+            <p class="text-sm font-bold">Target Training (Data Onboarding Employee)</p>
+            <div class="flex items-center gap-2">
+              <label class="btn-ghost cursor-pointer">
+                <i class="fa-solid fa-file-arrow-up mr-1"></i>Impor dari Excel
+                <input type="file" accept=".xlsx,.xls" class="hidden" onchange="importTrainingTargetsExcel(event)">
+              </label>
+              <button class="btn-ghost !text-red-600" onclick="clearTrainingTargets()"><i class="fa-solid fa-broom mr-1"></i>Bersihkan Data Target</button>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mb-4">Impor file Excel "Data Onboarding Employee" (kolom Name, Company, Department, Designation, Location, Date join, Contact). Setiap nama akan otomatis dicocokkan dengan data di menu Peserta &amp; Progress untuk mengetahui siapa yang <b>belum training</b>, sedang berjalan, atau sudah lulus. Ringkasannya tersinkron otomatis ke Dashboard.</p>
+          <div class="flex flex-wrap items-end gap-2 mb-4">
+            <div class="flex-1 min-w-[180px]">
+              <label class="text-[10px] font-bold text-slate-400 uppercase">Cari</label>
+              <div class="relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
+                <input id="tt-search" type="text" placeholder="Cari nama, company, department, lokasi..." class="field !pl-8" oninput="renderTrainingTargets()">
+              </div>
+            </div>
+            <div>
+              <label class="text-[10px] font-bold text-slate-400 uppercase">Company</label>
+              <select id="tt-company" class="field" onchange="renderTrainingTargets()"><option value="">Semua Company</option></select>
+            </div>
+            <div>
+              <label class="text-[10px] font-bold text-slate-400 uppercase">Department</label>
+              <select id="tt-department" class="field" onchange="renderTrainingTargets()"><option value="">Semua Department</option></select>
+            </div>
+            <div>
+              <label class="text-[10px] font-bold text-slate-400 uppercase">Status Training</label>
+              <select id="tt-status" class="field" onchange="renderTrainingTargets()">
+                <option value="">Semua Status</option>
+                <option value="belum">Belum Training</option>
+                <option value="berjalan">Sedang Berjalan</option>
+                <option value="selesai_belum_lulus">Selesai, Belum Lulus</option>
+                <option value="lulus">Lulus</option>
+              </select>
+            </div>
+            <button class="btn-ghost" onclick="resetTrainingTargetFilters()"><i class="fa-solid fa-filter-circle-xmark mr-1"></i>Reset Filter</button>
+          </div>
+          <p id="tt-count" class="text-[11px] text-slate-400 mb-2"></p>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs whitespace-nowrap">
+              <thead>
+                <tr class="text-left text-slate-400 uppercase text-[10px] font-bold border-b" style="border-color:var(--line)">
+                  <th class="py-2 pr-4">Nama</th>
+                  <th class="py-2 pr-4">Company</th>
+                  <th class="py-2 pr-4">Department</th>
+                  <th class="py-2 pr-4">Designation</th>
+                  <th class="py-2 pr-4">Lokasi</th>
+                  <th class="py-2 pr-4">Tanggal Join</th>
+                  <th class="py-2 pr-4">Kontak</th>
+                  <th class="py-2 pr-4">Status Training</th>
+                  <th class="py-2 pr-4">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="targettraining-list"></tbody>
             </table>
           </div>
         </div>
@@ -1542,7 +1647,8 @@ function defaultState(){
     lessonLinks:{},
     lessonOverrides:{},
     customLessons:{},
-    deletedLessonIdx:{}
+    deletedLessonIdx:{},
+    trainingTargets:[]
   };
 }
 function normalizeState(parsed){
@@ -1554,6 +1660,7 @@ function normalizeState(parsed){
   if(!parsed.customLessons) parsed.customLessons = {};
   if(!parsed.deletedLessonIdx) parsed.deletedLessonIdx = {};
   if(!parsed.activityLog) parsed.activityLog = [];
+  if(!Array.isArray(parsed.trainingTargets)) parsed.trainingTargets = [];
   return parsed;
 }
 function loadState(){
@@ -1715,7 +1822,8 @@ function switchTab(tab){
     dashboard:['Ringkasan','Dashboard'],
     pencapaian:['Kinerja Sales','Pencapaian Bulanan'],
     modules:['Konten Training','Modul Training'], quiz:['Penilaian','Kuis & Penilaian'],
-    participants:['Tim','Peserta & Progress'], certificates:['Kelulusan','Sertifikat'],
+    participants:['Tim','Peserta & Progress'], targettraining:['Onboarding','Target Training'],
+    certificates:['Kelulusan','Sertifikat'],
     settings:['Sistem','Pengaturan']
   };
   document.getElementById('page-eyebrow').innerText = titles[tab][0];
@@ -1725,6 +1833,7 @@ function switchTab(tab){
   if(tab==='modules') renderModules();
   if(tab==='quiz') renderQuizPicker();
   if(tab==='participants') renderParticipants();
+  if(tab==='targettraining') renderTrainingTargets();
   if(tab==='certificates') renderCertificates();
   if(tab==='settings'){
     const accUsername = document.getElementById('acc-username');
@@ -1830,6 +1939,23 @@ function renderDashboard(){
   document.getElementById('status-tidaklulus').innerText = cTidakLulus;
   document.getElementById('status-berjalan').innerText = cBerjalan;
   document.getElementById('status-belummulai').innerText = cBelumMulai;
+
+  const targets = state.trainingTargets || [];
+  let tBelum=0, tBerjalan=0, tLulus=0;
+  targets.forEach(t=>{
+    const st = trainingTargetStatus(t).key;
+    if(st==='belum') tBelum++;
+    else if(st==='berjalan') tBerjalan++;
+    else if(st==='lulus') tLulus++;
+  });
+  const elTTotal = document.getElementById('target-total');
+  const elTBelum = document.getElementById('target-belum');
+  const elTBerjalan = document.getElementById('target-berjalan');
+  const elTLulus = document.getElementById('target-lulus');
+  if(elTTotal) elTTotal.innerText = targets.length;
+  if(elTBelum) elTBelum.innerText = tBelum;
+  if(elTBerjalan) elTBerjalan.innerText = tBerjalan;
+  if(elTLulus) elTLulus.innerText = tLulus;
 
   const ctx = document.getElementById('chart-module-score');
   const labels = MODULES.map(m=>m.title);
@@ -2239,7 +2365,7 @@ function saveModule(){
   saveState();
   rebuildModules();
   closeAddModule();
-  renderModules(); renderDashboard(); renderQuizPicker();
+  renderModules(); renderDashboard(); renderQuizPicker(); renderTrainingTargets();
   logActivity(`Modul baru ditambahkan: ${title}`);
   toast('Modul ditambahkan');
 }
@@ -2255,7 +2381,7 @@ function deleteModule(id){
   }
   saveState();
   rebuildModules();
-  renderModules(); renderDashboard(); renderQuizPicker();
+  renderModules(); renderDashboard(); renderQuizPicker(); renderTrainingTargets();
   logActivity(`Modul dihapus: ${mod.title}`);
   toast('Modul dihapus');
 }
@@ -2331,7 +2457,7 @@ function saveNewLesson(){
   state.customLessons[pendingAddLessonModuleId].push({ title, dur, content });
   saveState();
   rebuildModules();
-  renderModules(); renderDashboard(); renderQuizPicker();
+  renderModules(); renderDashboard(); renderQuizPicker(); renderTrainingTargets();
   logActivity(`Materi baru ditambahkan: ${title}`);
   closeAddLessonModal();
   toast('Materi ditambahkan');
@@ -2374,7 +2500,7 @@ function deleteLesson(moduleId, idx){
 
   saveState();
   rebuildModules();
-  renderModules(); renderDashboard(); renderQuizPicker();
+  renderModules(); renderDashboard(); renderQuizPicker(); renderTrainingTargets();
   logActivity(`Materi dihapus: ${lesson.title}`);
   toast('Materi dihapus');
 }
@@ -2722,13 +2848,192 @@ function saveParticipant(){
   saveState();
   clearParticipantForm();
   closeAddParticipant();
-  renderParticipants(); renderDashboard(); renderModules(); renderQuizPicker();
+  renderParticipants(); renderDashboard(); renderModules(); renderQuizPicker(); renderTrainingTargets();
 }
 function removeParticipant(id){
   if(state.participants.length<=1){ toast('Minimal harus ada 1 peserta'); return; }
   state.participants = state.participants.filter(p=>p.id!==id);
   saveState();
-  renderParticipants(); renderDashboard(); renderModules(); renderQuizPicker();
+  renderParticipants(); renderDashboard(); renderModules(); renderQuizPicker(); renderTrainingTargets();
+}
+
+/* ===================== TARGET TRAINING (Data Onboarding Employee) ===================== */
+function normNameKey(s){ return String(s||'').trim().toLowerCase().replace(/\s+/g,' '); }
+function findParticipantByName(name){
+  const key = normNameKey(name);
+  if(!key) return null;
+  return state.participants.find(p=>normNameKey(p.name)===key) || null;
+}
+// Returns { key:'belum'|'berjalan'|'selesai_belum_lulus'|'lulus', matched:participant|null }
+function trainingTargetStatus(target){
+  const p = findParticipantByName(target.name);
+  if(!p) return { key:'belum', matched:null };
+  return { key: participantStatusKey(p), matched: p };
+}
+const TT_STATUS_LABEL = {
+  belum: 'Belum Training', berjalan: 'Sedang Berjalan',
+  selesai_belum_lulus: 'Selesai, Belum Lulus', lulus: 'Lulus'
+};
+const TT_STATUS_CLASS = {
+  belum: 'background:#fef2f2;color:#b91c1c;border:1px solid #fecaca',
+  berjalan: 'background:#fffbeb;color:#92400e;border:1px solid #fde68a',
+  selesai_belum_lulus: 'background:#f1f5f9;color:#334155;border:1px solid var(--line)',
+  lulus: 'background:#f0fdf4;color:#065f46;border:1px solid #bbf7d0'
+};
+function importTrainingTargetsExcel(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    try{
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, {type:'array', cellDates:true});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+      // Find header row containing at least "Name" and "Company"
+      let headerRowIdx = rows.findIndex(r=>r && r.includes('Name') && r.includes('Company'));
+      if(headerRowIdx===-1){ toast('Format Excel tidak dikenali (kolom Name/Company tidak ditemukan)'); event.target.value=''; return; }
+      const headers = rows[headerRowIdx];
+      const col = name => headers.indexOf(name);
+      const idx = {
+        name:col('Name'), company:col('Company'), department:col('Department'),
+        designation:col('Designation'), location:col('Location'),
+        joinDate:col('Date join'), contact:col('Contact')
+      };
+      let created = 0, updated = 0;
+      for(let i=headerRowIdx+1; i<rows.length; i++){
+        const row = rows[i];
+        if(!row || idx.name<0 || !row[idx.name]) continue;
+        const name = String(row[idx.name]).trim();
+        if(!name) continue;
+        let t = state.trainingTargets.find(tt=>normNameKey(tt.name)===normNameKey(name) && (idx.company<0 || tt.company===String(row[idx.company]||'').trim()));
+        const isNew = !t;
+        if(!t){ t = { id:'tt'+Date.now()+Math.floor(Math.random()*10000) }; state.trainingTargets.push(t); created++; } else { updated++; }
+        t.name = name;
+        if(idx.company>-1) t.company = row[idx.company]!=null ? String(row[idx.company]).trim() : (t.company||'');
+        if(idx.department>-1) t.department = row[idx.department]!=null ? String(row[idx.department]).trim() : (t.department||'');
+        if(idx.designation>-1) t.designation = row[idx.designation]!=null ? String(row[idx.designation]).trim() : (t.designation||'');
+        if(idx.location>-1) t.location = row[idx.location]!=null ? String(row[idx.location]).trim() : (t.location||'');
+        if(idx.joinDate>-1){ const jd = excelDateToYMD(row[idx.joinDate]); if(jd) t.joinDate = jd; }
+        if(idx.contact>-1) t.contact = row[idx.contact]!=null ? String(row[idx.contact]).trim() : (t.contact||'');
+      }
+      saveState();
+      logActivity(`Impor Target Training: ${created} data baru, ${updated} data diperbarui`);
+      renderTrainingTargets();
+      renderDashboard();
+      toast(`Impor Target Training selesai: ${created} baru, ${updated} diperbarui.`);
+    }catch(err){
+      console.error(err);
+      toast('Gagal membaca file Excel');
+    }
+    event.target.value='';
+  };
+  reader.readAsArrayBuffer(file);
+}
+function clearTrainingTargets(){
+  if(!confirm('Hapus semua data Target Training yang sudah diimpor?')) return;
+  state.trainingTargets = [];
+  saveState();
+  renderTrainingTargets();
+  renderDashboard();
+  toast('Data Target Training berhasil dibersihkan');
+}
+function resetTrainingTargetFilters(){
+  document.getElementById('tt-search').value = '';
+  document.getElementById('tt-company').value = '';
+  document.getElementById('tt-department').value = '';
+  document.getElementById('tt-status').value = '';
+  renderTrainingTargets();
+}
+function filterTrainingTargetsByStatus(key){
+  resetTrainingTargetFilters();
+  const sel = document.getElementById('tt-status');
+  if(sel){ sel.value = key; renderTrainingTargets(); }
+}
+function addTargetAsParticipant(id){
+  const t = state.trainingTargets.find(tt=>tt.id===id);
+  if(!t) return;
+  const already = findParticipantByName(t.name);
+  if(already){ toast('Nama ini sudah ada di data Peserta'); return; }
+  const pid = 'p'+Date.now();
+  state.participants.push({
+    id: pid, name: t.name, progress:{}, ...blankParticipantFields(),
+    posisi: t.designation || '', lokasi: t.location || '',
+    joinDate: t.joinDate || '', bln: monthNameFromDate(t.joinDate||''),
+    keterangan: t.company ? `Company: ${t.company}${t.department ? ' / '+t.department : ''}` : '',
+    noHp: t.contact || ''
+  });
+  logActivity(`Peserta "${t.name}" ditambahkan dari Target Training`);
+  saveState();
+  renderTrainingTargets();
+  renderParticipants();
+  renderDashboard();
+  renderModules();
+  renderQuizPicker();
+  toast(`"${t.name}" ditambahkan sebagai peserta baru`);
+}
+function removeTrainingTarget(id){
+  state.trainingTargets = state.trainingTargets.filter(tt=>tt.id!==id);
+  saveState();
+  renderTrainingTargets();
+  renderDashboard();
+}
+function fillSelectOptions(selectId, values, placeholder){
+  const sel = document.getElementById(selectId);
+  if(!sel) return;
+  const current = sel.value;
+  const unique = Array.from(new Set(values.filter(Boolean))).sort();
+  sel.innerHTML = `<option value="">${placeholder}</option>` + unique.map(v=>`<option value="${v}">${v}</option>`).join('');
+  if(unique.includes(current)) sel.value = current;
+}
+function renderTrainingTargets(){
+  const targets = state.trainingTargets || [];
+  fillSelectOptions('tt-company', targets.map(t=>t.company), 'Semua Company');
+  fillSelectOptions('tt-department', targets.map(t=>t.department), 'Semua Department');
+
+  const search = (document.getElementById('tt-search')?.value || '').trim().toLowerCase();
+  const fCompany = document.getElementById('tt-company')?.value || '';
+  const fDepartment = document.getElementById('tt-department')?.value || '';
+  const fStatus = document.getElementById('tt-status')?.value || '';
+
+  const enriched = targets.map(t=>({ t, st: trainingTargetStatus(t) }));
+
+  const filtered = enriched.filter(({t, st})=>{
+    if(fCompany && t.company!==fCompany) return false;
+    if(fDepartment && t.department!==fDepartment) return false;
+    if(fStatus && st.key!==fStatus) return false;
+    if(search){
+      const hay = [t.name,t.company,t.department,t.designation,t.location].filter(Boolean).join(' ').toLowerCase();
+      if(!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  const countEl = document.getElementById('tt-count');
+  if(countEl) countEl.innerText = `Menampilkan ${filtered.length} dari ${targets.length} target training`;
+
+  const tbody = document.getElementById('targettraining-list');
+  if(tbody){
+    tbody.innerHTML = filtered.length ? filtered.map(({t, st})=>`
+      <tr class="border-b" style="border-color:var(--line)">
+        <td class="py-2 pr-4 font-semibold">${t.name}</td>
+        <td class="py-2 pr-4">${t.company || '—'}</td>
+        <td class="py-2 pr-4">${t.department || '—'}</td>
+        <td class="py-2 pr-4">${t.designation || '—'}</td>
+        <td class="py-2 pr-4">${t.location || '—'}</td>
+        <td class="py-2 pr-4">${fmtDate(t.joinDate)}</td>
+        <td class="py-2 pr-4">${t.contact || '—'}</td>
+        <td class="py-2 pr-4"><span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase" style="${TT_STATUS_CLASS[st.key]}">${TT_STATUS_LABEL[st.key]}</span></td>
+        <td class="py-2 pr-4">
+          ${st.matched
+            ? `<button class="btn-ghost !py-1 !px-2" onclick="switchTab('participants')"><i class="fa-solid fa-eye mr-1"></i>Lihat Peserta</button>`
+            : `<button class="btn-primary !py-1 !px-2" onclick="addTargetAsParticipant('${t.id}')"><i class="fa-solid fa-plus mr-1"></i>Tambah Peserta</button>`
+          }
+          <button class="btn-ghost !py-1 !px-2 !text-red-600" onclick="removeTrainingTarget('${t.id}')"><i class="fa-solid fa-trash"></i></button>
+        </td>
+      </tr>
+    `).join('') : `<tr><td colspan="9" class="py-6 text-center text-slate-400">Belum ada data. Impor Excel Data Onboarding Employee untuk memulai.</td></tr>`;
+  }
 }
 
 /* ===================== CERTIFICATE ASSETS ===================== */
@@ -2955,6 +3260,7 @@ function renderAll(){
   renderModules();
   renderQuizPicker();
   renderParticipants();
+  renderTrainingTargets();
   renderCertificates();
 }
 /* ===================== AUTH (FIREBASE AUTHENTICATION) ===================== */
