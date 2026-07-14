@@ -2283,7 +2283,7 @@ function sendWaMateriReminder(id){
     belumBlocks.push(header);
   });
 
-  let msg = `Halo ${p.name || ''}, ini pengingat progress *SalesPro Academy* kamu.\n\n`;
+  let msg = `Halo, selamat pagi ${p.name || ''}, mengingat kamu adalah sales baru PT Raja Sukses Propertindo, diharapkan kamu mengerjakan materi ini.\n\n`;
   if(belumBlocks.length){
     msg += `Materi yang *belum diselesaikan* (${belumBlocks.length} modul):\n` + belumBlocks.map((t,i)=>`${i+1}. ${t}`).join('\n\n') + '\n\n';
     msg += 'Mohon segera diselesaikan ya, terima kasih! 🙏';
