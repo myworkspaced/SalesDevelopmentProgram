@@ -297,37 +297,44 @@
 
         <div class="card p-5">
           <p class="text-sm font-bold mb-4">Status Kelulusan Peserta</p>
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div class="rounded-xl p-4" style="background:#f0fdf4;border:1px solid #bbf7d0">
+          <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div class="rounded-xl p-4 cursor-pointer transition hover:shadow-md hover:-translate-y-0.5" style="background:#f0fdf4;border:1px solid #bbf7d0" onclick="filterParticipantsByStatus('lulus')" title="Lihat daftar peserta Lulus">
               <div class="flex items-center justify-between mb-1">
                 <span class="text-[11px] font-bold text-emerald-700 uppercase">Lulus</span>
                 <i class="fa-solid fa-circle-check text-emerald-500"></i>
               </div>
               <p id="status-lulus" class="text-2xl font-extrabold mono text-emerald-700">0</p>
             </div>
-            <div class="rounded-xl p-4" style="background:#fef2f2;border:1px solid #fecaca">
+            <div class="rounded-xl p-4 cursor-pointer transition hover:shadow-md hover:-translate-y-0.5" style="background:#fef2f2;border:1px solid #fecaca" onclick="filterParticipantsByStatus('selesai_belum_lulus')" title="Lihat daftar peserta Tidak Lulus">
               <div class="flex items-center justify-between mb-1">
                 <span class="text-[11px] font-bold text-red-700 uppercase">Tidak Lulus</span>
                 <i class="fa-solid fa-circle-xmark text-red-500"></i>
               </div>
               <p id="status-tidaklulus" class="text-2xl font-extrabold mono text-red-700">0</p>
             </div>
-            <div class="rounded-xl p-4" style="background:#fffbeb;border:1px solid #fde68a">
+            <div class="rounded-xl p-4 cursor-pointer transition hover:shadow-md hover:-translate-y-0.5" style="background:#fffbeb;border:1px solid #fde68a" onclick="filterParticipantsByStatus('berjalan')" title="Lihat daftar peserta Sedang Berjalan">
               <div class="flex items-center justify-between mb-1">
                 <span class="text-[11px] font-bold text-amber-700 uppercase">Sedang Berjalan</span>
                 <i class="fa-solid fa-spinner text-amber-500"></i>
               </div>
               <p id="status-berjalan" class="text-2xl font-extrabold mono text-amber-700">0</p>
             </div>
-            <div class="rounded-xl p-4" style="background:#f8fafc;border:1px solid var(--line)">
+            <div class="rounded-xl p-4 cursor-pointer transition hover:shadow-md hover:-translate-y-0.5" style="background:#f8fafc;border:1px solid var(--line)" onclick="filterParticipantsByStatus('belum')" title="Lihat daftar peserta Belum Mulai">
               <div class="flex items-center justify-between mb-1">
                 <span class="text-[11px] font-bold text-slate-500 uppercase">Belum Mulai</span>
                 <i class="fa-solid fa-circle-pause text-slate-400"></i>
               </div>
               <p id="status-belummulai" class="text-2xl font-extrabold mono text-slate-500">0</p>
             </div>
+            <div class="rounded-xl p-4 cursor-pointer transition hover:shadow-md hover:-translate-y-0.5" style="background:#fef2f2;border:1px solid #fecaca" onclick="filterParticipantsByStatus('mundur')" title="Lihat daftar peserta Mundur">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-[11px] font-bold text-red-700 uppercase">Mundur</span>
+                <i class="fa-solid fa-person-walking-arrow-right text-red-500"></i>
+              </div>
+              <p id="status-mundur" class="text-2xl font-extrabold mono text-red-700">0</p>
+            </div>
           </div>
-          <p class="text-[11px] text-slate-400 mt-3">"Sedang Berjalan" &amp; "Belum Mulai" berarti peserta belum menyelesaikan seluruh modul. "Tidak Lulus" berarti seluruh modul sudah selesai namun rata-rata skor kuis di bawah 70.</p>
+          <p class="text-[11px] text-slate-400 mt-3">Klik salah satu kartu untuk melihat daftar namanya. "Sedang Berjalan" &amp; "Belum Mulai" berarti peserta belum menyelesaikan seluruh modul. "Tidak Lulus" berarti seluruh modul sudah selesai namun rata-rata skor kuis di bawah 70. "Mundur" berarti peserta sudah ditandai resign/keluar.</p>
         </div>
 
         <div class="card p-5">
@@ -605,6 +612,7 @@
                 <option value="selesai_belum_lulus">Selesai, Belum Lulus</option>
                 <option value="berjalan">Sedang Berjalan</option>
                 <option value="belum">Belum Mulai</option>
+                <option value="mundur">Mundur</option>
               </select>
             </div>
             <button class="btn-ghost" onclick="resetParticipantFilters()"><i class="fa-solid fa-filter-circle-xmark mr-1"></i>Reset Filter</button>
@@ -679,6 +687,7 @@
                 <option value="berjalan">Sedang Berjalan</option>
                 <option value="selesai_belum_lulus">Selesai, Belum Lulus</option>
                 <option value="lulus">Lulus</option>
+                <option value="mundur">Mundur</option>
               </select>
             </div>
             <button class="btn-ghost" onclick="resetTrainingTargetFilters()"><i class="fa-solid fa-filter-circle-xmark mr-1"></i>Reset Filter</button>
@@ -1591,6 +1600,15 @@ function rebuildModules(){
       .filter((l,idx)=> !modDeleted.includes(idx));
     return { ...m, lessons: baseLessons.concat(modCustomLessons) };
   });
+  // Terapkan urutan modul kustom (drag/atur manual). ID modul baru yang belum
+  // ada di daftar urutan otomatis ditambahkan di akhir, dan ID yang sudah
+  // terhapus otomatis dibersihkan, supaya urutan tetap konsisten.
+  if(!Array.isArray(state.moduleOrder)) state.moduleOrder = [];
+  const currentIds = MODULES.map(m=>m.id);
+  currentIds.forEach(id=>{ if(!state.moduleOrder.includes(id)) state.moduleOrder.push(id); });
+  state.moduleOrder = state.moduleOrder.filter(id=>currentIds.includes(id));
+  const orderIndex = state.moduleOrder;
+  MODULES.sort((a,b)=> orderIndex.indexOf(a.id) - orderIndex.indexOf(b.id));
 }
 rebuildModules();
 let pendingLesson = null;
@@ -1647,7 +1665,8 @@ function defaultState(){
     lessonOverrides:{},
     customLessons:{},
     deletedLessonIdx:{},
-    trainingTargets:[]
+    trainingTargets:[],
+    moduleOrder:[]
   };
 }
 function normalizeState(parsed){
@@ -1660,6 +1679,7 @@ function normalizeState(parsed){
   if(!parsed.deletedLessonIdx) parsed.deletedLessonIdx = {};
   if(!parsed.activityLog) parsed.activityLog = [];
   if(!Array.isArray(parsed.trainingTargets)) parsed.trainingTargets = [];
+  if(!Array.isArray(parsed.moduleOrder)) parsed.moduleOrder = [];
   return parsed;
 }
 function loadState(){
@@ -1927,8 +1947,9 @@ function renderDashboard(){
   document.getElementById('kpi-avgscore').innerText = allScores.length ? Math.round(allScores.reduce((a,b)=>a+b,0)/allScores.length) : '—';
   document.getElementById('kpi-certs').innerText = scoped.filter(isCertified).length;
 
-  let cLulus=0, cTidakLulus=0, cBerjalan=0, cBelumMulai=0;
+  let cLulus=0, cTidakLulus=0, cBerjalan=0, cBelumMulai=0, cMundur=0;
   scoped.forEach(p=>{
+    if(p.resignDate){ cMundur++; return; }
     const pct = overallProgressPct(p);
     if(pct===100){ isCertified(p) ? cLulus++ : cTidakLulus++; }
     else if(pct>0){ cBerjalan++; }
@@ -1938,6 +1959,7 @@ function renderDashboard(){
   document.getElementById('status-tidaklulus').innerText = cTidakLulus;
   document.getElementById('status-berjalan').innerText = cBerjalan;
   document.getElementById('status-belummulai').innerText = cBelumMulai;
+  document.getElementById('status-mundur').innerText = cMundur;
 
   const targets = state.trainingTargets || [];
   let tBelum=0, tBerjalan=0, tLulus=0;
@@ -1992,6 +2014,7 @@ function renderResume(){
     let statusBadge = '<span class="badge badge-slate">Belum Mulai</span>';
     if(pct>0 && pct<100) statusBadge = '<span class="badge badge-amber">Sedang Berjalan</span>';
     if(pct===100) statusBadge = isCertified(p) ? `<span class="badge badge-green">Lulus${p.manualLulus?' <i class="fa-solid fa-user-pen ml-1" title="Diatur manual oleh admin"></i>':''}</span>` : '<span class="badge badge-red">Selesai, Belum Lulus</span>';
+    if(p.resignDate) statusBadge = '<span class="badge badge-red"><i class="fa-solid fa-person-walking-arrow-right mr-1"></i>Mundur</span>';
     return `<tr class="border-b cursor-pointer hover:bg-slate-50" style="border-color:var(--line)" onclick="openPesertaDetail('${p.id}')">
       <td class="py-2 pr-3 font-semibold">${p.name}<div class="text-slate-400 font-normal">${p.posisi || '—'}</div></td>
       <td class="py-2 pr-3">${done} / ${wajibModules().length}</td>
@@ -2205,10 +2228,16 @@ function renderPesertaDetail(id){
       <div>
         <p class="text-xs font-bold mb-0.5"><i class="fa-solid fa-award mr-1"></i>Status Kelulusan</p>
         <p class="text-[11px] text-slate-400">${p.manualLulus ? 'Ditandai <b>Lulus</b> secara manual oleh admin, terlepas dari progress modul.' : (isCertified(p) ? 'Lulus otomatis berdasar progress modul & skor kuis.' : 'Belum lulus berdasar progress modul & skor kuis saat ini.')}</p>
+        ${p.resignDate ? `<p class="text-[11px] text-red-500 font-semibold mt-1"><i class="fa-solid fa-person-walking-arrow-right mr-1"></i>Mundur sejak ${fmtDate(p.resignDate)}</p>` : ''}
       </div>
-      <button class="${p.manualLulus ? 'btn-ghost !text-red-600' : 'btn-primary'}" onclick="toggleManualLulus('${p.id}')">
-        ${p.manualLulus ? '<i class="fa-solid fa-rotate-left mr-1"></i>Batalkan Lulus Manual' : '<i class="fa-solid fa-check mr-1"></i>Tandai Lulus Manual'}
-      </button>
+      <div class="flex items-center gap-2 flex-wrap">
+        <button class="${p.manualLulus ? 'btn-ghost !text-red-600' : 'btn-primary'}" onclick="toggleManualLulus('${p.id}')">
+          ${p.manualLulus ? '<i class="fa-solid fa-rotate-left mr-1"></i>Batalkan Lulus Manual' : '<i class="fa-solid fa-check mr-1"></i>Tandai Lulus Manual'}
+        </button>
+        <button class="${p.resignDate ? 'btn-ghost !text-red-600' : 'btn-ghost'}" onclick="toggleMundur('${p.id}')">
+          ${p.resignDate ? '<i class="fa-solid fa-rotate-left mr-1"></i>Batalkan Mundur' : '<i class="fa-solid fa-person-walking-arrow-right mr-1"></i>Tandai Mundur'}
+        </button>
+      </div>
     </div>
 
     <div class="card p-4 mb-4" style="background:#f8fafc">
@@ -2233,6 +2262,27 @@ function toggleManualLulus(id){
     p.manualLulus = true;
     logActivity(`${p.name} ditandai Lulus secara manual`);
     toast(`${p.name} ditandai Lulus`);
+  }
+  saveState();
+  renderPesertaDetail(id);
+  renderResume();
+  renderDashboard();
+  renderParticipants();
+  renderCertificates();
+}
+function toggleMundur(id){
+  const p = getParticipant(id);
+  if(!p) return;
+  if(p.resignDate){
+    if(!confirm(`Batalkan status Mundur untuk ${p.name}? Tanggal resign akan dikosongkan kembali.`)) return;
+    p.resignDate = '';
+    logActivity(`Status mundur dibatalkan untuk ${p.name}`);
+    toast('Status mundur dibatalkan');
+  } else {
+    if(!confirm(`Tandai ${p.name} sebagai Mundur hari ini? Tanggal resign akan diisi otomatis dengan tanggal hari ini.`)) return;
+    p.resignDate = new Date().toISOString().slice(0,10);
+    logActivity(`${p.name} ditandai Mundur`);
+    toast(`${p.name} ditandai Mundur`);
   }
   saveState();
   renderPesertaDetail(id);
@@ -2302,13 +2352,17 @@ function sendWaMateriReminder(id){
 function renderModules(){
   const all = state.participants;
   const wrap = document.getElementById('modules-list');
-  wrap.innerHTML = MODULES.map(m=>{
+  wrap.innerHTML = MODULES.map((m,idx)=>{
     const pct = all.length ? Math.round(all.map(p=>moduleCompletionPct(p,m)).reduce((a,b)=>a+b,0)/all.length) : 0;
     const scores = all.map(p=>p.progress[m.id]?.quizScore).filter(s=>s!==null && s!==undefined);
     const avgScore = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : null;
     return `<div class="card p-5">
       <div class="flex items-start justify-between mb-3">
         <div class="flex items-center gap-3">
+          <div class="flex flex-col -my-1 mr-0.5">
+            <button class="text-slate-300 hover:text-emerald-600 text-xs leading-none px-1 py-0.5 disabled:opacity-20 disabled:cursor-not-allowed" title="Pindah ke atas" onclick="moveModule('${m.id}',-1)" ${idx===0?'disabled':''}><i class="fa-solid fa-chevron-up"></i></button>
+            <button class="text-slate-300 hover:text-emerald-600 text-xs leading-none px-1 py-0.5 disabled:opacity-20 disabled:cursor-not-allowed" title="Pindah ke bawah" onclick="moveModule('${m.id}',1)" ${idx===MODULES.length-1?'disabled':''}><i class="fa-solid fa-chevron-down"></i></button>
+          </div>
           <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:#f0fdf6;color:var(--brand-600)"><i class="fa-solid ${m.icon}"></i></div>
           <div><p class="font-bold text-sm">${m.title} ${m.day?`<span class="badge badge-slate ml-1">${m.day}</span>`:''} <span class="badge ${(m.kategori||'wajib')==='additional'?'badge-amber':'badge-green'} ml-1">${(m.kategori||'wajib')==='additional'?'Additional':'Wajib'}</span></p><p class="text-xs text-slate-400">${m.desc}</p></div>
         </div>
@@ -2340,6 +2394,17 @@ function renderModules(){
   }).join('');
 }
 
+function moveModule(id, dir){
+  const order = state.moduleOrder;
+  const i = order.indexOf(id);
+  const j = i + dir;
+  if(i<0 || j<0 || j>=order.length) return;
+  [order[i], order[j]] = [order[j], order[i]];
+  saveState();
+  rebuildModules();
+  renderModules(); renderDashboard(); renderResume(); renderQuizPicker(); renderTrainingTargets();
+  logActivity(`Urutan modul diubah: ${MODULES.find(m=>m.id===id)?.title || id}`);
+}
 function openAddModule(){
   document.getElementById('nm-title').value = '';
   document.getElementById('nm-day').value = '';
@@ -2525,10 +2590,17 @@ function fmtDate(d){
   return new Date(d).toLocaleDateString('id-ID', {day:'2-digit', month:'short', year:'numeric'});
 }
 function participantStatusKey(p){
+  if(p.resignDate) return 'mundur';
   const pct = overallProgressPct(p);
   if(pct===0) return 'belum';
   if(pct<100) return 'berjalan';
   return isCertified(p) ? 'lulus' : 'selesai_belum_lulus';
+}
+function filterParticipantsByStatus(statusKey){
+  switchTab('participants');
+  resetParticipantFilters();
+  document.getElementById('pf-status').value = statusKey;
+  renderParticipants();
 }
 function resetParticipantFilters(){
   document.getElementById('pf-search').value = '';
@@ -2871,13 +2943,14 @@ function trainingTargetStatus(target){
 }
 const TT_STATUS_LABEL = {
   belum: 'Belum Training', berjalan: 'Sedang Berjalan',
-  selesai_belum_lulus: 'Selesai, Belum Lulus', lulus: 'Lulus'
+  selesai_belum_lulus: 'Selesai, Belum Lulus', lulus: 'Lulus', mundur: 'Mundur'
 };
 const TT_STATUS_CLASS = {
   belum: 'background:#fef2f2;color:#b91c1c;border:1px solid #fecaca',
   berjalan: 'background:#fffbeb;color:#92400e;border:1px solid #fde68a',
   selesai_belum_lulus: 'background:#f1f5f9;color:#334155;border:1px solid var(--line)',
-  lulus: 'background:#f0fdf4;color:#065f46;border:1px solid #bbf7d0'
+  lulus: 'background:#f0fdf4;color:#065f46;border:1px solid #bbf7d0',
+  mundur: 'background:#fef2f2;color:#b91c1c;border:1px solid #fecaca'
 };
 function importTrainingTargetsExcel(event){
   const file = event.target.files[0];
@@ -3149,8 +3222,9 @@ function exportDashboardExcel(){
 
   const allScores = scoped.map(p=>avgQuizScore(p)).filter(s=>s!==null);
   const avgScoreAll = allScores.length ? Math.round(allScores.reduce((a,b)=>a+b,0)/allScores.length) : '—';
-  let cLulus=0, cTidakLulus=0, cBerjalan=0, cBelumMulai=0;
+  let cLulus=0, cTidakLulus=0, cBerjalan=0, cBelumMulai=0, cMundur=0;
   scoped.forEach(p=>{
+    if(p.resignDate){ cMundur++; return; }
     const pct = overallProgressPct(p);
     if(pct===100){ isCertified(p) ? cLulus++ : cTidakLulus++; }
     else if(pct>0){ cBerjalan++; }
@@ -3175,7 +3249,8 @@ function exportDashboardExcel(){
     ['Lulus', cLulus],
     ['Tidak Lulus', cTidakLulus],
     ['Sedang Berjalan', cBerjalan],
-    ['Belum Mulai', cBelumMulai]
+    ['Belum Mulai', cBelumMulai],
+    ['Mundur', cMundur]
   ];
 
   const resumeRows = [
@@ -3188,6 +3263,7 @@ function exportDashboardExcel(){
     let status = 'Belum Mulai';
     if(pct>0 && pct<100) status = 'Sedang Berjalan';
     if(pct===100) status = isCertified(p) ? 'Lulus' : 'Selesai, Belum Lulus';
+    if(p.resignDate) status = 'Mundur';
     resumeRows.push([p.name, p.posisi || '—', done, wajibModules().length, pct, score===null?'—':score, status]);
   });
 
