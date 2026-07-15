@@ -10,10 +10,12 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
   // Firebase project config — powers cloud login (Firebase Auth) and
   // cloud data sync (Firestore) so the same data shows on every device.
@@ -29,6 +31,7 @@
   firebase.initializeApp(firebaseConfig);
   const fbAuth = firebase.auth();
   const fbDb = firebase.firestore();
+  const fbStorage = firebase.storage();
   // Single shared workspace document for all app data (state, GCI data, posisi scope).
   const FB_DOC = fbDb.collection('salespro_academy').doc('workspace');
 </script>
@@ -70,6 +73,13 @@
 
   .lesson-row{border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px;transition:.15s}
   .lesson-row:hover{border-color:var(--brand-400)}
+  .module-drag-handle{cursor:grab;color:#cbd5e1;padding:2px 4px}
+  .module-drag-handle:hover{color:var(--brand-600)}
+  .module-card.module-drag-ghost{opacity:.4;background:#f0fdf6;border:1px dashed var(--brand-400)}
+  .module-card.module-drag-chosen{box-shadow:0 14px 28px -10px rgba(12,18,32,.22)}
+  .module-card{transition:box-shadow .15s}
+  .import-spinner{width:44px;height:44px;border:4px solid rgba(15,23,42,.10);border-top-color:var(--brand-600);border-radius:50%;animation:import-spin .8s linear infinite}
+  @keyframes import-spin{to{transform:rotate(360deg)}}
   .quiz-option{border:1px solid var(--line);border-radius:10px;padding:10px 14px;cursor:pointer;transition:.15s;font-size:.8125rem}
   .quiz-option:hover{border-color:var(--brand-500);background:#f0fdf6}
   .quiz-option.selected{border-color:var(--brand-600);background:#dcfce7;font-weight:700}
@@ -155,6 +165,10 @@
       </a>
 
       <div class="eyebrow px-3 mt-4 mb-2">Sistem</div>
+      <a href="#" onclick="switchTab('trash');return false" id="nav-trash" class="nav-item">
+        <i class="icon fa-solid fa-trash-can"></i><span>Sampah</span>
+        <span id="trash-badge" class="hidden ml-auto text-[10px] font-extrabold px-1.5 py-0.5 rounded-full" style="background:#dc2626;color:#fff">0</span>
+      </a>
       <a href="#" onclick="switchTab('settings');return false" id="nav-settings" class="nav-item">
         <i class="icon fa-solid fa-gear"></i><span>Pengaturan</span>
       </a>
@@ -560,16 +574,16 @@
               <label class="text-[10px] font-bold text-slate-400 uppercase">Cari</label>
               <div class="relative">
                 <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
-                <input id="pf-search" type="text" placeholder="Cari nama, username, lokasi, mentor..." class="field !pl-8" oninput="renderParticipants()">
+                <input id="pf-search" type="text" placeholder="Cari nama, username, lokasi, mentor..." class="field !pl-8" oninput="onParticipantFilterChange()">
               </div>
             </div>
             <div>
               <label class="text-[10px] font-bold text-slate-400 uppercase">Bln</label>
-              <select id="pf-bln" class="field" onchange="renderParticipants()"><option value="">Semua Bln</option></select>
+              <select id="pf-bln" class="field" onchange="onParticipantFilterChange()"><option value="">Semua Bln</option></select>
             </div>
             <div>
               <label class="text-[10px] font-bold text-slate-400 uppercase">Batch</label>
-              <select id="pf-batch" class="field" onchange="renderParticipants()"><option value="">Semua Batch</option></select>
+              <select id="pf-batch" class="field" onchange="onParticipantFilterChange()"><option value="">Semua Batch</option></select>
             </div>
             <div>
               <label class="text-[10px] font-bold text-slate-400 uppercase">Posisi <span class="text-slate-300 normal-case font-normal">(maks. 5)</span></label>
@@ -586,27 +600,27 @@
             </div>
             <div>
               <label class="text-[10px] font-bold text-slate-400 uppercase">Lokasi</label>
-              <select id="pf-lokasi" class="field" onchange="renderParticipants()"><option value="">Semua Lokasi</option></select>
+              <select id="pf-lokasi" class="field" onchange="onParticipantFilterChange()"><option value="">Semua Lokasi</option></select>
             </div>
             <div>
               <label class="text-[10px] font-bold text-slate-400 uppercase">ABM/Spv/Mentor</label>
-              <select id="pf-mentor" class="field" onchange="renderParticipants()"><option value="">Semua Mentor</option></select>
+              <select id="pf-mentor" class="field" onchange="onParticipantFilterChange()"><option value="">Semua Mentor</option></select>
             </div>
             <div>
               <label class="text-[10px] font-bold text-slate-400 uppercase">Branch Manager</label>
-              <select id="pf-branchmanager" class="field" onchange="renderParticipants()"><option value="">Semua BM</option></select>
+              <select id="pf-branchmanager" class="field" onchange="onParticipantFilterChange()"><option value="">Semua BM</option></select>
             </div>
             <div>
               <label class="text-[10px] font-bold text-slate-400 uppercase">Regional Manager</label>
-              <select id="pf-regionalmanager" class="field" onchange="renderParticipants()"><option value="">Semua RM</option></select>
+              <select id="pf-regionalmanager" class="field" onchange="onParticipantFilterChange()"><option value="">Semua RM</option></select>
             </div>
             <div>
               <label class="text-[10px] font-bold text-slate-400 uppercase">PIC Recruitment</label>
-              <select id="pf-picrecruitment" class="field" onchange="renderParticipants()"><option value="">Semua PIC</option></select>
+              <select id="pf-picrecruitment" class="field" onchange="onParticipantFilterChange()"><option value="">Semua PIC</option></select>
             </div>
             <div>
               <label class="text-[10px] font-bold text-slate-400 uppercase">Status</label>
-              <select id="pf-status" class="field" onchange="renderParticipants()">
+              <select id="pf-status" class="field" onchange="onParticipantFilterChange()">
                 <option value="">Semua Status</option>
                 <option value="lulus">Lulus</option>
                 <option value="selesai_belum_lulus">Selesai, Belum Lulus</option>
@@ -622,30 +636,12 @@
           <div class="overflow-x-auto">
             <table class="w-full text-xs whitespace-nowrap">
               <thead>
-                <tr class="text-left text-slate-400 uppercase text-[10px] font-bold border-b" style="border-color:var(--line)">
-                  <th class="py-2 pr-4">Username</th>
-                  <th class="py-2 pr-4">Nama</th>
-                  <th class="py-2 pr-4">Posisi</th>
-                  <th class="py-2 pr-4">Bln</th>
-                  <th class="py-2 pr-4">Batch</th>
-                  <th class="py-2 pr-4">Lokasi</th>
-                  <th class="py-2 pr-4">ABM/Spv/Mentor</th>
-                  <th class="py-2 pr-4">Branch Manager</th>
-                  <th class="py-2 pr-4">Regional Manager</th>
-                  <th class="py-2 pr-4">PIC Recruitment</th>
-                  <th class="py-2 pr-4">No HP</th>
-                  <th class="py-2 pr-4">Join Date</th>
-                  <th class="py-2 pr-4">Resign Date</th>
-                  <th class="py-2 pr-4">Usia Join (Hari)</th>
-                  <th class="py-2 pr-4">Keterangan</th>
-                  <th class="py-2 pr-4">Progress Training</th>
-                  <th class="py-2 pr-4">Skor</th>
-                  <th class="py-2 pr-4">Aksi</th>
-                </tr>
+                <tr id="participants-thead-row" class="text-left text-slate-400 uppercase text-[10px] font-bold border-b" style="border-color:var(--line)"></tr>
               </thead>
               <tbody id="participants-list"></tbody>
             </table>
           </div>
+          <div id="participants-pagination" class="flex items-center justify-between flex-wrap gap-2 mt-3 pt-3 border-t text-[11px]" style="border-color:var(--line)"></div>
         </div>
       </div>
 
@@ -723,6 +719,23 @@
         </div>
       </div>
 
+      <!-- ================= TRASH ================= -->
+      <div id="tab-trash" class="tab-hidden space-y-6">
+        <div class="card p-5">
+          <div class="flex items-center justify-between mb-1">
+            <p class="text-sm font-bold">Sampah</p>
+            <button class="btn-ghost !py-1.5 !px-3 text-[11px]" onclick="emptyTrash()"><i class="fa-solid fa-trash-can mr-1"></i>Kosongkan Sampah</button>
+          </div>
+          <p class="text-xs text-slate-400 mb-4">Peserta, modul, dan materi yang dihapus muncul di sini dan bisa dipulihkan. Item otomatis terhapus permanen setelah 30 hari.</p>
+          <div id="trash-list" class="space-y-2"></div>
+          <div id="trash-empty-state" class="hidden text-center py-10 text-slate-400">
+            <i class="fa-solid fa-box-open text-3xl mb-2"></i>
+            <p class="text-sm font-semibold">Sampah kosong</p>
+            <p class="text-xs">Item yang kamu hapus akan muncul di sini.</p>
+          </div>
+        </div>
+      </div>
+
       <!-- ================= SETTINGS ================= -->
       <div id="tab-settings" class="tab-hidden space-y-6">
         <div class="card p-5 max-w-lg">
@@ -757,6 +770,14 @@
 </div>
 
 <!-- Modal: lesson content -->
+<!-- Overlay: sedang mengimpor data -->
+<div id="import-loading-overlay" class="hidden" style="position:fixed;inset:0;z-index:999;background:rgba(15,23,42,.45);align-items:center;justify-content:center;backdrop-filter:blur(1px)">
+  <div class="card p-7 flex flex-col items-center gap-3" style="min-width:230px">
+    <div class="import-spinner"></div>
+    <p id="import-loading-text" class="text-sm font-bold text-slate-600">Sedang mengimpor data...</p>
+  </div>
+</div>
+
 <div id="lesson-modal" class="modal-overlay hidden">
   <div class="card p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto">
     <div class="flex items-center justify-between mb-3">
@@ -765,6 +786,7 @@
     </div>
     <p id="lesson-modal-content" class="text-sm text-slate-600 leading-relaxed whitespace-pre-line"></p>
     <p id="lesson-modal-for" class="text-[11px] text-slate-400 mt-3"></p>
+    <div id="lesson-modal-preview" class="mt-3 hidden"></div>
     <div class="mt-4 pt-3 border-t" style="border-color:var(--line)">
       <label class="text-[10px] font-bold text-slate-400 uppercase">Link Materi (URL video/dokumen)</label>
       <div class="flex items-center gap-2 mt-1">
@@ -772,6 +794,18 @@
         <button class="btn-primary !py-2 !px-3 text-xs flex-shrink-0" onclick="saveLessonLink()" title="Simpan link"><i class="fa-solid fa-floppy-disk"></i></button>
       </div>
       <a id="lesson-modal-link-open" href="#" target="_blank" rel="noopener" class="hidden btn-ghost inline-flex items-center gap-1.5 !py-1.5 !px-3 text-[11px] mt-2"><i class="fa-solid fa-arrow-up-right-from-square"></i> Buka Link Materi</a>
+    </div>
+    <div class="mt-3 pt-3 border-t" style="border-color:var(--line)">
+      <label class="text-[10px] font-bold text-slate-400 uppercase">Atau Upload File Langsung</label>
+      <p class="text-[10px] text-slate-400 mb-1.5">Video maks. 100MB &middot; PDF maks. 50MB</p>
+      <label class="btn-ghost cursor-pointer inline-flex items-center gap-1.5 !py-1.5 !px-3 text-[11px]">
+        <i class="fa-solid fa-file-arrow-up"></i> Pilih File
+        <input id="lesson-modal-file-input" type="file" accept="video/*,application/pdf" class="hidden" onchange="uploadLessonFile(this)">
+      </label>
+      <div id="lesson-upload-progress-wrap" class="hidden mt-2">
+        <div class="progress-track"><div id="lesson-upload-progress-fill" class="progress-fill" style="width:0%"></div></div>
+        <p id="lesson-upload-progress-label" class="text-[11px] text-slate-400 mt-1">Mengunggah... 0%</p>
+      </div>
     </div>
   </div>
 </div>
@@ -1488,10 +1522,26 @@ function gciExcelDateToISO(val){
   if(!isNaN(parsed)) return parsed.toISOString();
   return null;
 }
+function showImportLoading(text){
+  const overlay = document.getElementById('import-loading-overlay');
+  if(!overlay) return;
+  const label = document.getElementById('import-loading-text');
+  if(label) label.innerText = text || 'Sedang mengimpor data...';
+  overlay.classList.remove('hidden');
+  overlay.style.display = 'flex';
+}
+function hideImportLoading(){
+  const overlay = document.getElementById('import-loading-overlay');
+  if(!overlay) return;
+  overlay.classList.add('hidden');
+  overlay.style.display = 'none';
+}
 function importGciExcel(event){
   const file = event.target.files[0];
   if(!file) return;
+  showImportLoading('Sedang mengimpor data GCI...');
   const reader = new FileReader();
+  reader.onerror = ()=>{ hideImportLoading(); toast('Gagal membaca file'); event.target.value=''; };
   reader.onload = e=>{
     try{
       const data = new Uint8Array(e.target.result);
@@ -1552,6 +1602,7 @@ function importGciExcel(event){
       console.error(err);
       toast('Gagal membaca file Excel GCI');
     }
+    hideImportLoading();
     event.target.value='';
   };
   reader.readAsArrayBuffer(file);
@@ -1666,7 +1717,8 @@ function defaultState(){
     customLessons:{},
     deletedLessonIdx:{},
     trainingTargets:[],
-    moduleOrder:[]
+    moduleOrder:[],
+    trash:[]
   };
 }
 function normalizeState(parsed){
@@ -1680,6 +1732,7 @@ function normalizeState(parsed){
   if(!parsed.activityLog) parsed.activityLog = [];
   if(!Array.isArray(parsed.trainingTargets)) parsed.trainingTargets = [];
   if(!Array.isArray(parsed.moduleOrder)) parsed.moduleOrder = [];
+  if(!Array.isArray(parsed.trash)) parsed.trash = [];
   return parsed;
 }
 function loadState(){
@@ -1843,6 +1896,7 @@ function switchTab(tab){
     modules:['Konten Training','Modul Training'], quiz:['Penilaian','Kuis & Penilaian'],
     participants:['Tim','Peserta & Progress'], targettraining:['Onboarding','Target Training'],
     certificates:['Kelulusan','Sertifikat'],
+    trash:['Sistem','Sampah'],
     settings:['Sistem','Pengaturan']
   };
   document.getElementById('page-eyebrow').innerText = titles[tab][0];
@@ -1854,6 +1908,7 @@ function switchTab(tab){
   if(tab==='participants') renderParticipants();
   if(tab==='targettraining') renderTrainingTargets();
   if(tab==='certificates') renderCertificates();
+  if(tab==='trash') renderTrash();
   if(tab==='settings'){
     const accUsername = document.getElementById('acc-username');
     if(accUsername && fbAuth.currentUser) accUsername.value = fbAuth.currentUser.email || '';
@@ -2356,9 +2411,10 @@ function renderModules(){
     const pct = all.length ? Math.round(all.map(p=>moduleCompletionPct(p,m)).reduce((a,b)=>a+b,0)/all.length) : 0;
     const scores = all.map(p=>p.progress[m.id]?.quizScore).filter(s=>s!==null && s!==undefined);
     const avgScore = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : null;
-    return `<div class="card p-5">
+    return `<div class="card module-card p-5" data-module-id="${m.id}">
       <div class="flex items-start justify-between mb-3">
         <div class="flex items-center gap-3">
+          <i class="fa-solid fa-grip-vertical module-drag-handle" title="Seret untuk urutkan"></i>
           <div class="flex flex-col -my-1 mr-0.5">
             <button class="text-slate-300 hover:text-emerald-600 text-xs leading-none px-1 py-0.5 disabled:opacity-20 disabled:cursor-not-allowed" title="Pindah ke atas" onclick="moveModule('${m.id}',-1)" ${idx===0?'disabled':''}><i class="fa-solid fa-chevron-up"></i></button>
             <button class="text-slate-300 hover:text-emerald-600 text-xs leading-none px-1 py-0.5 disabled:opacity-20 disabled:cursor-not-allowed" title="Pindah ke bawah" onclick="moveModule('${m.id}',1)" ${idx===MODULES.length-1?'disabled':''}><i class="fa-solid fa-chevron-down"></i></button>
@@ -2392,6 +2448,32 @@ function renderModules(){
       <button class="btn-ghost w-full mt-3 !py-1.5 text-[11px]" onclick="openAddLesson('${m.id}')"><i class="fa-solid fa-plus mr-1"></i>Tambah Materi</button>
     </div>`;
   }).join('');
+  initModuleSortable();
+}
+
+let moduleSortableInstance = null;
+function initModuleSortable(){
+  const el = document.getElementById('modules-list');
+  if(!el || typeof Sortable === 'undefined') return;
+  if(moduleSortableInstance){ moduleSortableInstance.destroy(); moduleSortableInstance = null; }
+  moduleSortableInstance = Sortable.create(el, {
+    handle: '.module-drag-handle',
+    animation: 150,
+    ghostClass: 'module-drag-ghost',
+    chosenClass: 'module-drag-chosen',
+    onEnd: function(evt){
+      if(evt.oldIndex === evt.newIndex || evt.oldIndex==null || evt.newIndex==null) return;
+      const order = state.moduleOrder.slice();
+      const movedId = order[evt.oldIndex];
+      order.splice(evt.oldIndex, 1);
+      order.splice(evt.newIndex, 0, movedId);
+      state.moduleOrder = order;
+      saveState();
+      rebuildModules();
+      renderModules(); renderDashboard(); renderResume(); renderQuizPicker(); renderTrainingTargets();
+      logActivity(`Urutan modul diubah (drag & drop): ${MODULES.find(m=>m.id===movedId)?.title || movedId}`);
+    }
+  });
 }
 
 function moveModule(id, dir){
@@ -2433,23 +2515,164 @@ function saveModule(){
   logActivity(`Modul baru ditambahkan: ${title}`);
   toast('Modul ditambahkan');
 }
+/* ===================== TRASH BIN ===================== */
+const TRASH_RETENTION_DAYS = 30;
+function addToTrash(type, label, payload){
+  state.trash.unshift({
+    id: 'trash_' + Date.now() + Math.floor(Math.random()*10000),
+    type, label,
+    deletedAt: new Date().toISOString(),
+    payload
+  });
+  saveState();
+}
+function purgeOldTrash(){
+  const cutoff = Date.now() - TRASH_RETENTION_DAYS*24*60*60*1000;
+  const before = state.trash.length;
+  state.trash = state.trash.filter(t=> new Date(t.deletedAt).getTime() >= cutoff);
+  if(state.trash.length !== before) saveState();
+}
+function trashTypeLabel(type){
+  return {participant:'Peserta', module:'Modul', lesson:'Materi'}[type] || type;
+}
+function trashTypeIcon(type){
+  return {participant:'fa-user', module:'fa-book', lesson:'fa-file-lines'}[type] || 'fa-box-archive';
+}
+function restoreTrashItem(trashId){
+  const item = state.trash.find(t=>t.id===trashId);
+  if(!item) return;
+  if(item.type === 'participant'){
+    state.participants.push(item.payload.participant);
+  } else if(item.type === 'module'){
+    if(item.payload.moduleType === 'base'){
+      state.deletedModuleIds = state.deletedModuleIds.filter(id=>id!==item.payload.moduleId);
+    } else {
+      const already = state.customModules.some(m=>m.id===item.payload.module.id);
+      if(!already) state.customModules.push(item.payload.module);
+    }
+  } else if(item.type === 'lesson'){
+    const p = item.payload;
+    if(p.lessonType === 'base'){
+      if(state.deletedLessonIdx[p.moduleId]){
+        state.deletedLessonIdx[p.moduleId] = state.deletedLessonIdx[p.moduleId].filter(i=>i!==p.origIdx);
+      }
+    } else {
+      if(!state.customLessons[p.moduleId]) state.customLessons[p.moduleId] = [];
+      const pos = Math.min(p.insertPos, state.customLessons[p.moduleId].length);
+      state.customLessons[p.moduleId].splice(pos, 0, p.lesson);
+    }
+    // restore participants' progress for this module
+    (p.participantProgressSnapshot||[]).forEach(snap=>{
+      const part = state.participants.find(pp=>pp.id===snap.participantId);
+      if(part && part.progress[p.moduleId]){
+        part.progress[p.moduleId].lessonsDone = snap.lessonsDone;
+      }
+    });
+  }
+  state.trash = state.trash.filter(t=>t.id!==trashId);
+  saveState();
+  rebuildModules();
+  renderAll();
+  logActivity(`Dipulihkan dari sampah: ${item.label}`);
+  toast(`${trashTypeLabel(item.type)} "${item.label}" berhasil dipulihkan`);
+}
+function deleteTrashItemForever(trashId){
+  const item = state.trash.find(t=>t.id===trashId);
+  if(!item) return;
+  if(!confirm(`Hapus permanen "${item.label}"? Tindakan ini tidak bisa dibatalkan.`)) return;
+  state.trash = state.trash.filter(t=>t.id!==trashId);
+  saveState();
+  renderTrash();
+  toast('Item dihapus permanen');
+}
+function emptyTrash(){
+  if(!state.trash.length){ toast('Sampah sudah kosong'); return; }
+  if(!confirm(`Kosongkan sampah? ${state.trash.length} item akan dihapus permanen dan tidak bisa dipulihkan lagi.`)) return;
+  state.trash = [];
+  saveState();
+  renderTrash();
+  toast('Sampah dikosongkan');
+}
+function fmtTrashDate(iso){
+  const d = new Date(iso);
+  return d.toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}) + ' ' + d.toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'});
+}
+function renderTrash(){
+  purgeOldTrash();
+  const badge = document.getElementById('trash-badge');
+  if(badge){
+    if(state.trash.length){ badge.innerText = state.trash.length; badge.classList.remove('hidden'); }
+    else badge.classList.add('hidden');
+  }
+  const wrap = document.getElementById('trash-list');
+  if(!wrap) return;
+  const emptyState = document.getElementById('trash-empty-state');
+  if(!state.trash.length){
+    wrap.innerHTML = '';
+    if(emptyState) emptyState.classList.remove('hidden');
+    return;
+  }
+  if(emptyState) emptyState.classList.add('hidden');
+  wrap.innerHTML = state.trash.map(item=>{
+    return `<div class="card p-4 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style="background:#fef2f2;color:#dc2626">
+          <i class="fa-solid ${trashTypeIcon(item.type)}"></i>
+        </div>
+        <div class="min-w-0">
+          <p class="text-sm font-bold truncate">${item.label}</p>
+          <p class="text-[11px] text-slate-400">${trashTypeLabel(item.type)} &middot; Dihapus ${fmtTrashDate(item.deletedAt)}</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 flex-shrink-0">
+        <button class="btn-ghost !py-1.5 !px-3 text-[11px]" onclick="restoreTrashItem('${item.id}')" title="Pulihkan"><i class="fa-solid fa-clock-rotate-left mr-1"></i>Pulihkan</button>
+        <button class="text-slate-300 hover:text-red-500 !py-1.5 !px-2" onclick="deleteTrashItemForever('${item.id}')" title="Hapus permanen"><i class="fa-solid fa-trash"></i></button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 function deleteModule(id){
   const mod = MODULES.find(m=>m.id===id);
   if(!mod) return;
-  if(!confirm(`Hapus modul "${mod.title}"? Progress peserta pada modul ini juga tidak akan dihitung lagi.`)) return;
-  if(!state.customModules.some(m=>m.id===id)){
+  if(!confirm(`Hapus modul "${mod.title}"? Progress peserta pada modul ini juga tidak akan dihitung lagi. (Bisa dipulihkan lewat Sampah)`)) return;
+  const isCustom = state.customModules.some(m=>m.id===id);
+  if(!isCustom){
     // it's a base module, mark as deleted
     if(!state.deletedModuleIds.includes(id)) state.deletedModuleIds.push(id);
+    addToTrash('module', mod.title, {moduleType:'base', moduleId:id});
   } else {
+    const snapshot = JSON.parse(JSON.stringify(state.customModules.find(m=>m.id===id)));
     state.customModules = state.customModules.filter(m=>m.id!==id);
+    addToTrash('module', mod.title, {moduleType:'custom', module:snapshot});
   }
   saveState();
   rebuildModules();
-  renderModules(); renderDashboard(); renderQuizPicker(); renderTrainingTargets();
+  renderModules(); renderDashboard(); renderQuizPicker(); renderTrainingTargets(); renderTrash();
   logActivity(`Modul dihapus: ${mod.title}`);
-  toast('Modul dihapus');
+  toast('Modul dipindahkan ke Sampah');
 }
 
+const MAX_VIDEO_MB = 100;
+const MAX_PDF_MB = 50;
+function lessonFileKind(url){
+  if(!url) return null;
+  const clean = url.split('?')[0].toLowerCase();
+  if(/\.(mp4|webm|ogg|ogv|mov|m4v)$/.test(clean)) return 'video';
+  if(/\.pdf$/.test(clean)) return 'pdf';
+  return null;
+}
+function renderLessonPreview(url){
+  const box = document.getElementById('lesson-modal-preview');
+  const kind = lessonFileKind(url);
+  if(!kind){ box.classList.add('hidden'); box.innerHTML = ''; return; }
+  if(kind === 'video'){
+    box.innerHTML = `<video controls class="w-full rounded-xl" style="max-height:320px;background:#000" src="${url}"></video>`;
+  } else if(kind === 'pdf'){
+    box.innerHTML = `<iframe src="${url}" class="w-full rounded-xl border" style="height:340px;border-color:var(--line)"></iframe>`;
+  }
+  box.classList.remove('hidden');
+}
 function openLesson(moduleId, idx){
   const mod = MODULES.find(m=>m.id===moduleId);
   const lesson = mod.lessons[idx];
@@ -2461,6 +2684,9 @@ function openLesson(moduleId, idx){
   document.getElementById('lesson-modal-link-input').value = link;
   const openBtn = document.getElementById('lesson-modal-link-open');
   if(link){ openBtn.href = link; openBtn.classList.remove('hidden'); } else { openBtn.classList.add('hidden'); openBtn.href = '#'; }
+  renderLessonPreview(link);
+  document.getElementById('lesson-upload-progress-wrap').classList.add('hidden');
+  document.getElementById('lesson-modal-file-input').value = '';
   document.getElementById('lesson-modal').classList.remove('hidden');
 }
 function saveLessonLink(){
@@ -2470,8 +2696,55 @@ function saveLessonLink(){
   setLessonLink(pendingLesson.moduleId, pendingLesson.idx, raw);
   const openBtn = document.getElementById('lesson-modal-link-open');
   if(raw){ openBtn.href = raw; openBtn.classList.remove('hidden'); } else { openBtn.classList.add('hidden'); }
+  renderLessonPreview(raw);
   renderModules();
   toast(raw ? 'Link materi disimpan' : 'Link materi dihapus');
+}
+function uploadLessonFile(inputEl){
+  if(!pendingLesson) return;
+  const file = inputEl.files && inputEl.files[0];
+  if(!file) return;
+  const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+  const isVideo = file.type.startsWith('video/');
+  if(!isPdf && !isVideo){ toast('Hanya file video atau PDF yang didukung'); inputEl.value=''; return; }
+  const maxMb = isVideo ? MAX_VIDEO_MB : MAX_PDF_MB;
+  if(file.size > maxMb * 1024 * 1024){
+    toast(`Ukuran file melebihi batas ${maxMb}MB (file ini ${(file.size/1024/1024).toFixed(1)}MB)`);
+    inputEl.value = '';
+    return;
+  }
+  const {moduleId, idx} = pendingLesson;
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+  const path = `lesson-files/${moduleId}/${idx}_${Date.now()}_${safeName}`;
+  const ref = fbStorage.ref().child(path);
+  const task = ref.put(file);
+  const wrap = document.getElementById('lesson-upload-progress-wrap');
+  const fill = document.getElementById('lesson-upload-progress-fill');
+  const label = document.getElementById('lesson-upload-progress-label');
+  wrap.classList.remove('hidden');
+  fill.style.width = '0%';
+  label.innerText = 'Mengunggah... 0%';
+  task.on('state_changed', function(snap){
+    const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
+    fill.style.width = pct + '%';
+    label.innerText = `Mengunggah... ${pct}%`;
+  }, function(err){
+    console.error(err);
+    toast('Gagal mengunggah file. Coba lagi.');
+    wrap.classList.add('hidden');
+    inputEl.value = '';
+  }, async function(){
+    const url = await task.snapshot.ref.getDownloadURL();
+    setLessonLink(moduleId, idx, url);
+    document.getElementById('lesson-modal-link-input').value = url;
+    const openBtn = document.getElementById('lesson-modal-link-open');
+    openBtn.href = url; openBtn.classList.remove('hidden');
+    renderLessonPreview(url);
+    renderModules();
+    wrap.classList.add('hidden');
+    inputEl.value = '';
+    toast(`${isVideo?'Video':'PDF'} berhasil diunggah`);
+  });
 }
 function closeLessonModal(){ document.getElementById('lesson-modal').classList.add('hidden'); pendingLesson=null; }
 
@@ -2532,13 +2805,18 @@ function deleteLesson(moduleId, idx){
   if(!mod) return;
   const lesson = mod.lessons[idx];
   if(!lesson) return;
-  if(!confirm(`Hapus materi "${lesson.title}"? Progress peserta pada materi ini akan hilang.`)) return;
+  if(!confirm(`Hapus materi "${lesson.title}"? Progress peserta pada materi ini akan hilang. (Bisa dipulihkan lewat Sampah)`)) return;
 
   const baseMod = BASE_MODULES.find(m=>m.id===moduleId);
   if(!state.deletedLessonIdx[moduleId]) state.deletedLessonIdx[moduleId] = [];
   if(!state.customLessons[moduleId]) state.customLessons[moduleId] = [];
   const modDeleted = state.deletedLessonIdx[moduleId];
   const modCustom = state.customLessons[moduleId];
+
+  // snapshot participant progress for this module before mutation, for undo
+  const participantProgressSnapshot = state.participants
+    .filter(p=>p.progress[moduleId])
+    .map(p=>({participantId:p.id, lessonsDone: p.progress[moduleId].lessonsDone.slice()}));
 
   // figure out which currently-visible base-lesson original indices remain
   const visibleBaseIdx = [];
@@ -2548,11 +2826,14 @@ function deleteLesson(moduleId, idx){
 
   if(idx < visibleBaseIdx.length){
     // it's a base-module lesson -> remember its original index as deleted
-    modDeleted.push(visibleBaseIdx[idx]);
+    const origIdx = visibleBaseIdx[idx];
+    modDeleted.push(origIdx);
+    addToTrash('lesson', lesson.title, {lessonType:'base', moduleId, origIdx, participantProgressSnapshot});
   } else {
     // it's a custom (added) lesson -> remove it directly
     const customPos = idx - visibleBaseIdx.length;
-    modCustom.splice(customPos, 1);
+    const removed = modCustom.splice(customPos, 1)[0];
+    addToTrash('lesson', lesson.title, {lessonType:'custom', moduleId, lesson:removed, insertPos:customPos, participantProgressSnapshot});
   }
 
   // keep every participant's recorded progress consistent with the new lesson order
@@ -2564,9 +2845,9 @@ function deleteLesson(moduleId, idx){
 
   saveState();
   rebuildModules();
-  renderModules(); renderDashboard(); renderQuizPicker(); renderTrainingTargets();
+  renderModules(); renderDashboard(); renderQuizPicker(); renderTrainingTargets(); renderTrash();
   logActivity(`Materi dihapus: ${lesson.title}`);
-  toast('Materi dihapus');
+  toast('Materi dipindahkan ke Sampah');
 }
 
 /* ===================== RENDER: QUIZ ===================== */
@@ -2608,6 +2889,7 @@ function resetParticipantFilters(){
     document.getElementById(id).value = '';
   });
   pfPosisiSelected = [];
+  participantPage = 1;
   renderParticipants();
 }
 function togglePosisiDropdown(){
@@ -2630,6 +2912,7 @@ function togglePosisiValue(v){
     if(pfPosisiSelected.length>=5){ toast('Maksimal 5 posisi dapat dipilih'); return; }
     pfPosisiSelected.push(v);
   }
+  participantPage = 1;
   renderParticipants();
 }
 function renderPosisiFilterOptions(){
@@ -2665,6 +2948,76 @@ function saveDashboardPosisiFilter(){
     renderResume();
   }
 }
+/* ---- Peserta: kolom, sort, pagination ---- */
+const PARTICIPANT_COLUMNS = [
+  {field:'username', label:'Username', get:p=>p.username||''},
+  {field:'name', label:'Nama', get:p=>p.name||''},
+  {field:'posisi', label:'Posisi', get:p=>p.posisi||''},
+  {field:'bln', label:'Bln', get:p=>p.bln||''},
+  {field:'batch', label:'Batch', get:p=>p.batch||''},
+  {field:'lokasi', label:'Lokasi', get:p=>p.lokasi||''},
+  {field:'mentor', label:'ABM/Spv/Mentor', get:p=>p.mentor||''},
+  {field:'branchManager', label:'Branch Manager', get:p=>p.branchManager||''},
+  {field:'regionalManager', label:'Regional Manager', get:p=>p.regionalManager||''},
+  {field:'picRecruitment', label:'PIC Recruitment', get:p=>p.picRecruitment||''},
+  {field:'noHp', label:'No HP', get:p=>p.noHp||''},
+  {field:'joinDate', label:'Join Date', get:p=>p.joinDate||''},
+  {field:'resignDate', label:'Resign Date', get:p=>p.resignDate||''},
+  {field:'usia', label:'Usia Join (Hari)', get:p=>{const u=usiaJoinHari(p.joinDate,p.resignDate); return u===null?-1:u;}},
+  {field:'keterangan', label:'Keterangan', get:p=>p.keterangan||''},
+  {field:'progress', label:'Progress Training', get:p=>overallProgressPct(p)},
+  {field:'score', label:'Skor', get:p=>{const s=avgQuizScore(p); return s===null?-1:s;}},
+  {field:null, label:'Aksi', get:null}
+];
+const AVATAR_COLORS = ['#0d6b57','#0e7c63','#10a37a','#0369a1','#7c3aed','#b45309','#be123c','#4338ca'];
+function avatarColorFor(name){
+  const str = name || '?';
+  let hash = 0;
+  for(let i=0;i<str.length;i++){ hash = (hash*31 + str.charCodeAt(i)) >>> 0; }
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
+}
+let participantSort = {field:null, dir:'asc'};
+let participantPage = 1;
+let participantPageSize = 25;
+function setParticipantSort(field){
+  if(!field) return;
+  if(participantSort.field === field){
+    participantSort.dir = participantSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    participantSort.field = field;
+    participantSort.dir = 'asc';
+  }
+  participantPage = 1;
+  renderParticipants();
+}
+function onParticipantFilterChange(){
+  participantPage = 1;
+  renderParticipants();
+}
+function setParticipantPage(p){
+  participantPage = p;
+  renderParticipants();
+}
+function setParticipantPageSize(size){
+  participantPageSize = size === 'all' ? 'all' : parseInt(size,10);
+  participantPage = 1;
+  renderParticipants();
+}
+function renderParticipantsHead(){
+  const row = document.getElementById('participants-thead-row');
+  row.innerHTML = PARTICIPANT_COLUMNS.map(c=>{
+    if(!c.field){
+      return `<th class="py-2 pr-4">${c.label}</th>`;
+    }
+    let icon = '<i class="fa-solid fa-sort text-slate-300 ml-1"></i>';
+    if(participantSort.field === c.field){
+      icon = participantSort.dir === 'asc'
+        ? '<i class="fa-solid fa-sort-up ml-1" style="color:var(--brand-600)"></i>'
+        : '<i class="fa-solid fa-sort-down ml-1" style="color:var(--brand-600)"></i>';
+    }
+    return `<th class="py-2 pr-4 cursor-pointer select-none hover:text-slate-600" onclick="setParticipantSort('${c.field}')">${c.label}${icon}</th>`;
+  }).join('');
+}
 function renderParticipants(){
   // Keep filter dropdown options in sync with current data, preserving selection
   const filterFields = [
@@ -2685,11 +3038,12 @@ function renderParticipants(){
     activeValues[f.field] = sel.value;
   });
   renderPosisiFilterOptions();
+  renderParticipantsHead();
 
   const searchTerm = (document.getElementById('pf-search').value||'').trim().toLowerCase();
   const statusFilter = document.getElementById('pf-status').value;
 
-  const filtered = state.participants.filter(p=>{
+  let filtered = state.participants.filter(p=>{
     for(const f of filterFields){
       if(activeValues[f.field] && (p[f.field]||'')!==activeValues[f.field]) return false;
     }
@@ -2705,14 +3059,42 @@ function renderParticipants(){
 
   document.getElementById('pf-count').innerText = `Menampilkan ${filtered.length} dari ${state.participants.length} peserta`;
 
+  // Sort
+  if(participantSort.field){
+    const col = PARTICIPANT_COLUMNS.find(c=>c.field===participantSort.field);
+    if(col){
+      const dir = participantSort.dir === 'asc' ? 1 : -1;
+      filtered = filtered.slice().sort((a,b)=>{
+        const va = col.get(a), vb = col.get(b);
+        if(typeof va === 'number' && typeof vb === 'number') return (va-vb)*dir;
+        return String(va).localeCompare(String(vb), 'id', {numeric:true, sensitivity:'base'}) * dir;
+      });
+    }
+  }
+
+  // Pagination
+  const total = filtered.length;
+  const pageSize = participantPageSize === 'all' ? (total||1) : participantPageSize;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  if(participantPage > totalPages) participantPage = totalPages;
+  if(participantPage < 1) participantPage = 1;
+  const startIdx = (participantPage-1) * pageSize;
+  const pageItems = filtered.slice(startIdx, startIdx + pageSize);
+
   const wrap = document.getElementById('participants-list');
-  wrap.innerHTML = filtered.map(p=>{
+  wrap.innerHTML = pageItems.map(p=>{
     const pct = overallProgressPct(p);
     const score = avgQuizScore(p);
     const usia = usiaJoinHari(p.joinDate, p.resignDate);
+    const initial = (p.name||'?').charAt(0).toUpperCase();
     return `<tr class="border-b" style="border-color:var(--line)">
       <td class="py-2 pr-4">${p.username || '—'}</td>
-      <td class="py-2 pr-4 font-semibold">${p.name}</td>
+      <td class="py-2 pr-4 font-semibold">
+        <div class="flex items-center gap-2">
+          <div class="w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px] text-white flex-shrink-0" style="background:${avatarColorFor(p.name)}">${initial}</div>
+          <span>${p.name}</span>
+        </div>
+      </td>
       <td class="py-2 pr-4">${p.posisi || '—'}</td>
       <td class="py-2 pr-4">${p.bln || '—'}</td>
       <td class="py-2 pr-4">${p.batch || '—'}</td>
@@ -2739,6 +3121,40 @@ function renderParticipants(){
       </td>
     </tr>`;
   }).join('');
+
+  renderParticipantsPagination(total, totalPages, startIdx, pageItems.length);
+}
+function renderParticipantsPagination(total, totalPages, startIdx, shownCount){
+  const el = document.getElementById('participants-pagination');
+  if(!el) return;
+  if(total === 0){ el.innerHTML = ''; return; }
+  const from = total===0 ? 0 : startIdx+1;
+  const to = startIdx + shownCount;
+  const sizeOptions = [10,25,50,100];
+  const sizeSelectHtml = `<select class="field !w-auto !py-1" style="min-width:110px" onchange="setParticipantPageSize(this.value)">
+      ${sizeOptions.map(s=>`<option value="${s}" ${participantPageSize===s?'selected':''}>${s} / halaman</option>`).join('')}
+      <option value="all" ${participantPageSize==='all'?'selected':''}>Semua</option>
+    </select>`;
+  let pageButtons = '';
+  if(participantPageSize !== 'all'){
+    const maxButtons = 5;
+    let start = Math.max(1, participantPage - Math.floor(maxButtons/2));
+    let end = Math.min(totalPages, start + maxButtons - 1);
+    start = Math.max(1, end - maxButtons + 1);
+    for(let i=start;i<=end;i++){
+      pageButtons += `<button class="px-2.5 py-1 rounded-lg font-bold ${i===participantPage?'text-white':'text-slate-500 hover:bg-slate-100'}" style="${i===participantPage?'background:var(--brand-600)':''}" onclick="setParticipantPage(${i})">${i}</button>`;
+    }
+  }
+  el.innerHTML = `
+    <div class="flex items-center gap-3 text-slate-400">
+      <span>Menampilkan ${from}–${to} dari ${total}</span>
+      ${sizeSelectHtml}
+    </div>
+    <div class="flex items-center gap-1">
+      <button class="px-2.5 py-1 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent" ${participantPage<=1?'disabled':''} onclick="setParticipantPage(${participantPage-1})"><i class="fa-solid fa-chevron-left"></i></button>
+      ${pageButtons}
+      <button class="px-2.5 py-1 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent" ${participantPage>=totalPages||participantPageSize==='all'?'disabled':''} onclick="setParticipantPage(${participantPage+1})"><i class="fa-solid fa-chevron-right"></i></button>
+    </div>`;
 }
 let editingParticipantId = null;
 function clearParticipantForm(){
@@ -2799,7 +3215,9 @@ function findModuleByTraining(name){
 function importParticipantsExcel(event){
   const file = event.target.files[0];
   if(!file) return;
+  showImportLoading('Sedang mengimpor data peserta...');
   const reader = new FileReader();
+  reader.onerror = ()=>{ hideImportLoading(); toast('Gagal membaca file'); event.target.value=''; };
   reader.onload = e=>{
     try{
       const data = new Uint8Array(e.target.result);
@@ -2808,7 +3226,7 @@ function importParticipantsExcel(event){
       const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
       // Find the header row: the row that contains "Username" and "Training"
       let headerRowIdx = rows.findIndex(r=>r && r.includes('Username') && r.includes('Training'));
-      if(headerRowIdx===-1){ toast('Format Excel tidak dikenali (kolom Username/Training tidak ditemukan)'); event.target.value=''; return; }
+      if(headerRowIdx===-1){ toast('Format Excel tidak dikenali (kolom Username/Training tidak ditemukan)'); hideImportLoading(); event.target.value=''; return; }
       const headers = rows[headerRowIdx];
       const col = name => headers.indexOf(name);
       const idx = {
@@ -2875,6 +3293,7 @@ function importParticipantsExcel(event){
       console.error(err);
       toast('Gagal membaca file Excel');
     }
+    hideImportLoading();
     event.target.value='';
   };
   reader.readAsArrayBuffer(file);
@@ -2923,9 +3342,16 @@ function saveParticipant(){
 }
 function removeParticipant(id){
   if(state.participants.length<=1){ toast('Minimal harus ada 1 peserta'); return; }
-  state.participants = state.participants.filter(p=>p.id!==id);
+  const p = state.participants.find(pp=>pp.id===id);
+  if(!p) return;
+  if(!confirm(`Hapus peserta "${p.name}"? Data & progress-nya akan dipindahkan ke Sampah (bisa dipulihkan).`)) return;
+  const snapshot = JSON.parse(JSON.stringify(p));
+  state.participants = state.participants.filter(pp=>pp.id!==id);
+  addToTrash('participant', p.name || p.username || 'Peserta', {participant: snapshot});
   saveState();
-  renderParticipants(); renderDashboard(); renderModules(); renderQuizPicker(); renderTrainingTargets();
+  renderParticipants(); renderDashboard(); renderModules(); renderQuizPicker(); renderTrainingTargets(); renderTrash();
+  logActivity(`Peserta dihapus: ${p.name}`);
+  toast('Peserta dipindahkan ke Sampah');
 }
 
 /* ===================== TARGET TRAINING (Data Onboarding Employee) ===================== */
@@ -2955,7 +3381,9 @@ const TT_STATUS_CLASS = {
 function importTrainingTargetsExcel(event){
   const file = event.target.files[0];
   if(!file) return;
+  showImportLoading('Sedang mengimpor target training...');
   const reader = new FileReader();
+  reader.onerror = ()=>{ hideImportLoading(); toast('Gagal membaca file'); event.target.value=''; };
   reader.onload = e=>{
     try{
       const data = new Uint8Array(e.target.result);
@@ -2964,7 +3392,7 @@ function importTrainingTargetsExcel(event){
       const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
       // Find header row containing at least "Name" and "Company"
       let headerRowIdx = rows.findIndex(r=>r && r.includes('Name') && r.includes('Company'));
-      if(headerRowIdx===-1){ toast('Format Excel tidak dikenali (kolom Name/Company tidak ditemukan)'); event.target.value=''; return; }
+      if(headerRowIdx===-1){ toast('Format Excel tidak dikenali (kolom Name/Company tidak ditemukan)'); hideImportLoading(); event.target.value=''; return; }
       const headers = rows[headerRowIdx];
       const col = name => headers.indexOf(name);
       const idx = {
@@ -2998,6 +3426,7 @@ function importTrainingTargetsExcel(event){
       console.error(err);
       toast('Gagal membaca file Excel');
     }
+    hideImportLoading();
     event.target.value='';
   };
   reader.readAsArrayBuffer(file);
@@ -3296,7 +3725,9 @@ function exportBackup(){
 function importBackup(event){
   const file = event.target.files[0];
   if(!file) return;
+  showImportLoading('Sedang memulihkan backup...');
   const reader = new FileReader();
+  reader.onerror = ()=>{ hideImportLoading(); toast('Gagal membaca file'); event.target.value=''; };
   reader.onload = e=>{
     try{
       const parsed = JSON.parse(e.target.result);
@@ -3306,9 +3737,10 @@ function importBackup(event){
       renderAll();
       toast('Backup berhasil dipulihkan');
     }catch(err){ toast('File backup tidak valid'); }
+    hideImportLoading();
+    event.target.value='';
   };
   reader.readAsText(file);
-  event.target.value='';
 }
 function resetAllData(){
   if(!confirm('Reset seluruh progress training? Tindakan ini tidak bisa dibatalkan.')) return;
@@ -3337,6 +3769,7 @@ function renderAll(){
   renderParticipants();
   renderTrainingTargets();
   renderCertificates();
+  renderTrash();
 }
 /* ===================== AUTH (FIREBASE AUTHENTICATION) ===================== */
 // Login/logout and account management now go through Firebase Auth (email +
