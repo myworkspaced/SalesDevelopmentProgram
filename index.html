@@ -513,24 +513,12 @@
           </div>
 
           <div class="card p-5">
-            <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-              <p class="text-sm font-bold">Pencapaian per Marketing / BM</p>
+            <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
+              <p class="text-sm font-bold">Pencapaian per BM</p>
               <span class="text-[11px] text-slate-400">Bulan: <span id="gci-breakdown-month-label" class="font-semibold"></span></span>
             </div>
-            <div class="overflow-x-auto">
-              <table class="w-full text-xs">
-                <thead>
-                  <tr class="text-left text-slate-400 border-b" style="border-color:var(--line)">
-                    <th class="py-2 pr-3 font-bold">BM</th>
-                    <th class="py-2 pr-3 font-bold">Prospek</th>
-                    <th class="py-2 pr-3 font-bold">Booking</th>
-                    <th class="py-2 pr-3 font-bold">Konversi</th>
-                    <th class="py-2 pr-3 font-bold">Nominal Booking</th>
-                  </tr>
-                </thead>
-                <tbody id="gci-bm-body"></tbody>
-              </table>
-            </div>
+            <p class="text-[11px] text-slate-400 mb-3">Klik nama BM untuk lihat SPV/Ass.BM di bawahnya, lalu klik SPV/Ass.BM untuk lihat kontribusi tiap sales.</p>
+            <div id="gci-bm-tree"></div>
           </div>
         </div>
       </div>
@@ -1010,6 +998,20 @@
 <div id="toast"></div>
 
 <script>
+/* ===================== SECURITY HELPER ===================== */
+// Escapes HTML special characters so user-supplied data (participant names,
+// notes, imported Excel fields, etc.) can never be interpreted as markup or
+// script when injected into innerHTML templates. ALWAYS wrap free-text user
+// data with this before interpolating into HTML strings.
+function escapeHtml(str){
+  if(str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 /* ===================== DATA KURIKULUM ===================== */
 const BASE_MODULES = [
   { id:'m3', kategori:'wajib', title:'Be A Great Employee PT Raja Sukses Propertindo', day:'Day 1', icon:'fa-star', aliases:['Be A Great Employee'],
@@ -1215,7 +1217,7 @@ function getGciMonths(){
 }
 function aggregateGciMonth(key){
   const rows = gciData.filter(r=>gciMonthKey(r.tanggal)===key);
-  const agg = { total:rows.length, leads:0, booking:0, nominalBooking:0, incomeBooking:0, byBm:{}, byMarketing:{} };
+  const agg = { total:rows.length, leads:0, booking:0, nominalBooking:0, incomeBooking:0, byBm:{}, byMarketing:{}, rows };
   rows.forEach(r=>{
     const cat = classifyGciStatus(r);
     agg[cat]++;
@@ -1390,19 +1392,10 @@ function renderPencapaian(){
     </tr>`;
   }).join('');
 
-  // BM breakdown table for selected month A
+  // BM breakdown (hierarki BM -> SPV/Ass.BM -> Sales) untuk bulan A
   document.getElementById('gci-breakdown-month-label').innerText = gciMonthLabel(keyA);
-  const bmRows = Object.entries(aggA.byBm).sort((x,y)=>y[1].nominalBooking-x[1].nominalBooking);
-  document.getElementById('gci-bm-body').innerHTML = bmRows.length ? bmRows.map(([bm,v])=>{
-    const conv = v.total ? Math.round((v.booking/v.total)*1000)/10 : 0;
-    return `<tr class="border-b" style="border-color:var(--line)">
-      <td class="py-2 pr-3 font-semibold">${bm}</td>
-      <td class="py-2 pr-3 mono">${v.total}</td>
-      <td class="py-2 pr-3 mono">${v.booking}</td>
-      <td class="py-2 pr-3 mono">${conv}%</td>
-      <td class="py-2 pr-3 mono">${formatRupiah(v.nominalBooking)}</td>
-    </tr>`;
-  }).join('') : '<tr><td colspan="5" class="py-4 text-center text-slate-400">Tidak ada data</td></tr>';
+  const gciTree = buildGciHierarchy(aggA.rows);
+  renderGciHierarchy(gciTree, keyA);
 
   // Leaderboard sales (per marketing individu), otomatis dari data GCI bulan terpilih
   document.getElementById('gci-leaderboard-month-label').innerText = gciMonthLabel(keyA);
@@ -1411,7 +1404,7 @@ function renderPencapaian(){
   const bmFilterSel = document.getElementById('gci-leaderboard-bm-filter');
   const bmOptions = Array.from(new Set(Object.values(aggA.byMarketing).map(v=>v.bm).filter(Boolean))).sort();
   const prevBmFilter = bmFilterSel.value;
-  bmFilterSel.innerHTML = '<option value="">Semua BM</option>' + bmOptions.map(b=>`<option value="${b}" ${b===prevBmFilter?'selected':''}>${b}</option>`).join('');
+  bmFilterSel.innerHTML = '<option value="">Semua BM</option>' + bmOptions.map(b=>`<option value="${escapeHtml(b)}" ${b===prevBmFilter?'selected':''}>${escapeHtml(b)}</option>`).join('');
   const bmFilter = bmFilterSel.value;
   const searchTerm = (document.getElementById('gci-leaderboard-search').value||'').trim().toLowerCase();
 
@@ -1446,18 +1439,124 @@ function renderPencapaian(){
   document.getElementById('gci-leaderboard-body').innerHTML = mkRows.length ? mkRows.map(([mk,v],i)=>{
     const conv = v.total ? Math.round((v.booking/v.total)*1000)/10 : 0;
     const participant = state.participants.find(p=>(p.username||'').trim().toLowerCase()===mk.trim().toLowerCase());
-    const displayName = participant && participant.name ? `${participant.name} <span class="text-slate-400 font-normal">@${mk}</span>` : mk;
+    const displayName = participant && participant.name ? `${escapeHtml(participant.name)} <span class="text-slate-400 font-normal">@${escapeHtml(mk)}</span>` : escapeHtml(mk);
     const rankBadge = (leaderboardSortField==='booking' && leaderboardSortDir==='desc' && i<3) ? medals[i] : (i+1);
-    return `<tr class="border-b cursor-pointer hover:bg-slate-50" style="border-color:var(--line)" onclick="openSalesDetailModal('${mk.replace(/'/g,"\\'")}','${keyA}')">
+    return `<tr class="border-b cursor-pointer hover:bg-slate-50" style="border-color:var(--line)" onclick="openSalesDetailModal('${mk.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;')}','${keyA}')">
       <td class="py-2 pr-3 font-bold">${rankBadge}</td>
       <td class="py-2 pr-3 font-semibold">${displayName}</td>
-      <td class="py-2 pr-3 text-slate-400">${v.bm}</td>
+      <td class="py-2 pr-3 text-slate-400">${escapeHtml(v.bm)}</td>
       <td class="py-2 pr-3 mono">${v.leads}</td>
       <td class="py-2 pr-3 mono font-bold" style="color:var(--brand-600)">${v.booking}</td>
       <td class="py-2 pr-3 mono">${conv}%</td>
       <td class="py-2 pr-3 mono">${formatRupiah(v.nominalBooking)}</td>
     </tr>`;
   }).join('') : '<tr><td colspan="7" class="py-4 text-center text-slate-400">Tidak ada data sales yang cocok</td></tr>';
+}
+function findParticipantByUsername(username){
+  const key = (username||'').trim().toLowerCase();
+  if(!key) return null;
+  return state.participants.find(p=>(p.username||'').trim().toLowerCase()===key) || null;
+}
+function buildGciHierarchy(rows){
+  // BM -> SPV/Ass.BM -> Sales (marketing individu), diambil dari data struktur
+  // organisasi peserta (Branch Manager & ABM/Spv/Mentor), fallback ke kolom
+  // BM mentah kalau sales-nya belum terdaftar sebagai peserta.
+  const tree = {};
+  rows.forEach(r=>{
+    const cat = classifyGciStatus(r);
+    const mk = (r.marketing || '(Tanpa Marketing)').trim() || '(Tanpa Marketing)';
+    const participant = findParticipantByUsername(mk);
+    const bmName = (participant && participant.branchManager) ? participant.branchManager : (r.bm || '(Tanpa BM)');
+    const spvName = (participant && participant.mentor) ? participant.mentor : '(Tanpa SPV/ABM)';
+
+    if(!tree[bmName]) tree[bmName] = { total:0, booking:0, nominalBooking:0, spvs:{} };
+    const bmNode = tree[bmName];
+    bmNode.total++;
+    if(cat==='booking'){ bmNode.booking++; bmNode.nominalBooking += Number(r.nominalBookingSpr)||0; }
+
+    if(!bmNode.spvs[spvName]) bmNode.spvs[spvName] = { total:0, booking:0, nominalBooking:0, sales:{} };
+    const spvNode = bmNode.spvs[spvName];
+    spvNode.total++;
+    if(cat==='booking'){ spvNode.booking++; spvNode.nominalBooking += Number(r.nominalBookingSpr)||0; }
+
+    if(!spvNode.sales[mk]) spvNode.sales[mk] = { total:0, leads:0, booking:0, nominalBooking:0 };
+    const saleNode = spvNode.sales[mk];
+    saleNode.total++;
+    if(cat==='booking') { saleNode.booking++; saleNode.nominalBooking += Number(r.nominalBookingSpr)||0; }
+    else saleNode.leads++;
+  });
+  return tree;
+}
+function toggleGciNode(headerEl){
+  const body = headerEl.nextElementSibling;
+  if(!body) return;
+  const chevron = headerEl.querySelector('.gci-chevron');
+  const willShow = body.classList.contains('hidden');
+  body.classList.toggle('hidden');
+  if(chevron){
+    chevron.classList.toggle('fa-chevron-right', !willShow);
+    chevron.classList.toggle('fa-chevron-down', willShow);
+  }
+}
+function gciSalesDisplayName(mk){
+  const participant = findParticipantByUsername(mk);
+  return participant && participant.name ? `${escapeHtml(participant.name)} <span class="text-slate-400 font-normal">@${escapeHtml(mk)}</span>` : escapeHtml(mk);
+}
+function renderGciHierarchy(tree, monthKey){
+  const wrap = document.getElementById('gci-bm-tree');
+  if(!wrap) return;
+  const bmEntries = Object.entries(tree).sort((a,b)=>b[1].nominalBooking-a[1].nominalBooking);
+  if(!bmEntries.length){
+    wrap.innerHTML = '<p class="py-6 text-center text-slate-400 text-xs">Tidak ada data</p>';
+    return;
+  }
+  wrap.innerHTML = bmEntries.map(([bmName, bmNode])=>{
+    const bmConv = bmNode.total ? Math.round((bmNode.booking/bmNode.total)*1000)/10 : 0;
+    const spvEntries = Object.entries(bmNode.spvs).sort((a,b)=>b[1].nominalBooking-a[1].nominalBooking);
+    const spvHtml = spvEntries.map(([spvName, spvNode])=>{
+      const spvConv = spvNode.total ? Math.round((spvNode.booking/spvNode.total)*1000)/10 : 0;
+      const saleEntries = Object.entries(spvNode.sales).sort((a,b)=>b[1].nominalBooking-a[1].nominalBooking);
+      const salesRows = saleEntries.map(([mk, s])=>{
+        const sConv = s.total ? Math.round((s.booking/s.total)*1000)/10 : 0;
+        return `<tr class="border-b cursor-pointer hover:bg-slate-50" style="border-color:var(--line)" onclick="openSalesDetailModal('${mk.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;')}','${monthKey}')">
+          <td class="py-1.5 px-3 font-semibold">${gciSalesDisplayName(mk)}</td>
+          <td class="py-1.5 px-3 mono">${s.total}</td>
+          <td class="py-1.5 px-3 mono">${s.booking}</td>
+          <td class="py-1.5 px-3 mono">${sConv}%</td>
+          <td class="py-1.5 px-3 mono">${formatRupiah(s.nominalBooking)}</td>
+        </tr>`;
+      }).join('');
+      return `<div class="border rounded-lg mb-1.5 overflow-hidden" style="border-color:var(--line)">
+        <div class="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-slate-50" onclick="toggleGciNode(this)">
+          <div class="flex items-center gap-2 text-xs font-bold text-slate-600"><i class="fa-solid fa-chevron-right gci-chevron text-[10px] text-slate-400"></i>${escapeHtml(spvName)}</div>
+          <div class="flex items-center gap-3 text-[11px] text-slate-500">
+            <span>${spvNode.total} prospek</span><span>${spvNode.booking} booking</span><span>${spvConv}%</span>
+            <span class="font-mono font-bold" style="color:var(--brand-600)">${formatRupiah(spvNode.nominalBooking)}</span>
+          </div>
+        </div>
+        <div class="gci-children hidden px-3 pb-2 pt-1">
+          <div class="overflow-x-auto rounded-md border" style="border-color:var(--line)">
+            <table class="w-full text-[11px]">
+              <thead><tr class="text-left text-slate-400 border-b" style="border-color:var(--line)">
+                <th class="py-1.5 px-3 font-bold">Sales</th><th class="py-1.5 px-3 font-bold">Prospek</th><th class="py-1.5 px-3 font-bold">Booking</th><th class="py-1.5 px-3 font-bold">Konversi</th><th class="py-1.5 px-3 font-bold">Nominal Booking</th>
+              </tr></thead>
+              <tbody>${salesRows}</tbody>
+            </table>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    return `<div class="border rounded-xl mb-2 overflow-hidden" style="border-color:var(--line)">
+      <div class="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-slate-50" onclick="toggleGciNode(this)">
+        <div class="flex items-center gap-2 text-sm font-bold"><i class="fa-solid fa-chevron-right gci-chevron text-[11px] text-slate-400"></i>${escapeHtml(bmName)}</div>
+        <div class="flex items-center gap-4 text-xs text-slate-500">
+          <span>${bmNode.total} prospek</span><span>${bmNode.booking} booking</span><span>${bmConv}%</span>
+          <span class="font-mono font-bold" style="color:var(--brand-600)">${formatRupiah(bmNode.nominalBooking)}</span>
+        </div>
+      </div>
+      <div class="gci-children hidden px-4 pb-3 pl-8 pt-1">${spvHtml}</div>
+    </div>`;
+  }).join('');
 }
 function sortLeaderboardBy(field){
   if(leaderboardSortField===field){
@@ -1502,9 +1601,9 @@ function renderSalesDetailModal(mk, monthKey){
     const cat = classifyGciStatus(r);
     const statusBadge = cat==='booking' ? '<span class="badge badge-green">Booking</span>' : '<span class="badge badge-slate">Leads</span>';
     return `<tr class="border-b" style="border-color:var(--line)">
-      <td class="py-2 pr-3 font-semibold">${r.nama || '—'}</td>
-      <td class="py-2 pr-3">${r.project || '—'}</td>
-      <td class="py-2 pr-3 text-slate-400">${r.blok || '—'}</td>
+      <td class="py-2 pr-3 font-semibold">${escapeHtml(r.nama) || '—'}</td>
+      <td class="py-2 pr-3">${escapeHtml(r.project) || '—'}</td>
+      <td class="py-2 pr-3 text-slate-400">${escapeHtml(r.blok) || '—'}</td>
       <td class="py-2 pr-3">${statusBadge}</td>
       <td class="py-2 pr-3 mono">${cat==='booking' ? formatRupiah(r.nominalBookingSpr) : '—'}</td>
     </tr>`;
@@ -1921,7 +2020,7 @@ function toggleSidebar(){
 function toast(msg){
   const el = document.createElement('div');
   el.className='toast-item';
-  el.innerHTML = `<i class="fa-solid fa-circle-check"></i><span>${msg}</span>`;
+  el.innerHTML = `<i class="fa-solid fa-circle-check"></i><span>${escapeHtml(msg)}</span>`;
   document.getElementById('toast').appendChild(el);
   setTimeout(()=>el.remove(),3000);
 }
@@ -1951,10 +2050,10 @@ function renderDashboardFilters(){
   const posisiPool = savedPosisiScope.length ? savedPosisiScope : Array.from(new Set(state.participants.map(p=>p.posisi).filter(Boolean)));
   const posisiValues = posisiPool.slice().sort();
   if(dashboardFilterPosisi && !posisiValues.includes(dashboardFilterPosisi)) dashboardFilterPosisi = '';
-  blnSel.innerHTML = '<option value="">Semua Bulan</option>' + blnValues.map(v=>`<option value="${v}" ${v===dashboardFilterBln?'selected':''}>${v}</option>`).join('');
-  tahunSel.innerHTML = '<option value="">Semua Tahun</option>' + tahunValues.map(v=>`<option value="${v}" ${v===dashboardFilterTahun?'selected':''}>${v}</option>`).join('');
-  batchSel.innerHTML = '<option value="">Semua Batch</option>' + batchValues.map(v=>`<option value="${v}" ${v===dashboardFilterBatch?'selected':''}>${v}</option>`).join('');
-  posisiSel.innerHTML = '<option value="">' + (savedPosisiScope.length ? 'Semua (dalam batasan)' : 'Semua Posisi') + '</option>' + posisiValues.map(v=>`<option value="${v}" ${v===dashboardFilterPosisi?'selected':''}>${v}</option>`).join('');
+  blnSel.innerHTML = '<option value="">Semua Bulan</option>' + blnValues.map(v=>`<option value="${escapeHtml(v)}" ${v===dashboardFilterBln?'selected':''}>${escapeHtml(v)}</option>`).join('');
+  tahunSel.innerHTML = '<option value="">Semua Tahun</option>' + tahunValues.map(v=>`<option value="${escapeHtml(v)}" ${v===dashboardFilterTahun?'selected':''}>${escapeHtml(v)}</option>`).join('');
+  batchSel.innerHTML = '<option value="">Semua Batch</option>' + batchValues.map(v=>`<option value="${escapeHtml(v)}" ${v===dashboardFilterBatch?'selected':''}>${escapeHtml(v)}</option>`).join('');
+  posisiSel.innerHTML = '<option value="">' + (savedPosisiScope.length ? 'Semua (dalam batasan)' : 'Semua Posisi') + '</option>' + posisiValues.map(v=>`<option value="${escapeHtml(v)}" ${v===dashboardFilterPosisi?'selected':''}>${escapeHtml(v)}</option>`).join('');
   const banner = document.getElementById('posisi-scope-banner');
   const list = document.getElementById('posisi-scope-list');
   if(banner && list){
@@ -2054,7 +2153,7 @@ function renderDashboard(){
 
   const log = document.getElementById('recent-activity');
   log.innerHTML = state.activityLog.length ? state.activityLog.map(a=>`
-    <div class="flex items-center gap-2 text-slate-600"><i class="fa-solid fa-circle text-[6px]" style="color:var(--brand-500)"></i><span>${a.text}</span></div>
+    <div class="flex items-center gap-2 text-slate-600"><i class="fa-solid fa-circle text-[6px]" style="color:var(--brand-500)"></i><span>${escapeHtml(a.text)}</span></div>
   `).join('') : '<p class="text-slate-400">Belum ada aktivitas.</p>';
 }
 
@@ -2071,7 +2170,7 @@ function renderResume(){
     if(pct===100) statusBadge = isCertified(p) ? `<span class="badge badge-green">Lulus${p.manualLulus?' <i class="fa-solid fa-user-pen ml-1" title="Diatur manual oleh admin"></i>':''}</span>` : '<span class="badge badge-red">Selesai, Belum Lulus</span>';
     if(p.resignDate) statusBadge = '<span class="badge badge-red"><i class="fa-solid fa-person-walking-arrow-right mr-1"></i>Mundur</span>';
     return `<tr class="border-b cursor-pointer hover:bg-slate-50" style="border-color:var(--line)" onclick="openPesertaDetail('${p.id}')">
-      <td class="py-2 pr-3 font-semibold">${p.name}<div class="text-slate-400 font-normal">${p.posisi || '—'}</div></td>
+      <td class="py-2 pr-3 font-semibold">${escapeHtml(p.name)}<div class="text-slate-400 font-normal">${escapeHtml(p.posisi) || '—'}</div></td>
       <td class="py-2 pr-3">${done} / ${wajibModules().length}</td>
       <td class="py-2 pr-3 w-32">
         <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
@@ -2086,7 +2185,7 @@ function renderResume(){
     <div class="lesson-row">
       <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background:#f0fdf6;color:var(--brand-600)"><i class="fa-solid ${m.icon}"></i></div>
       <div class="flex-1">
-        <p class="font-bold">${i+1}. ${m.title} ${m.day?`<span class="badge badge-slate ml-1">${m.day}</span>`:''}</p>
+        <p class="font-bold">${i+1}. ${escapeHtml(m.title)} ${m.day?`<span class="badge badge-slate ml-1">${escapeHtml(m.day)}</span>`:''}</p>
         <p class="text-slate-400">${m.lessons.length} materi ${m.quiz.length>0?'&middot; '+m.quiz.length+' soal kuis':''}</p>
       </div>
     </div>
@@ -2137,10 +2236,10 @@ function renderPesertaListModal(){
     const pct = overallProgressPct(p);
     const stats = gciStatsForParticipant(p, monthKey);
     return `<div class="lesson-row cursor-pointer hover:bg-slate-50" onclick="openPesertaDetail('${p.id}')">
-      <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white" style="background:var(--brand-600)">${(p.name||'?').charAt(0).toUpperCase()}</div>
+      <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white" style="background:var(--brand-600)">${escapeHtml((p.name||'?').charAt(0).toUpperCase())}</div>
       <div class="flex-1">
-        <p class="font-bold">${p.name || '(Tanpa nama)'} <span class="text-slate-400 font-normal">${p.username?'· @'+p.username:''}</span></p>
-        <p class="text-slate-400">${p.posisi || '—'} &middot; Modul ${done}/${wajibModules().length} &middot; Progress ${pct}%</p>
+        <p class="font-bold">${escapeHtml(p.name) || '(Tanpa nama)'} <span class="text-slate-400 font-normal">${p.username?'· @'+escapeHtml(p.username):''}</span></p>
+        <p class="text-slate-400">${escapeHtml(p.posisi) || '—'} &middot; Modul ${done}/${wajibModules().length} &middot; Progress ${pct}%</p>
       </div>
       <div class="text-right text-[11px]">
         <span class="badge badge-green">${stats.booking} Booking</span>
@@ -2186,7 +2285,7 @@ function renderPesertaDetail(id){
     const isDone = c===100;
     const scoreVal = p.progress[m.id]?.quizScore;
     return `<div class="flex items-center justify-between py-1.5 border-b" style="border-color:var(--line)">
-      <span class="text-xs font-semibold">${m.title}</span>
+      <span class="text-xs font-semibold">${escapeHtml(m.title)}</span>
       <div class="flex items-center gap-2">
         <span class="text-[11px] text-slate-400 mono">${scoreVal!==null && scoreVal!==undefined ? 'Skor: '+scoreVal : '—'}</span>
         <span class="badge ${isDone?'badge-green':(c>0?'badge-amber':'badge-slate')}">${isDone?'Selesai':(c>0?c+'%':'Belum')}</span>
@@ -2263,11 +2362,11 @@ function renderPesertaDetail(id){
 
   body.innerHTML = `
     <div class="flex items-center gap-3 mb-4">
-      <div class="w-14 h-14 rounded-full flex items-center justify-center font-bold text-lg text-white" style="background:var(--brand-600)">${(p.name||'?').charAt(0).toUpperCase()}</div>
+      <div class="w-14 h-14 rounded-full flex items-center justify-center font-bold text-lg text-white" style="background:var(--brand-600)">${escapeHtml((p.name||'?').charAt(0).toUpperCase())}</div>
       <div class="flex-1">
-        <p class="text-sm font-extrabold">${p.name || '(Tanpa nama)'}</p>
-        <p class="text-xs text-slate-400">${p.username?'@'+p.username+' · ':''}${p.posisi || '—'}</p>
-        <p class="text-xs text-slate-400 mt-0.5"><i class="fa-solid fa-phone mr-1"></i>${p.noHp || 'No HP belum diisi'}</p>
+        <p class="text-sm font-extrabold">${escapeHtml(p.name) || '(Tanpa nama)'}</p>
+        <p class="text-xs text-slate-400">${p.username?'@'+escapeHtml(p.username)+' · ':''}${escapeHtml(p.posisi) || '—'}</p>
+        <p class="text-xs text-slate-400 mt-0.5"><i class="fa-solid fa-phone mr-1"></i>${escapeHtml(p.noHp) || 'No HP belum diisi'}</p>
       </div>
       <button class="w-10 h-10 rounded-full flex items-center justify-center text-white text-lg flex-shrink-0 ${p.noHp?'':'opacity-40 cursor-not-allowed'}" style="background:#25D366" ${p.noHp?`onclick="sendWaMateriReminder('${p.id}')"`:'disabled'} title="${p.noHp ? 'Kirim materi via WhatsApp' : 'No HP belum diisi'}">
         <i class="fa-brands fa-whatsapp"></i>
@@ -2420,13 +2519,13 @@ function renderModules(){
             <button class="text-slate-300 hover:text-emerald-600 text-xs leading-none px-1 py-0.5 disabled:opacity-20 disabled:cursor-not-allowed" title="Pindah ke bawah" onclick="moveModule('${m.id}',1)" ${idx===MODULES.length-1?'disabled':''}><i class="fa-solid fa-chevron-down"></i></button>
           </div>
           <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:#f0fdf6;color:var(--brand-600)"><i class="fa-solid ${m.icon}"></i></div>
-          <div><p class="font-bold text-sm">${m.title} ${m.day?`<span class="badge badge-slate ml-1">${m.day}</span>`:''} <span class="badge ${(m.kategori||'wajib')==='additional'?'badge-amber':'badge-green'} ml-1">${(m.kategori||'wajib')==='additional'?'Additional':'Wajib'}</span></p><p class="text-xs text-slate-400">${m.desc}</p></div>
+          <div><p class="font-bold text-sm">${escapeHtml(m.title)} ${m.day?`<span class="badge badge-slate ml-1">${escapeHtml(m.day)}</span>`:''} <span class="badge ${(m.kategori||'wajib')==='additional'?'badge-amber':'badge-green'} ml-1">${(m.kategori||'wajib')==='additional'?'Additional':'Wajib'}</span></p><p class="text-xs text-slate-400">${escapeHtml(m.desc)}</p></div>
         </div>
         <button class="text-slate-300 hover:text-red-500 text-xs px-1" title="Hapus modul" onclick="deleteModule('${m.id}')"><i class="fa-solid fa-trash-can"></i></button>
       </div>
       <div class="progress-track mb-2"><div class="progress-fill" style="width:${pct}%"></div></div>
       <p class="text-xs text-slate-400 mb-3">Rata-rata ${pct}% selesai ${avgScore!=null ? '&middot; Rata-rata skor kuis: '+avgScore : ''}</p>
-      ${m.type==='link' ? `<a href="${m.link}" target="_blank" rel="noopener" class="btn-ghost inline-flex items-center gap-1.5 !py-1.5 !px-3 text-[11px] mb-3"><i class="fa-solid fa-arrow-up-right-from-square"></i> Buka Link Penugasan</a>` : ''}
+      ${m.type==='link' ? `<a href="${escapeHtml(m.link)}" target="_blank" rel="noopener" class="btn-ghost inline-flex items-center gap-1.5 !py-1.5 !px-3 text-[11px] mb-3"><i class="fa-solid fa-arrow-up-right-from-square"></i> Buka Link Penugasan</a>` : ''}
       ${m.lessons.length===0 ? `<p class="text-xs text-slate-400 italic mb-2">Belum ada materi ditambahkan pada modul ini.</p>` : ''}
       <div class="space-y-2">
         ${m.lessons.map((l,idx)=>{
@@ -2436,7 +2535,7 @@ function renderModules(){
           return `<div class="lesson-row">
             <i class="fa-solid ${donePct===100?'fa-circle-check':'fa-circle'} ${donePct===100?'text-emerald-500':'text-slate-300'}"></i>
             <div class="flex-1">
-              <p class="text-xs font-semibold">${l.title} ${hasLink?'<i class="fa-solid fa-link text-emerald-500 ml-1 text-[10px]" title="Link materi tersedia"></i>':''}</p>
+              <p class="text-xs font-semibold">${escapeHtml(l.title)} ${hasLink?'<i class="fa-solid fa-link text-emerald-500 ml-1 text-[10px]" title="Link materi tersedia"></i>':''}</p>
               <p class="text-[11px] text-slate-400">${l.dur} menit &middot; ${doneCount}/${all.length} peserta selesai (${donePct}%)</p>
             </div>
             <button class="btn-ghost !py-1.5 !px-3 text-[11px]" onclick="openLesson('${m.id}',${idx})">Lihat Materi</button>
@@ -2620,7 +2719,7 @@ function renderTrash(){
           <i class="fa-solid ${trashTypeIcon(item.type)}"></i>
         </div>
         <div class="min-w-0">
-          <p class="text-sm font-bold truncate">${item.label}</p>
+          <p class="text-sm font-bold truncate">${escapeHtml(item.label)}</p>
           <p class="text-[11px] text-slate-400">${trashTypeLabel(item.type)} &middot; Dihapus ${fmtTrashDate(item.deletedAt)}</p>
         </div>
       </div>
@@ -2667,9 +2766,9 @@ function renderLessonPreview(url){
   const kind = lessonFileKind(url);
   if(!kind){ box.classList.add('hidden'); box.innerHTML = ''; return; }
   if(kind === 'video'){
-    box.innerHTML = `<video controls class="w-full rounded-xl" style="max-height:320px;background:#000" src="${url}"></video>`;
+    box.innerHTML = `<video controls class="w-full rounded-xl" style="max-height:320px;background:#000" src="${escapeHtml(url)}"></video>`;
   } else if(kind === 'pdf'){
-    box.innerHTML = `<iframe src="${url}" class="w-full rounded-xl border" style="height:340px;border-color:var(--line)"></iframe>`;
+    box.innerHTML = `<iframe src="${escapeHtml(url)}" class="w-full rounded-xl border" style="height:340px;border-color:var(--line)"></iframe>`;
   }
   box.classList.remove('hidden');
 }
@@ -2858,7 +2957,7 @@ function renderQuizPicker(){
     const scores = all.map(p=>p.progress[m.id]?.quizScore).filter(s=>s!==null && s!==undefined);
     const avgScore = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : null;
     return `<div class="card p-4">
-      <p class="text-sm font-bold mb-1">${m.title} <span class="badge ${(m.kategori||'wajib')==='additional'?'badge-amber':'badge-green'} ml-1">${(m.kategori||'wajib')==='additional'?'Additional':'Wajib'}</span></p>
+      <p class="text-sm font-bold mb-1">${escapeHtml(m.title)} <span class="badge ${(m.kategori||'wajib')==='additional'?'badge-amber':'badge-green'} ml-1">${(m.kategori||'wajib')==='additional'?'Additional':'Wajib'}</span></p>
       <p class="text-xs text-slate-400">${scores.length}/${all.length} peserta sudah mengerjakan kuis</p>
       <p class="text-xs text-slate-400">Rata-rata skor: ${avgScore!=null ? `<span class="badge badge-slate ml-1">${avgScore}</span>` : '—'}</p>
     </div>`;
@@ -2927,7 +3026,7 @@ function renderPosisiFilterOptions(){
     const safe = v.replace(/'/g,"\\'").replace(/"/g,'&quot;');
     return `<label class="flex items-center gap-2 text-xs px-2 py-1 rounded hover:bg-slate-50 ${disabled?'opacity-40 cursor-not-allowed':'cursor-pointer'}">
       <input type="checkbox" ${checked?'checked':''} ${disabled?'disabled':''} onchange="togglePosisiValue('${safe}')">
-      <span>${v}</span>
+      <span>${escapeHtml(v)}</span>
     </label>`;
   }).join('') : '<p class="text-xs text-slate-400 px-2 py-1">Belum ada data posisi</p>';
   if(pfPosisiSelected.length===0) label.innerText = 'Semua Posisi';
@@ -3034,7 +3133,7 @@ function renderParticipants(){
     const sel = document.getElementById(f.id);
     const current = sel.value;
     const unique = sortFilterValues(f.field, Array.from(new Set(state.participants.map(p=>p[f.field]).filter(Boolean))));
-    sel.innerHTML = `<option value="">${f.label}</option>` + unique.map(v=>`<option value="${v}" ${v===current?'selected':''}>${v}</option>`).join('');
+    sel.innerHTML = `<option value="">${f.label}</option>` + unique.map(v=>`<option value="${escapeHtml(v)}" ${v===current?'selected':''}>${escapeHtml(v)}</option>`).join('');
     activeValues[f.field] = sel.value;
   });
   renderPosisiFilterOptions();
@@ -3088,26 +3187,26 @@ function renderParticipants(){
     const usia = usiaJoinHari(p.joinDate, p.resignDate);
     const initial = (p.name||'?').charAt(0).toUpperCase();
     return `<tr class="border-b" style="border-color:var(--line)">
-      <td class="py-2 pr-4">${p.username || '—'}</td>
+      <td class="py-2 pr-4">${escapeHtml(p.username) || '—'}</td>
       <td class="py-2 pr-4 font-semibold">
         <div class="flex items-center gap-2">
-          <div class="w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px] text-white flex-shrink-0" style="background:${avatarColorFor(p.name)}">${initial}</div>
-          <span>${p.name}</span>
+          <div class="w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px] text-white flex-shrink-0" style="background:${avatarColorFor(p.name)}">${escapeHtml(initial)}</div>
+          <span>${escapeHtml(p.name)}</span>
         </div>
       </td>
-      <td class="py-2 pr-4">${p.posisi || '—'}</td>
-      <td class="py-2 pr-4">${p.bln || '—'}</td>
-      <td class="py-2 pr-4">${p.batch || '—'}</td>
-      <td class="py-2 pr-4">${p.lokasi || '—'}</td>
-      <td class="py-2 pr-4">${p.mentor || '—'}</td>
-      <td class="py-2 pr-4">${p.branchManager || '—'}</td>
-      <td class="py-2 pr-4">${p.regionalManager || '—'}</td>
-      <td class="py-2 pr-4">${p.picRecruitment || '—'}</td>
-      <td class="py-2 pr-4">${p.noHp || '—'}</td>
+      <td class="py-2 pr-4">${escapeHtml(p.posisi) || '—'}</td>
+      <td class="py-2 pr-4">${escapeHtml(p.bln) || '—'}</td>
+      <td class="py-2 pr-4">${escapeHtml(p.batch) || '—'}</td>
+      <td class="py-2 pr-4">${escapeHtml(p.lokasi) || '—'}</td>
+      <td class="py-2 pr-4">${escapeHtml(p.mentor) || '—'}</td>
+      <td class="py-2 pr-4">${escapeHtml(p.branchManager) || '—'}</td>
+      <td class="py-2 pr-4">${escapeHtml(p.regionalManager) || '—'}</td>
+      <td class="py-2 pr-4">${escapeHtml(p.picRecruitment) || '—'}</td>
+      <td class="py-2 pr-4">${escapeHtml(p.noHp) || '—'}</td>
       <td class="py-2 pr-4">${fmtDate(p.joinDate)}</td>
       <td class="py-2 pr-4">${fmtDate(p.resignDate)}</td>
       <td class="py-2 pr-4 mono">${usia===null?'—':usia}</td>
-      <td class="py-2 pr-4">${p.keterangan || '—'}</td>
+      <td class="py-2 pr-4">${escapeHtml(p.keterangan) || '—'}</td>
       <td class="py-2 pr-4 w-32">
         <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
         <span class="text-slate-400">${pct}%</span>
@@ -3484,7 +3583,7 @@ function fillSelectOptions(selectId, values, placeholder){
   if(!sel) return;
   const current = sel.value;
   const unique = Array.from(new Set(values.filter(Boolean))).sort();
-  sel.innerHTML = `<option value="">${placeholder}</option>` + unique.map(v=>`<option value="${v}">${v}</option>`).join('');
+  sel.innerHTML = `<option value="">${placeholder}</option>` + unique.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
   if(unique.includes(current)) sel.value = current;
 }
 function renderTrainingTargets(){
@@ -3517,13 +3616,13 @@ function renderTrainingTargets(){
   if(tbody){
     tbody.innerHTML = filtered.length ? filtered.map(({t, st})=>`
       <tr class="border-b" style="border-color:var(--line)">
-        <td class="py-2 pr-4 font-semibold">${t.name}</td>
-        <td class="py-2 pr-4">${t.company || '—'}</td>
-        <td class="py-2 pr-4">${t.department || '—'}</td>
-        <td class="py-2 pr-4">${t.designation || '—'}</td>
-        <td class="py-2 pr-4">${t.location || '—'}</td>
+        <td class="py-2 pr-4 font-semibold">${escapeHtml(t.name)}</td>
+        <td class="py-2 pr-4">${escapeHtml(t.company) || '—'}</td>
+        <td class="py-2 pr-4">${escapeHtml(t.department) || '—'}</td>
+        <td class="py-2 pr-4">${escapeHtml(t.designation) || '—'}</td>
+        <td class="py-2 pr-4">${escapeHtml(t.location) || '—'}</td>
         <td class="py-2 pr-4">${fmtDate(t.joinDate)}</td>
-        <td class="py-2 pr-4">${t.contact || '—'}</td>
+        <td class="py-2 pr-4">${escapeHtml(t.contact) || '—'}</td>
         <td class="py-2 pr-4"><span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase" style="${TT_STATUS_CLASS[st.key]}">${TT_STATUS_LABEL[st.key]}</span></td>
         <td class="py-2 pr-4">
           ${st.matched
@@ -3573,8 +3672,8 @@ function renderCertificates(){
     const cert = isCertified(p);
     return `<div class="card p-5 flex items-center justify-between">
       <div>
-        <p class="text-sm font-bold">${p.name}</p>
-        <p class="text-xs text-slate-400">${p.posisi || '—'} &middot; Rata-rata skor: ${avgQuizScore(p) ?? '—'}</p>
+        <p class="text-sm font-bold">${escapeHtml(p.name)}</p>
+        <p class="text-xs text-slate-400">${escapeHtml(p.posisi) || '—'} &middot; Rata-rata skor: ${avgQuizScore(p) ?? '—'}</p>
         ${cert ? '<span class="badge badge-green mt-2 inline-block">Layak Sertifikat</span>' : '<span class="badge badge-slate mt-2 inline-block">Belum Layak</span>'}
       </div>
       <button class="btn-primary ${cert?'':'opacity-40 cursor-not-allowed'}" ${cert?'':'disabled'} onclick="downloadCertificate('${p.id}')"><i class="fa-solid fa-download mr-1"></i>Unduh</button>
@@ -3588,8 +3687,8 @@ function downloadCertificate(id){
   const now = new Date();
   const dateStr = now.toLocaleDateString('id-ID', {day:'numeric', month:'long', year:'numeric'});
   const certNumber = `${String(idx+1).padStart(3,'0')}/SRT/${toRomanNumeral(now.getMonth()+1)}/${now.getFullYear()}`;
-  const mentorName = p.mentor || '—';
-  const bmName = p.branchManager || '—';
+  const mentorName = escapeHtml(p.mentor) || '—';
+  const bmName = escapeHtml(p.branchManager) || '—';
 
   area.innerHTML = `<div id="cert-inner" style="width:1024px;height:724px;box-sizing:border-box;background:#fff;border:22px solid #7c9473;padding:18px;font-family:'Plus Jakarta Sans',sans-serif;text-align:center;position:relative">
     <div style="position:absolute;top:14px;left:14px">${certOrnamentSVG()}</div>
@@ -3609,7 +3708,7 @@ function downloadCertificate(id){
       <p style="font-size:11px;color:#94a3b8;margin-top:6px">Nomor: ${certNumber}</p>
 
       <p style="font-size:15px;color:#334155;margin-top:38px">Diberikan kepada</p>
-      <p style="font-family:'Dancing Script',cursive;font-weight:700;font-size:46px;color:#59745a;margin:6px 0 0;display:inline-block;border-bottom:2px solid #7c9473;padding:0 28px 8px">${p.name}</p>
+      <p style="font-family:'Dancing Script',cursive;font-weight:700;font-size:46px;color:#59745a;margin:6px 0 0;display:inline-block;border-bottom:2px solid #7c9473;padding:0 28px 8px">${escapeHtml(p.name)}</p>
 
       <p style="font-size:12.5px;color:#334155;margin:26px auto 0;max-width:660px;line-height:1.7">Peserta ini telah menunjukkan komitmen dan partisipasi aktif dalam mengikuti Program Training Sales PT Raja Sukses Propertindo, serta berhasil menyelesaikan seluruh ${wajibModules().length} modul wajib kurikulum dengan rata-rata skor kuis <b>${avgQuizScore(p)}</b> secara profesional.</p>
 
