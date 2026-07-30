@@ -139,6 +139,9 @@
       <a href="#" onclick="switchTab('dashboard');return false" id="nav-dashboard" class="nav-item active">
         <i class="icon fa-solid fa-chart-pie"></i><span>Dashboard</span>
       </a>
+      <a href="#" onclick="switchTab('resumekpi');return false" id="nav-resumekpi" class="nav-item">
+        <i class="icon fa-solid fa-list-check"></i><span>Resume</span>
+      </a>
 
       <div class="eyebrow px-3 mt-4 mb-2">Kinerja Sales</div>
       <a href="#" onclick="switchTab('pencapaian');return false" id="nav-pencapaian" class="nav-item">
@@ -162,6 +165,11 @@
       </a>
       <a href="#" onclick="switchTab('certificates');return false" id="nav-certificates" class="nav-item">
         <i class="icon fa-solid fa-award"></i><span>Sertifikat</span>
+      </a>
+
+      <div class="eyebrow px-3 mt-4 mb-2">Agenda</div>
+      <a href="#" onclick="switchTab('agenda');return false" id="nav-agenda" class="nav-item">
+        <i class="icon fa-solid fa-calendar-days"></i><span>Agenda Kegiatan</span>
       </a>
 
       <div class="eyebrow px-3 mt-4 mb-2">Sistem</div>
@@ -386,6 +394,44 @@
         </div>
       </div>
 
+      <!-- ================= RESUME (3 INDIKATOR RINGKASAN) ================= -->
+      <div id="tab-resumekpi" class="tab-hidden space-y-6">
+        <div class="card p-5">
+          <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
+            <p class="text-sm font-bold">Resume Ringkasan Bulanan</p>
+            <div class="flex items-end gap-2">
+              <div>
+                <label class="text-[10px] font-bold text-slate-400 uppercase">Bulan</label>
+                <select id="resumekpi-filter-bln" class="field" onchange="applyResumeKpiMonthFilter()"><option value="">Semua Bulan</option></select>
+              </div>
+              <div>
+                <label class="text-[10px] font-bold text-slate-400 uppercase">Tahun</label>
+                <select id="resumekpi-filter-tahun" class="field" onchange="applyResumeKpiMonthFilter()"><option value="">Semua Tahun</option></select>
+              </div>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mb-2">Ringkasan 3 indikator utama untuk bulan yang dipilih. Filter bulan &amp; tahun ini terhubung dengan filter di tab Dashboard.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div class="card p-5 text-center">
+            <p class="text-xs font-bold text-slate-400 uppercase mb-3">Training Sales Selesai</p>
+            <p id="resumekpi-training-pct" class="text-4xl font-extrabold" style="color:var(--brand-600)">0%</p>
+            <p id="resumekpi-training-sub" class="text-xs text-slate-400 mt-2">0 dari 0 peserta</p>
+          </div>
+          <div class="card p-5 text-center">
+            <p class="text-xs font-bold text-slate-400 uppercase mb-3">Pencapaian Booking</p>
+            <p id="resumekpi-booking-pct" class="text-4xl font-extrabold" style="color:#2563eb">0%</p>
+            <p id="resumekpi-booking-sub" class="text-xs text-slate-400 mt-2">0 booking dari 0 data</p>
+          </div>
+          <div class="card p-5 text-center">
+            <p class="text-xs font-bold text-slate-400 uppercase mb-3">Penyelesaian Agenda Wajib</p>
+            <p id="resumekpi-agenda-pct" class="text-4xl font-extrabold" style="color:#d97706">0%</p>
+            <p id="resumekpi-agenda-sub" class="text-xs text-slate-400 mt-2">0 dari 0 kegiatan</p>
+          </div>
+        </div>
+      </div>
+
       <!-- ================= PENCAPAIAN BULANAN ================= -->
       <div id="tab-pencapaian" class="tab-hidden space-y-6">
 
@@ -553,6 +599,7 @@
                 <input type="file" accept=".xlsx,.xls" class="hidden" onchange="importParticipantsExcel(event)">
               </label>
               <button class="btn-primary" onclick="openAddParticipant()"><i class="fa-solid fa-plus mr-1"></i>Tambah Peserta</button>
+              <button class="btn-ghost" onclick="mergeAllDuplicateParticipants(false)" title="Cek &amp; gabungkan peserta dengan nama yang sama"><i class="fa-solid fa-code-merge mr-1"></i>Gabungkan Duplikat</button>
               <button class="btn-ghost !text-red-600" onclick="clearParticipantsData()"><i class="fa-solid fa-broom mr-1"></i>Bersihkan Peserta &amp; Progress</button>
             </div>
           </div>
@@ -704,6 +751,57 @@
           <p class="text-sm font-bold mb-1">Sertifikat Kelulusan</p>
           <p class="text-xs text-slate-400 mb-4">Peserta layak sertifikat jika menyelesaikan seluruh <b>Modul Wajib</b> dengan rata-rata skor kuis minimal 70. Modul Additional tidak memengaruhi kelulusan.</p>
           <div id="certificates-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </div>
+      </div>
+
+      <!-- ================= AGENDA ================= -->
+      <div id="tab-agenda" class="tab-hidden space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <!-- Calendar -->
+          <div class="card p-5 lg:col-span-2">
+            <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+              <div class="flex items-center gap-2">
+                <button onclick="agendaChangeMonth(-1)" class="w-8 h-8 rounded-lg btn-ghost !p-0 flex items-center justify-center"><i class="fa-solid fa-chevron-left text-xs"></i></button>
+                <p id="agenda-month-label" class="text-sm font-extrabold w-40 text-center">—</p>
+                <button onclick="agendaChangeMonth(1)" class="w-8 h-8 rounded-lg btn-ghost !p-0 flex items-center justify-center"><i class="fa-solid fa-chevron-right text-xs"></i></button>
+              </div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <div id="agenda-monthly-progress"></div>
+                <button onclick="agendaGoToday()" class="btn-ghost !py-1.5 !px-3 text-[11px]"><i class="fa-solid fa-calendar-day mr-1"></i>Hari Ini</button>
+                <button onclick="openRecurringManager()" class="btn-ghost !py-1.5 !px-3 text-[11px]"><i class="fa-solid fa-repeat mr-1"></i>Jadwal Rutin</button>
+                <button onclick="openAgendaModal()" class="btn-primary !py-1.5 !px-3 text-[11px]"><i class="fa-solid fa-plus mr-1"></i>Tambah Kegiatan</button>
+              </div>
+            </div>
+            <div class="grid grid-cols-7 gap-1 text-center text-[10px] font-extrabold text-slate-400 mb-1">
+              <div>Min</div><div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div><div>Sab</div>
+            </div>
+            <div id="agenda-calendar-grid" class="grid grid-cols-7 gap-1"></div>
+          </div>
+
+          <!-- Selected day / upcoming panel -->
+          <div class="space-y-5">
+            <div class="card p-5">
+              <div class="flex items-center justify-between mb-1">
+                <p id="agenda-selected-date-label" class="text-sm font-extrabold">—</p>
+                <button onclick="openAgendaModal(agendaSelectedDate)" class="text-slate-400 hover:text-[var(--brand-600)]" title="Tambah kegiatan di tanggal ini"><i class="fa-solid fa-circle-plus"></i></button>
+              </div>
+              <p class="text-[11px] text-slate-400 mb-3">Kegiatan pada tanggal terpilih</p>
+              <div id="agenda-day-list" class="space-y-2"></div>
+              <div id="agenda-day-empty" class="hidden text-center py-6 text-slate-400">
+                <i class="fa-regular fa-calendar text-2xl mb-2"></i>
+                <p class="text-xs">Belum ada kegiatan di tanggal ini</p>
+              </div>
+            </div>
+            <div class="card p-5">
+              <p class="text-sm font-extrabold mb-1"><i class="fa-solid fa-clock-rotate-left mr-1" style="color:var(--brand-600)"></i>Kegiatan Mendatang</p>
+              <p class="text-[11px] text-slate-400 mb-3">7 kegiatan terdekat dari hari ini</p>
+              <div id="agenda-upcoming-list" class="space-y-2"></div>
+              <div id="agenda-upcoming-empty" class="hidden text-center py-6 text-slate-400">
+                <i class="fa-regular fa-face-smile text-2xl mb-2"></i>
+                <p class="text-xs">Tidak ada kegiatan mendatang</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -940,6 +1038,122 @@
       </div>
     </div>
     <button class="btn-primary w-full mt-5" onclick="saveModule()">Simpan Modul</button>
+  </div>
+</div>
+
+<!-- Agenda Event Modal -->
+<div id="agenda-modal" class="modal-overlay hidden">
+  <div class="card p-6 w-full max-w-md max-h-[88vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-4">
+      <p id="agenda-modal-title" class="text-sm font-extrabold">Tambah Kegiatan</p>
+      <button onclick="closeAgendaModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="space-y-3">
+      <div>
+        <label class="text-[11px] font-bold text-slate-500">Judul Kegiatan</label>
+        <input id="ag-title" type="text" placeholder="mis. Training Batch 13 - Sesi Negosiasi" class="field">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-[11px] font-bold text-slate-500">Tanggal</label>
+          <input id="ag-date" type="date" class="field">
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-slate-500">Jam (opsional)</label>
+          <input id="ag-time" type="time" class="field">
+        </div>
+      </div>
+      <div>
+        <label class="text-[11px] font-bold text-slate-500">Kategori</label>
+        <select id="ag-category" class="field">
+          <option value="training">Training</option>
+          <option value="meeting">Meeting</option>
+          <option value="followup">Follow-up Peserta</option>
+          <option value="lainnya">Lainnya</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-[11px] font-bold text-slate-500">Warna Kegiatan</label>
+        <div id="ag-color-picker" class="flex items-center gap-2 mt-1.5 flex-wrap"></div>
+        <input type="hidden" id="ag-color" value="">
+        <input id="ag-color-name" type="text" placeholder="Nama warna ini (opsional), mis. Tim A" class="field mt-2" oninput="renameAgendaColor('ag-color','ag-color-name')" disabled>
+        <p class="text-[10px] text-slate-400 mt-1">Nama ini akan dipakai di semua kegiatan yang pakai warna ini &amp; muncul di rincian persentase.</p>
+      </div>
+      <div>
+        <label class="text-[11px] font-bold text-slate-500">Lokasi (opsional)</label>
+        <input id="ag-location" type="text" placeholder="mis. Ruang Training Lt.3 / Online" class="field">
+      </div>
+      <div>
+        <label class="text-[11px] font-bold text-slate-500">Catatan</label>
+        <textarea id="ag-notes" rows="3" placeholder="Detail tambahan kegiatan ini" class="field"></textarea>
+      </div>
+    </div>
+    <div class="flex items-center gap-2 mt-5">
+      <button id="agenda-delete-btn" class="hidden btn-ghost !text-red-600" onclick="deleteAgendaEvent()"><i class="fa-solid fa-trash-can mr-1"></i>Hapus</button>
+      <button class="btn-primary flex-1" onclick="saveAgendaEvent()">Simpan Kegiatan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Recurring Weekly Training Schedule Manager -->
+<div id="agenda-recurring-modal" class="modal-overlay hidden">
+  <div class="card p-6 w-full max-w-2xl max-h-[88vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-1">
+      <p class="text-sm font-extrabold"><i class="fa-solid fa-repeat mr-1" style="color:var(--brand-600)"></i>Jadwal Training Rutin Mingguan</p>
+      <button onclick="closeRecurringManager()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <p class="text-xs text-slate-400 mb-4">Training di sini otomatis muncul di kalender agenda SETIAP MINGGU pada hari yang dipilih, tanpa perlu diinput ulang.</p>
+
+    <div id="agenda-recurring-list" class="space-y-4 mb-5"></div>
+
+    <div class="rounded-xl p-4" style="background:#f8fafc;border:1px dashed var(--line)">
+      <p id="agenda-recurring-form-title" class="text-xs font-extrabold mb-3">+ Tambah Jadwal Rutin</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="sm:col-span-2">
+          <label class="text-[11px] font-bold text-slate-500">Judul Training</label>
+          <input id="ar-title" type="text" placeholder="mis. Company Profile RSP" class="field">
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-slate-500">Hari (mingguan)</label>
+          <select id="ar-weekday" class="field">
+            <option value="1">Senin</option>
+            <option value="2" selected>Selasa</option>
+            <option value="3">Rabu</option>
+            <option value="4">Kamis</option>
+            <option value="5">Jumat</option>
+            <option value="6">Sabtu</option>
+            <option value="0">Minggu</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-slate-500">Label (mis. Day 1)</label>
+          <input id="ar-day" type="text" placeholder="mis. Day 1" class="field">
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-slate-500">Jam (opsional)</label>
+          <input id="ar-time" type="time" class="field">
+        </div>
+        <div class="flex items-center gap-2 mt-5">
+          <input id="ar-wajib" type="checkbox" checked class="w-4 h-4">
+          <label for="ar-wajib" class="text-xs font-semibold text-slate-600">Training Wajib</label>
+        </div>
+        <div class="sm:col-span-2">
+          <label class="text-[11px] font-bold text-slate-500">Warna Jadwal</label>
+          <div id="ar-color-picker" class="flex items-center gap-2 mt-1.5 flex-wrap"></div>
+          <input type="hidden" id="ar-color" value="">
+          <input id="ar-color-name" type="text" placeholder="Nama warna ini (opsional), mis. Tim A" class="field mt-2" oninput="renameAgendaColor('ar-color','ar-color-name')" disabled>
+          <p class="text-[10px] text-slate-400 mt-1">Nama ini akan dipakai di semua kegiatan/jadwal yang pakai warna ini &amp; muncul di rincian persentase.</p>
+        </div>
+        <div class="sm:col-span-2">
+          <label class="text-[11px] font-bold text-slate-500">Lokasi (opsional)</label>
+          <input id="ar-location" type="text" placeholder="mis. Ruang Training Lt.3" class="field">
+        </div>
+      </div>
+      <div class="flex items-center gap-2 mt-4">
+        <button id="agenda-recurring-cancel-btn" class="hidden btn-ghost" onclick="clearRecurringForm()">Batal Edit</button>
+        <button class="btn-primary flex-1" onclick="saveRecurringRule()">Simpan Jadwal Rutin</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1733,6 +1947,21 @@ function savePosisiScope(arr){
 }
 let savedPosisiScope = loadPosisiScope();
 let pfPosisiSelected = [];
+const WEEKDAY_NAMES_ID = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+// Kurikulum training wajib mingguan (Selasa=Day1, Rabu=Day2, Jumat=Day4).
+// Ini di-seed sekali secara otomatis ke state.agendaRecurring (lihat normalizeState/defaultState).
+const DEFAULT_AGENDA_RECURRING = [
+  { weekday:2, day:'Day 1', title:'Be A Great Employee - PT Raja Sukses Propertindo', category:'training', wajib:true },
+  { weekday:2, day:'Day 1', title:'Company Profile RSP', category:'training', wajib:true },
+  { weekday:2, day:'Day 1', title:'Peraturan Perusahaan RSP', category:'training', wajib:true },
+  { weekday:2, day:'Day 1', title:'Marketing Rumah Ningrat', category:'training', wajib:true },
+  { weekday:3, day:'Day 2', title:'Product Knowledge RSP', category:'training', wajib:true },
+  { weekday:3, day:'Day 2', title:'Marketing Application System', category:'training', wajib:true },
+  { weekday:3, day:'Day 2', title:'Teknik Penawaran Online dan Offline', category:'training', wajib:true },
+  { weekday:5, day:'Day 4', title:'Teknik Follow Up', category:'training', wajib:true },
+  { weekday:5, day:'Day 4', title:'Teknik Closing', category:'training', wajib:true },
+  { weekday:5, day:'Day 4', title:'Wake The Giant', category:'training', wajib:true }
+];
 let state = loadState();
 let MODULES = [];
 function rebuildModules(){
@@ -1817,7 +2046,13 @@ function defaultState(){
     deletedLessonIdx:{},
     trainingTargets:[],
     moduleOrder:[],
-    trash:[]
+    trash:[],
+    agenda:[],
+    agendaRecurring: DEFAULT_AGENDA_RECURRING.map((r,i)=>({ id:'arc_seed_'+i, ...r })),
+    agendaRecurringSkips:[],
+    agendaRecurringSeeded:true,
+    agendaStatus:{},
+    agendaColorNames:{}
   };
 }
 function normalizeState(parsed){
@@ -1832,6 +2067,17 @@ function normalizeState(parsed){
   if(!Array.isArray(parsed.trainingTargets)) parsed.trainingTargets = [];
   if(!Array.isArray(parsed.moduleOrder)) parsed.moduleOrder = [];
   if(!Array.isArray(parsed.trash)) parsed.trash = [];
+  if(!Array.isArray(parsed.agenda)) parsed.agenda = [];
+  if(!Array.isArray(parsed.agendaRecurring)) parsed.agendaRecurring = [];
+  if(!Array.isArray(parsed.agendaRecurringSkips)) parsed.agendaRecurringSkips = [];
+  if(!parsed.agendaStatus || typeof parsed.agendaStatus!=='object') parsed.agendaStatus = {};
+  if(!parsed.agendaColorNames || typeof parsed.agendaColorNames!=='object') parsed.agendaColorNames = {};
+  if(!parsed.agendaRecurringSeeded){
+    parsed.agendaRecurring = parsed.agendaRecurring.concat(
+      DEFAULT_AGENDA_RECURRING.map((r,i)=>({ id:'arc_seed_'+Date.now()+'_'+i, ...r }))
+    );
+    parsed.agendaRecurringSeeded = true;
+  }
   return parsed;
 }
 function loadState(){
@@ -1903,12 +2149,109 @@ function setLessonOverride(moduleId, idx, fields){
 
 function getParticipant(id){ return state.participants.find(p=>p.id===id); }
 function ensureProgress(participant, moduleId){
-  if(!participant.progress[moduleId]) participant.progress[moduleId] = { lessonsDone:[], quizScore:null };
+  if(!participant.progress[moduleId]) participant.progress[moduleId] = { lessonsDone:[], quizScore:null, pretestScore:null, posttestScore:null };
   return participant.progress[moduleId];
 }
 function logActivity(text){
   state.activityLog.unshift({ text, ts:Date.now() });
   state.activityLog = state.activityLog.slice(0,12);
+}
+
+/* ===================== DUPLICATE NAME DETECTION & MERGE ===================== */
+// Merges non-progress fields (only fills empty target fields) and unions progress
+// data from `source` into `target` participant, without deleting anything from target.
+function mergeParticipantInto(target, source){
+  const fields = ['name','username','posisi','bln','batch','lokasi','mentor','branchManager','regionalManager','picRecruitment','noHp','joinDate','resignDate','keterangan'];
+  fields.forEach(f=>{
+    const val = source[f];
+    if(val!==undefined && val!==null && String(val).trim()!=='' && (!target[f] || String(target[f]).trim()==='')){
+      target[f] = val;
+    }
+  });
+  if(source.progress){
+    Object.keys(source.progress).forEach(modId=>{
+      const sp = source.progress[modId];
+      if(!sp) return;
+      const tp = ensureProgress(target, modId);
+      if(Array.isArray(sp.lessonsDone) && sp.lessonsDone.length){
+        tp.lessonsDone = Array.from(new Set([...(tp.lessonsDone||[]), ...sp.lessonsDone]));
+      }
+      if(typeof sp.quizScore==='number'){
+        if(typeof tp.quizScore!=='number' || sp.quizScore>tp.quizScore) tp.quizScore = sp.quizScore;
+      }
+      if(typeof sp.pretestScore==='number'){
+        if(typeof tp.pretestScore!=='number' || sp.pretestScore>tp.pretestScore) tp.pretestScore = sp.pretestScore;
+      }
+      if(typeof sp.posttestScore==='number'){
+        if(typeof tp.posttestScore!=='number' || sp.posttestScore>tp.posttestScore) tp.posttestScore = sp.posttestScore;
+      }
+    });
+  }
+  return target;
+}
+// Scans all current participants for duplicate names (case/space-insensitive) and
+// warns the admin so duplicates don't go unnoticed.
+function scanDuplicateParticipantNames(silent){
+  const groups = {};
+  (state.participants||[]).forEach(p=>{
+    const key = normNameKey(p.name);
+    if(!key) return;
+    (groups[key] = groups[key]||[]).push(p);
+  });
+  const dups = Object.values(groups).filter(g=>g.length>1);
+  if(dups.length && !silent){
+    const list = dups.map(g=>`- ${g[0].name} (${g.length}x — username: ${g.map(p=>p.username||'-').join(', ')})`).join('\n');
+    console.warn('Duplikat nama peserta terdeteksi:\n'+list);
+    toast(`⚠️ Ditemukan ${dups.length} nama peserta duplikat di data`);
+  }
+  return dups;
+}
+// Merges every duplicate-name group currently in state.participants into a single
+// record each (keeping the record with the most progress data / a filled username
+// as the "target"), and moves the absorbed duplicate(s) to Sampah (Trash) so nothing
+// is permanently lost and the merge can be undone. Returns the number of records merged away.
+// If `silent` is falsy, shows a preview + confirm() dialog before merging (used by the
+// manual "Gabungkan Duplikat" button); if truthy, merges immediately without asking
+// (used for automatic merging on app load and right after Excel import).
+function mergeAllDuplicateParticipants(silent){
+  const dups = scanDuplicateParticipantNames(true);
+  if(!dups.length){
+    if(!silent) toast('Tidak ada nama peserta duplikat ditemukan ✅');
+    return 0;
+  }
+  if(!silent){
+    const preview = dups.map(g=>`- ${g[0].name} (${g.length}x)`).join('\n');
+    const ok = confirm(`Ditemukan ${dups.length} nama peserta duplikat:\n${preview}\n\nGabungkan sekarang menjadi satu data per nama? Data yang tergabung akan dipindahkan ke Sampah (bisa dipulihkan jika keliru).`);
+    if(!ok) return 0;
+  }
+  let mergedCount = 0;
+  const mergedNames = [];
+  dups.forEach(group=>{
+    // Prefer keeping the record with the most progress entries as the target,
+    // then the one that already has a username filled in.
+    const sorted = [...group].sort((a,b)=>{
+      const aProg = Object.keys(a.progress||{}).length, bProg = Object.keys(b.progress||{}).length;
+      if(aProg!==bProg) return bProg-aProg;
+      const aUser = a.username ? 1 : 0, bUser = b.username ? 1 : 0;
+      return bUser-aUser;
+    });
+    const target = sorted[0];
+    for(let i=1;i<sorted.length;i++){
+      const src = sorted[i];
+      mergeParticipantInto(target, src);
+      addToTrash('participant', src.name || src.username || 'Peserta', {participant: JSON.parse(JSON.stringify(src))});
+      state.participants = state.participants.filter(pp=>pp.id!==src.id);
+      mergedCount++;
+    }
+    mergedNames.push(target.name);
+  });
+  if(mergedCount){
+    saveState();
+    renderAll();
+    logActivity(`${mergedCount} peserta duplikat digabungkan otomatis (nama sama): ${mergedNames.join(', ')}`);
+    if(!silent) toast(`✅ ${mergedCount} peserta duplikat berhasil digabungkan`);
+  }
+  return mergedCount;
 }
 
 /* ===================== COMPUTATION HELPERS ===================== */
@@ -1991,22 +2334,26 @@ function switchTab(tab){
   document.getElementById('nav-'+tab).classList.add('active');
   const titles = {
     dashboard:['Ringkasan','Dashboard'],
+    resumekpi:['Ringkasan','Resume'],
     pencapaian:['Kinerja Sales','Pencapaian Bulanan'],
     modules:['Konten Training','Modul Training'], quiz:['Penilaian','Kuis & Penilaian'],
     participants:['Tim','Peserta & Progress'], targettraining:['Onboarding','Target Training'],
     certificates:['Kelulusan','Sertifikat'],
+    agenda:['Agenda','Agenda Kegiatan'],
     trash:['Sistem','Sampah'],
     settings:['Sistem','Pengaturan']
   };
   document.getElementById('page-eyebrow').innerText = titles[tab][0];
   document.getElementById('page-title').innerText = titles[tab][1];
-  if(tab==='dashboard'){ renderDashboard(); renderResume(); }
+  if(tab==='dashboard'){ renderDashboard(); renderResume(); renderResumeKpi(); }
+  if(tab==='resumekpi') renderResumeKpi();
   if(tab==='pencapaian') renderPencapaian();
   if(tab==='modules') renderModules();
   if(tab==='quiz') renderQuizPicker();
   if(tab==='participants') renderParticipants();
   if(tab==='targettraining') renderTrainingTargets();
   if(tab==='certificates') renderCertificates();
+  if(tab==='agenda') renderAgenda();
   if(tab==='trash') renderTrash();
   if(tab==='settings'){
     const accUsername = document.getElementById('acc-username');
@@ -2071,6 +2418,7 @@ function clearPosisiScope(){
   renderDashboardFilters();
   renderDashboard();
   renderResume();
+  renderResumeKpi();
   toast('Batasan posisi dashboard dihapus');
 }
 function applyDashboardFilter(){
@@ -2080,6 +2428,7 @@ function applyDashboardFilter(){
   dashboardFilterPosisi = document.getElementById('filter-posisi').value;
   renderDashboard();
   renderResume();
+  renderResumeKpi();
 }
 function resetDashboardFilter(){
   dashboardFilterBln = '';
@@ -2089,6 +2438,7 @@ function resetDashboardFilter(){
   renderDashboardFilters();
   renderDashboard();
   renderResume();
+  renderResumeKpi();
 }
 function renderDashboard(){
   renderDashboardFilters();
@@ -2192,6 +2542,89 @@ function renderResume(){
   `).join('');
 }
 
+/* ===================== RENDER: RESUME KPI (3 indikator ringkasan bulanan) ===================== */
+// Filter bulan/tahun di halaman ini memakai variabel yang sama dengan filter Dashboard
+// (dashboardFilterBln/dashboardFilterTahun) supaya konsisten dan otomatis tersambung
+// dengan bulan yang sedang dipilih di Dashboard.
+function renderResumeKpiFilters(){
+  const blnSel = document.getElementById('resumekpi-filter-bln');
+  const tahunSel = document.getElementById('resumekpi-filter-tahun');
+  if(!blnSel || !tahunSel) return;
+  const blnValues = sortFilterValues('bln', Array.from(new Set(state.participants.map(p=>p.bln).filter(Boolean))));
+  const tahunValues = Array.from(new Set(state.participants.map(p=>yearFromDate(p.joinDate)).filter(Boolean))).sort((a,b)=>b-a);
+  blnSel.innerHTML = '<option value="">Semua Bulan</option>' + blnValues.map(v=>`<option value="${escapeHtml(v)}" ${v===dashboardFilterBln?'selected':''}>${escapeHtml(v)}</option>`).join('');
+  tahunSel.innerHTML = '<option value="">Semua Tahun</option>' + tahunValues.map(v=>`<option value="${escapeHtml(v)}" ${v===dashboardFilterTahun?'selected':''}>${escapeHtml(v)}</option>`).join('');
+}
+function applyResumeKpiMonthFilter(){
+  dashboardFilterBln = document.getElementById('resumekpi-filter-bln').value;
+  dashboardFilterTahun = document.getElementById('resumekpi-filter-tahun').value;
+  renderDashboardFilters();
+  renderDashboard();
+  renderResume();
+  renderResumeKpi();
+  renderResumeKpi();
+}
+// Sama seperti computeRecurringMonthlyCompletion, tapi hanya menghitung kejadian
+// training rutin yang ditandai WAJIB (mengabaikan training non-wajib).
+function computeRecurringMonthlyCompletionWajib(year, month){
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  let total = 0, done = 0;
+  for(let d=1; d<=daysInMonth; d++){
+    const dateStr = toYMD(new Date(year, month, d));
+    getRecurringOccurrencesForDate(dateStr).forEach(e=>{
+      if(e.wajib===false) return;
+      total++;
+      if(getAgendaEffectiveStatus(e)==='selesai') done++;
+    });
+  }
+  const pct = total>0 ? Math.round((done/total)*100) : 0;
+  return { total, done, pct };
+}
+function renderResumeKpi(){
+  renderResumeKpiFilters();
+  const scoped = getFilteredParticipants();
+
+  // 1) Persentase training sales (modul wajib) yang sudah selesai, untuk peserta
+  // sesuai filter bulan/tahun yang dipilih.
+  const totalPeserta = scoped.length;
+  const selesaiPeserta = scoped.filter(p=>overallProgressPct(p)===100).length;
+  const trainingPct = totalPeserta ? Math.round((selesaiPeserta/totalPeserta)*100) : 0;
+  document.getElementById('resumekpi-training-pct').innerText = trainingPct + '%';
+  document.getElementById('resumekpi-training-sub').innerText = `${selesaiPeserta} dari ${totalPeserta} peserta`;
+
+  // 2) Persentase pencapaian booking (konversi Booking dari total data GCI) untuk
+  // bulan yang dipilih. Jika "Semua Bulan" dipilih, dihitung dari seluruh data GCI.
+  const monthKey = dashboardGciMonthKey();
+  const monthLabel = monthKey ? gciMonthLabel(monthKey) : 'Semua Bulan';
+  let bookingPct = 0, bookingCount = 0, gciTotal = 0;
+  gciData = loadGciData();
+  if(monthKey){
+    const agg = aggregateGciMonth(monthKey);
+    bookingPct = agg.conversion; bookingCount = agg.booking; gciTotal = agg.total;
+  } else {
+    gciTotal = gciData.length;
+    bookingCount = gciData.filter(r=>classifyGciStatus(r)==='booking').length;
+    bookingPct = gciTotal ? Math.round((bookingCount/gciTotal)*1000)/10 : 0;
+  }
+  document.getElementById('resumekpi-booking-pct').innerText = bookingPct + '%';
+  document.getElementById('resumekpi-booking-sub').innerText = `${bookingCount} booking dari ${gciTotal} data (${monthLabel})`;
+
+  // 3) Persentase penyelesaian agenda WAJIB untuk bulan yang dipilih (default: bulan
+  // berjalan jika belum ada bulan/tahun yang dipilih).
+  let agendaYear, agendaMonth;
+  if(dashboardFilterBln && dashboardFilterTahun){
+    agendaMonth = MONTH_NAMES_ID.indexOf(dashboardFilterBln);
+    agendaYear = Number(dashboardFilterTahun);
+  } else {
+    const now = new Date();
+    agendaYear = now.getFullYear();
+    agendaMonth = now.getMonth();
+  }
+  const agendaStats = computeRecurringMonthlyCompletionWajib(agendaYear, agendaMonth);
+  document.getElementById('resumekpi-agenda-pct').innerText = agendaStats.pct + '%';
+  document.getElementById('resumekpi-agenda-sub').innerText = `${agendaStats.done} dari ${agendaStats.total} kegiatan wajib (${MONTH_NAMES_ID[agendaMonth]} ${agendaYear})`;
+}
+
 /* ===================== PESERTA LIST / DETAIL MODAL (Dashboard) ===================== */
 let currentPesertaDetailId = null;
 let pesertaDetailMonthA = null;
@@ -2283,11 +2716,18 @@ function renderPesertaDetail(id){
   const moduleRows = MODULES.map(m=>{
     const c = moduleCompletionPct(p, m);
     const isDone = c===100;
-    const scoreVal = p.progress[m.id]?.quizScore;
+    const pre = p.progress[m.id]?.pretestScore;
+    const post = p.progress[m.id]?.posttestScore;
+    const hasPre = pre!==null && pre!==undefined;
+    const hasPost = post!==null && post!==undefined;
+    let scoreLabel = '—';
+    if(hasPre && hasPost) scoreLabel = `Pre: ${pre} &middot; Post: ${post}`;
+    else if(hasPost) scoreLabel = `Post: ${post}`;
+    else if(hasPre) scoreLabel = `Pre: ${pre}`;
     return `<div class="flex items-center justify-between py-1.5 border-b" style="border-color:var(--line)">
       <span class="text-xs font-semibold">${escapeHtml(m.title)}</span>
       <div class="flex items-center gap-2">
-        <span class="text-[11px] text-slate-400 mono">${scoreVal!==null && scoreVal!==undefined ? 'Skor: '+scoreVal : '—'}</span>
+        <span class="text-[11px] text-slate-400 mono">${scoreLabel}</span>
         <span class="badge ${isDone?'badge-green':(c>0?'badge-amber':'badge-slate')}">${isDone?'Selesai':(c>0?c+'%':'Belum')}</span>
       </div>
     </div>`;
@@ -2420,6 +2860,7 @@ function toggleManualLulus(id){
   saveState();
   renderPesertaDetail(id);
   renderResume();
+  renderResumeKpi();
   renderDashboard();
   renderParticipants();
   renderCertificates();
@@ -2441,6 +2882,7 @@ function toggleMundur(id){
   saveState();
   renderPesertaDetail(id);
   renderResume();
+  renderResumeKpi();
   renderDashboard();
   renderParticipants();
   renderCertificates();
@@ -2569,7 +3011,7 @@ function initModuleSortable(){
       state.moduleOrder = order;
       saveState();
       rebuildModules();
-      renderModules(); renderDashboard(); renderResume(); renderQuizPicker(); renderTrainingTargets();
+      renderModules(); renderDashboard(); renderResume(); renderResumeKpi(); renderQuizPicker(); renderTrainingTargets();
       logActivity(`Urutan modul diubah (drag & drop): ${MODULES.find(m=>m.id===movedId)?.title || movedId}`);
     }
   });
@@ -2583,7 +3025,7 @@ function moveModule(id, dir){
   [order[i], order[j]] = [order[j], order[i]];
   saveState();
   rebuildModules();
-  renderModules(); renderDashboard(); renderResume(); renderQuizPicker(); renderTrainingTargets();
+  renderModules(); renderDashboard(); renderResume(); renderResumeKpi(); renderQuizPicker(); renderTrainingTargets();
   logActivity(`Urutan modul diubah: ${MODULES.find(m=>m.id===id)?.title || id}`);
 }
 function openAddModule(){
@@ -3045,6 +3487,7 @@ function saveDashboardPosisiFilter(){
   if(dashTab && !dashTab.classList.contains('tab-hidden')){
     renderDashboard();
     renderResume();
+    renderResumeKpi();
   }
 }
 /* ---- Peserta: kolom, sort, pagination ---- */
@@ -3335,8 +3778,9 @@ function importParticipantsExcel(event){
         joinDate:col('Join Date'), resign:col('Resignation'),
         pic:col('PIC Recruitment'), spv:col('SPV'), bm:col('BM'), rm:col('RM')
       };
-      let participantsCreated = 0, participantsUpdated = 0, moduleRowsMatched = 0;
+      let participantsCreated = 0, participantsUpdated = 0, moduleRowsMatched = 0, participantsAutoMerged = 0;
       const unmatchedTrainings = new Set();
+      const duplicateNamesFound = [];
 
       for(let i=headerRowIdx+1; i<rows.length; i++){
         const row = rows[i];
@@ -3347,9 +3791,21 @@ function importParticipantsExcel(event){
         let p = state.participants.find(pp=>(pp.username||'').trim().toLowerCase()===username.toLowerCase());
         const isNew = !p;
         if(!p){
-          p = { id:'p'+Date.now()+Math.floor(Math.random()*1000), name:'', progress:{}, ...blankParticipantFields(), username };
-          state.participants.push(p);
-          participantsCreated++;
+          // Fallback check: same NAME already exists under a different username?
+          // That's very likely the same person entered twice — auto-merge instead
+          // of creating a duplicate participant record.
+          const nameVal = idx.nama>-1 && row[idx.nama] ? String(row[idx.nama]).trim() : '';
+          const nameKey = normNameKey(nameVal);
+          const dupByName = nameKey ? state.participants.find(pp=>normNameKey(pp.name)===nameKey) : null;
+          if(dupByName){
+            p = dupByName;
+            participantsAutoMerged++;
+            duplicateNamesFound.push({ name: nameVal, existingUsername: dupByName.username||'-', importedUsername: username });
+          } else {
+            p = { id:'p'+Date.now()+Math.floor(Math.random()*1000), name:'', progress:{}, ...blankParticipantFields(), username };
+            state.participants.push(p);
+            participantsCreated++;
+          }
         } else {
           participantsUpdated++;
         }
@@ -3371,6 +3827,8 @@ function importParticipantsExcel(event){
           prog.lessonsDone = mod.lessons.map((_,li)=>li);
           const posttest = idx.posttest>-1 ? row[idx.posttest] : null;
           const pretest = idx.pretest>-1 ? row[idx.pretest] : null;
+          if(typeof pretest==='number') prog.pretestScore = Math.round(pretest);
+          if(typeof posttest==='number') prog.posttestScore = Math.round(posttest);
           const scoreVal = typeof posttest==='number' ? posttest : (typeof pretest==='number' ? pretest : null);
           if(scoreVal!==null) prog.quizScore = Math.round(scoreVal);
           moduleRowsMatched++;
@@ -3380,13 +3838,30 @@ function importParticipantsExcel(event){
       }
 
       saveState();
-      logActivity(`Impor Excel: ${participantsCreated} peserta baru, ${participantsUpdated} peserta diperbarui, ${moduleRowsMatched} baris modul tercatat`);
+      logActivity(`Impor Excel: ${participantsCreated} peserta baru, ${participantsUpdated} peserta diperbarui${participantsAutoMerged?`, ${participantsAutoMerged} digabung otomatis (nama sama)`:''}, ${moduleRowsMatched} baris modul tercatat`);
       renderAll();
 
-      let msg = `Impor selesai: ${participantsCreated} peserta baru, ${participantsUpdated} diperbarui, ${moduleRowsMatched} progress modul tercatat.`;
+      let msg = `Impor selesai: ${participantsCreated} peserta baru, ${participantsUpdated} diperbarui${participantsAutoMerged?`, ${participantsAutoMerged} digabung otomatis`:''}, ${moduleRowsMatched} progress modul tercatat.`;
       toast(msg);
+
+      const warnParts = [];
       if(unmatchedTrainings.size){
-        alert('Impor selesai.\n\nBeberapa nama Training pada file tidak cocok dengan judul modul yang ada, sehingga progress modulnya tidak tercatat:\n- ' + Array.from(unmatchedTrainings).join('\n- ') + '\n\nData peserta (nama, lokasi, SPV, dll) tetap diperbarui.');
+        warnParts.push('Beberapa nama Training pada file tidak cocok dengan judul modul yang ada, sehingga progress modulnya tidak tercatat:\n- ' + Array.from(unmatchedTrainings).join('\n- ') + '\n\nData peserta (nama, lokasi, SPV, dll) tetap diperbarui.');
+      }
+      if(duplicateNamesFound.length){
+        warnParts.push('⚠️ NAMA DUPLIKAT TERDETEKSI: beberapa baris di file memiliki nama yang sama dengan peserta yang sudah ada, tapi dengan Username berbeda. Data ini OTOMATIS DIGABUNGKAN ke peserta yang sudah ada agar tidak menjadi duplikat:\n- ' + duplicateNamesFound.map(d=>`${d.name} (username baru "${d.importedUsername}" digabung ke akun "${d.existingUsername}")`).join('\n- ') + '\n\nMohon periksa kembali apakah penggabungan ini sudah benar.');
+      }
+      // Also flag any duplicate names that already existed in the data (not caused by this import)
+      const remainingDups = scanDuplicateParticipantNames(true).filter(g=>!duplicateNamesFound.some(d=>normNameKey(d.name)===normNameKey(g[0].name)));
+      if(remainingDups.length){
+        const preview = remainingDups.map(g=>`${g[0].name} (${g.length}x)`).join(', ');
+        const autoMergedExtra = mergeAllDuplicateParticipants(true);
+        if(autoMergedExtra){
+          warnParts.push(`⚠️ Selain itu, ditemukan nama peserta lain yang sudah duplikat sebelumnya di data (${preview}). ${autoMergedExtra} data tersebut sudah OTOMATIS DIGABUNGKAN agar tidak ada duplikat.`);
+        }
+      }
+      if(warnParts.length){
+        alert('Impor selesai.\n\n' + warnParts.join('\n\n'));
       }
     }catch(err){
       console.error(err);
@@ -3428,6 +3903,24 @@ function saveParticipant(){
       toast('Perubahan peserta disimpan');
     }
   } else {
+    const nameKey = normNameKey(name);
+    const dup = nameKey ? state.participants.find(pp=>normNameKey(pp.name)===nameKey) : null;
+    if(dup){
+      const doMerge = confirm(`⚠️ Nama "${name}" sudah terdaftar sebagai peserta (username: ${dup.username||'-'}).\n\nKlik OK untuk MENGGABUNGKAN data ini ke peserta yang sudah ada (mencegah duplikat).\nKlik Cancel untuk memilih tindakan lain.`);
+      if(doMerge){
+        mergeParticipantInto(dup, fields);
+        logActivity(`Peserta "${name}" digabungkan otomatis ke data yang sudah ada (mencegah duplikat nama)`);
+        toast('✅ Data digabungkan ke peserta yang sudah ada');
+        saveState();
+        clearParticipantForm();
+        closeAddParticipant();
+        renderParticipants(); renderDashboard(); renderModules(); renderQuizPicker(); renderTrainingTargets();
+        return;
+      }
+      const saveAnyway = confirm(`Simpan tetap sebagai peserta BARU yang terpisah meskipun nama sama dengan "${dup.name}"?\n\nKlik Cancel untuk membatalkan penyimpanan.`);
+      if(!saveAnyway){ toast('Penyimpanan dibatalkan'); return; }
+      toast('⚠️ Peserta baru disimpan sebagai duplikat nama, harap periksa kembali');
+    }
     const id = 'p'+Date.now();
     state.participants.push({ id, progress:{}, ...blankParticipantFields(), ...fields });
     logActivity(`Peserta "${name}" ditambahkan`);
@@ -3743,6 +4236,576 @@ function downloadCertificate(id){
 }
 
 
+/* ===================== AGENDA (KALENDER KEGIATAN) ===================== */
+const AGENDA_CATEGORY_META = {
+  training:{ label:'Training', color:'#0e7c63', bg:'#dcfce7' },
+  meeting:{ label:'Meeting', color:'#92400e', bg:'#fef3c7' },
+  followup:{ label:'Follow-up Peserta', color:'#1d4ed8', bg:'#dbeafe' },
+  lainnya:{ label:'Lainnya', color:'#475569', bg:'#f1f5f9' }
+};
+// Palet warna kustom per-kegiatan, supaya kegiatan yang berbeda (mis. beberapa
+// training di hari yang sama) bisa dibedakan visualnya di kalender & daftar,
+// terpisah dari warna kategori bawaan.
+const AGENDA_COLOR_PALETTE = [
+  { key:'green',  color:'#0e7c63', bg:'#dcfce7' },
+  { key:'blue',   color:'#1d4ed8', bg:'#dbeafe' },
+  { key:'amber',  color:'#b45309', bg:'#fef3c7' },
+  { key:'red',    color:'#b91c1c', bg:'#fee2e2' },
+  { key:'purple', color:'#6d28d9', bg:'#ede9fe' },
+  { key:'pink',   color:'#be185d', bg:'#fce7f3' },
+  { key:'cyan',   color:'#0e7490', bg:'#cffafe' },
+  { key:'slate',  color:'#475569', bg:'#f1f5f9' }
+];
+function agendaColorPickerHtml(selectedKey, inputId, pickerId){
+  const options = [{ key:'', color:null, bg:null }].concat(AGENDA_COLOR_PALETTE);
+  return options.map(c=>{
+    const isDefault = c.key==='';
+    const active = (selectedKey||'')===c.key;
+    const style = isDefault
+      ? `background:#fff;border:2px dashed ${active?'#0c1220':'#cbd5e1'}`
+      : `background:${c.color};border:2px solid ${active?'#0c1220':'transparent'}`;
+    const check = active ? `<i class="fa-solid fa-check text-[9px]" style="color:${isDefault?'#475569':'#fff'}"></i>` : '';
+    const swatchTitle = isDefault ? 'Ikuti warna kategori' : ((state.agendaColorNames||{})[c.key] || AGENDA_COLOR_LABELS_ID[c.key] || c.key);
+    return `<button type="button" onclick="selectAgendaColor('${c.key}','${inputId}','${pickerId}')" title="${escapeHtml(swatchTitle)}" class="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center" style="${style}">${check}</button>`;
+  }).join('');
+}
+function selectAgendaColor(key, inputId, pickerId){
+  document.getElementById(inputId).value = key;
+  document.getElementById(pickerId).innerHTML = agendaColorPickerHtml(key, inputId, pickerId);
+  const nameInput = document.getElementById(inputId+'-name');
+  if(nameInput){
+    if(key){
+      nameInput.disabled = false;
+      nameInput.value = (state.agendaColorNames||{})[key] || '';
+      nameInput.placeholder = `Nama warna ${AGENDA_COLOR_LABELS_ID[key]||key} (opsional), mis. Tim A`;
+    } else {
+      nameInput.disabled = true;
+      nameInput.value = '';
+      nameInput.placeholder = 'Pilih warna dulu untuk memberi nama';
+    }
+  }
+}
+// Memberi nama kustom pada sebuah warna (berlaku global untuk semua kegiatan/
+// jadwal rutin yang memakai warna itu), dipakai juga sebagai label di "Rincian per Warna".
+function renameAgendaColor(colorInputId, nameInputId){
+  const key = document.getElementById(colorInputId).value;
+  if(!key) return;
+  const val = document.getElementById(nameInputId).value.trim();
+  if(!state.agendaColorNames) state.agendaColorNames = {};
+  if(val) state.agendaColorNames[key] = val; else delete state.agendaColorNames[key];
+  saveState();
+}
+// Warna efektif sebuah kegiatan: pakai warna kustom kalau ada, kalau tidak jatuh
+// kembali ke warna kategori (training/meeting/dll).
+function agendaEventColorMeta(e){
+  if(e.color){
+    const c = AGENDA_COLOR_PALETTE.find(p=>p.key===e.color);
+    if(c) return c;
+  }
+  const meta = AGENDA_CATEGORY_META[e.category]||AGENDA_CATEGORY_META.lainnya;
+  return { color: meta.color, bg: meta.bg };
+}
+function toYMD(d){
+  const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+let agendaViewDate = new Date();
+let agendaSelectedDate = toYMD(new Date());
+let editingAgendaId = null;
+let editingRecurringId = null;
+function agendaChangeMonth(delta){
+  agendaViewDate = new Date(agendaViewDate.getFullYear(), agendaViewDate.getMonth()+delta, 1);
+  agendaMonthlyDetailOpen = false;
+  renderAgenda();
+}
+function agendaGoToday(){
+  const t = new Date();
+  agendaViewDate = new Date(t.getFullYear(), t.getMonth(), 1);
+  agendaSelectedDate = toYMD(t);
+  agendaMonthlyDetailOpen = false;
+  renderAgenda();
+}
+function selectAgendaDay(dateStr){
+  agendaSelectedDate = dateStr;
+  renderAgenda();
+}
+// Mengubah aturan mingguan (state.agendaRecurring) menjadi kejadian nyata
+// pada tanggal tertentu, kecuali tanggal itu sudah di-skip khusus.
+function getRecurringOccurrencesForDate(dateStr){
+  const weekday = new Date(dateStr+'T00:00:00').getDay();
+  const skips = state.agendaRecurringSkips || [];
+  return (state.agendaRecurring||[])
+    .filter(r=>r.weekday===weekday && !skips.includes(r.id+'|'+dateStr))
+    .map(r=>({
+      id: 'rec_'+r.id, recurringId: r.id, isRecurring:true,
+      date: dateStr, title: r.title, day: r.day||'', time: r.time||'',
+      category: r.category||'training', location: r.location||'', notes: r.notes||'',
+      wajib: r.wajib!==false, color: r.color||''
+    }));
+}
+function getAgendaEventsForDate(dateStr){
+  const concrete = (state.agenda||[]).filter(e=>e.date===dateStr);
+  const recurring = getRecurringOccurrencesForDate(dateStr);
+  return concrete.concat(recurring).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
+}
+// ---- Status kegiatan: Selesai / Tunda / Belum (otomatis Selesai jika sudah H+1) ----
+// Key status: kegiatan biasa pakai e.id, kegiatan rutin pakai "recurringId|tanggal"
+// (karena training rutin bisa punya status berbeda tiap minggunya).
+function agendaStatusKey(e){
+  return e.isRecurring ? (e.recurringId+'|'+e.date) : e.id;
+}
+function getAgendaEffectiveStatus(e){
+  const explicit = (state.agendaStatus||{})[agendaStatusKey(e)];
+  if(explicit==='selesai' || explicit==='tunda') return explicit;
+  // Auto-selesai: jika tanggal kegiatan sudah lewat minimal H+1 dan belum ditandai manual.
+  const todayStr = toYMD(new Date());
+  if(e.date < todayStr) return 'selesai';
+  return 'pending';
+}
+function agendaStatusMeta(status){
+  if(status==='selesai') return { label:'Selesai', color:'#15803d', bg:'#dcfce7', icon:'fa-circle-check' };
+  if(status==='tunda') return { label:'Ditunda', color:'#92400e', bg:'#fef3c7', icon:'fa-clock-rotate-left' };
+  return { label:'Belum', color:'#64748b', bg:'#f1f5f9', icon:'fa-circle-dot' };
+}
+function setAgendaStatusForEvent(dateStr, concreteId, recurringId, status){
+  const events = getAgendaEventsForDate(dateStr);
+  const e = concreteId ? events.find(x=>!x.isRecurring && x.id===concreteId) : events.find(x=>x.isRecurring && x.recurringId===recurringId);
+  if(!e) return;
+  if(!state.agendaStatus) state.agendaStatus = {};
+  const key = agendaStatusKey(e);
+  if(status==='pending') delete state.agendaStatus[key];
+  else state.agendaStatus[key] = status;
+  const label = status==='selesai' ? 'Selesai' : status==='tunda' ? 'Ditunda' : 'Belum (direset)';
+  logActivity(`Kegiatan agenda "${e.title}" ditandai ${label}`);
+  saveState();
+  renderAgenda();
+  toast(status==='pending' ? 'Status kegiatan direset' : `Kegiatan ditandai ${label}`);
+}
+// Persentase penyelesaian Jadwal Rutin untuk bulan yang sedang ditampilkan
+// di kalender: dari semua kejadian training rutin bulan itu (yang tidak
+// di-skip), berapa persen yang sudah berstatus Selesai (manual atau otomatis H+1).
+function computeRecurringMonthlyCompletion(year, month){
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  let total = 0, done = 0;
+  for(let d=1; d<=daysInMonth; d++){
+    const dateStr = toYMD(new Date(year, month, d));
+    getRecurringOccurrencesForDate(dateStr).forEach(e=>{
+      total++;
+      if(getAgendaEffectiveStatus(e)==='selesai') done++;
+    });
+  }
+  const pct = total>0 ? Math.round((done/total)*100) : 0;
+  return { total, done, pct };
+}
+const AGENDA_COLOR_LABELS_ID = { green:'Hijau', blue:'Biru', amber:'Kuning', red:'Merah', purple:'Ungu', pink:'Pink', cyan:'Cyan', slate:'Abu-abu' };
+// Breakdown persentase penyelesaian per WARNA kegiatan, supaya bisa dilihat
+// mana kelompok warna yang penyelesaiannya paling rendah/tinggi bulan itu.
+function computeRecurringMonthlyCompletionByColor(year, month){
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const map = {};
+  for(let d=1; d<=daysInMonth; d++){
+    const dateStr = toYMD(new Date(year, month, d));
+    getRecurringOccurrencesForDate(dateStr).forEach(e=>{
+      const cMeta = agendaEventColorMeta(e);
+      const key = e.color || ('cat_'+(e.category||'lainnya'));
+      if(!map[key]){
+        const label = e.color
+          ? ((state.agendaColorNames||{})[e.color] || AGENDA_COLOR_LABELS_ID[e.color] || e.color)
+          : (AGENDA_CATEGORY_META[e.category]||AGENDA_CATEGORY_META.lainnya).label + ' (default)';
+        map[key] = { total:0, done:0, color:cMeta.color, bg:cMeta.bg, label };
+      }
+      map[key].total++;
+      if(getAgendaEffectiveStatus(e)==='selesai') map[key].done++;
+    });
+  }
+  return Object.values(map)
+    .map(v=>({ ...v, pct: v.total>0 ? Math.round((v.done/v.total)*100) : 0 }))
+    .sort((a,b)=>b.total-a.total);
+}
+let agendaMonthlyDetailOpen = false;
+function toggleAgendaMonthlyDetail(){
+  agendaMonthlyDetailOpen = !agendaMonthlyDetailOpen;
+  renderAgendaMonthlyProgress();
+}
+function renderAgendaMonthlyProgress(){
+  const holder = document.getElementById('agenda-monthly-progress');
+  if(!holder) return;
+  const year = agendaViewDate.getFullYear(), month = agendaViewDate.getMonth();
+  const { total, done, pct } = computeRecurringMonthlyCompletion(year, month);
+  if(total===0){
+    agendaMonthlyDetailOpen = false;
+    holder.innerHTML = `<div class="flex items-center gap-2 px-3 py-1.5 rounded-full" style="background:#f8fafc;border:1px solid var(--line)">
+      <i class="fa-solid fa-repeat text-slate-300 text-xs"></i>
+      <p class="text-[10px] font-semibold text-slate-400">Belum ada jadwal rutin bulan ini</p>
+    </div>`;
+    return;
+  }
+  const ringColor = pct>=80 ? 'var(--brand-600)' : (pct>=50 ? '#d97706' : '#dc2626');
+  let detailHtml = '';
+  if(agendaMonthlyDetailOpen){
+    const byColor = computeRecurringMonthlyCompletionByColor(year, month);
+    detailHtml = `<div class="absolute left-0 top-full mt-2 z-20 rounded-xl p-3" style="background:#fff;border:1px solid var(--line);box-shadow:var(--shadow-key);width:250px">
+      <p class="text-[10px] font-extrabold text-slate-500 uppercase tracking-wide mb-2">Rincian per Warna &middot; ${MONTH_NAMES_ID[month]} ${year}</p>
+      <div class="space-y-2.5">
+        ${byColor.map(c=>`
+          <div>
+            <div class="flex items-center justify-between gap-2 mb-1">
+              <span class="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600"><span class="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0" style="background:${c.color}"></span>${escapeHtml(c.label)}</span>
+              <span class="text-[10px] font-bold text-slate-400 flex-shrink-0">${c.done}/${c.total} &middot; ${c.pct}%</span>
+            </div>
+            <div class="progress-track" style="height:5px"><div class="progress-fill" style="width:${c.pct}%;background:${c.color}"></div></div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  }
+  holder.innerHTML = `<div class="relative">
+    <button onclick="toggleAgendaMonthlyDetail()" class="flex items-center gap-2 px-3 py-1.5 rounded-full" style="background:#f8fafc;border:1px solid var(--line)" title="Klik untuk lihat rincian per warna">
+      <div class="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style="background:conic-gradient(${ringColor} ${pct*3.6}deg, #e2e8f0 0deg)">
+        <div class="w-5 h-5 rounded-full flex items-center justify-center" style="background:#fff">
+          <i class="fa-solid fa-repeat" style="font-size:7px;color:${ringColor}"></i>
+        </div>
+      </div>
+      <div class="leading-tight text-left">
+        <p class="text-[11px] font-extrabold" style="color:${ringColor}">${pct}% Selesai</p>
+        <p class="text-[9px] text-slate-400">Rutin bulan ini &middot; ${done}/${total}</p>
+      </div>
+      <i class="fa-solid ${agendaMonthlyDetailOpen?'fa-chevron-up':'fa-chevron-down'} text-[9px] text-slate-300 ml-0.5"></i>
+    </button>
+    ${detailHtml}
+  </div>`;
+}
+function agendaEventRowHtml(e){
+  const meta = AGENDA_CATEGORY_META[e.category]||AGENDA_CATEGORY_META.lainnya;
+  const onclick = e.isRecurring
+    ? `agendaItemClick('${e.date}', null, '${e.recurringId}')`
+    : `agendaItemClick('${e.date}', '${e.id}', null)`;
+  const status = getAgendaEffectiveStatus(e);
+  const sMeta = agendaStatusMeta(status);
+  const cMeta = agendaEventColorMeta(e);
+  const argIds = e.isRecurring ? `null, '${e.recurringId}'` : `'${e.id}', null`;
+  const btnSelesai = status==='selesai'
+    ? `<button onclick="event.stopPropagation();setAgendaStatusForEvent('${e.date}', ${argIds}, 'pending')" class="text-[10px] font-bold px-2 py-1 rounded-md" style="background:#dcfce7;color:#15803d"><i class="fa-solid fa-rotate-left mr-1"></i>Batalkan Selesai</button>`
+    : `<button onclick="event.stopPropagation();setAgendaStatusForEvent('${e.date}', ${argIds}, 'selesai')" class="text-[10px] font-bold px-2 py-1 rounded-md btn-ghost"><i class="fa-solid fa-check mr-1"></i>Selesai</button>`;
+  const btnTunda = status==='tunda'
+    ? `<button onclick="event.stopPropagation();setAgendaStatusForEvent('${e.date}', ${argIds}, 'pending')" class="text-[10px] font-bold px-2 py-1 rounded-md" style="background:#fef3c7;color:#92400e"><i class="fa-solid fa-rotate-left mr-1"></i>Batalkan Tunda</button>`
+    : `<button onclick="event.stopPropagation();setAgendaStatusForEvent('${e.date}', ${argIds}, 'tunda')" class="text-[10px] font-bold px-2 py-1 rounded-md btn-ghost"><i class="fa-solid fa-clock mr-1"></i>Tunda</button>`;
+  return `<div class="lesson-row" style="flex-direction:column;align-items:stretch;gap:8px;cursor:default">
+    <div class="flex items-start gap-3 cursor-pointer" onclick="${onclick}">
+      <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5" style="background:${cMeta.bg};color:${cMeta.color}"><i class="fa-solid ${e.isRecurring?'fa-repeat':'fa-calendar-day'} text-xs"></i></div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="w-2 h-2 rounded-full inline-block flex-shrink-0" style="background:${cMeta.color}"></span>
+          <p class="text-xs font-bold">${escapeHtml(e.title)}</p>
+          ${e.day?`<span class="badge badge-slate">${escapeHtml(e.day)}</span>`:''}
+          ${e.wajib?'<span class="badge badge-red">Wajib</span>':''}
+          <span class="badge" style="background:${meta.bg};color:${meta.color}">${meta.label}</span>
+          ${e.isRecurring?'<span class="badge badge-slate"><i class="fa-solid fa-repeat mr-0.5"></i>Rutin</span>':''}
+          <span class="badge" style="background:${sMeta.bg};color:${sMeta.color}"><i class="fa-solid ${sMeta.icon} mr-1"></i>${sMeta.label}</span>
+        </div>
+        <p class="text-[10px] text-slate-400 mt-0.5">${e.time?('<i class="fa-regular fa-clock mr-1"></i>'+e.time+' &middot; '):''}${e.location?escapeHtml(e.location):''}</p>
+        ${e.notes?`<p class="text-[10px] text-slate-500 mt-1">${escapeHtml(e.notes)}</p>`:''}
+      </div>
+    </div>
+    <div class="flex items-center gap-2 pl-12">${btnSelesai}${btnTunda}</div>
+  </div>`;
+}
+function renderAgenda(){
+  const grid = document.getElementById('agenda-calendar-grid');
+  if(!grid) return;
+  const year = agendaViewDate.getFullYear(), month = agendaViewDate.getMonth();
+  document.getElementById('agenda-month-label').innerText = `${MONTH_NAMES_ID[month]} ${year}`;
+  renderAgendaMonthlyProgress();
+  const firstDay = new Date(year, month, 1);
+  const startWeekday = firstDay.getDay();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const daysInPrevMonth = new Date(year, month, 0).getDate();
+  const todayStr = toYMD(new Date());
+
+  const cells = [];
+  for(let i=startWeekday-1;i>=0;i--){
+    const d = daysInPrevMonth - i;
+    cells.push({ dateStr: toYMD(new Date(year, month-1, d)), day:d, otherMonth:true });
+  }
+  for(let d=1; d<=daysInMonth; d++){
+    cells.push({ dateStr: toYMD(new Date(year, month, d)), day:d, otherMonth:false });
+  }
+  let next=1;
+  while(cells.length % 7 !== 0){
+    cells.push({ dateStr: toYMD(new Date(year, month+1, next)), day:next, otherMonth:true });
+    next++;
+  }
+
+  grid.innerHTML = cells.map(c=>{
+    const events = getAgendaEventsForDate(c.dateStr);
+    const isToday = c.dateStr===todayStr;
+    const isSelected = c.dateStr===agendaSelectedDate;
+    const dots = events.slice(0,4).map(e=>{
+      const cMeta = agendaEventColorMeta(e);
+      return `<span class="w-1.5 h-1.5 rounded-full inline-block" style="background:${cMeta.color}"></span>`;
+    }).join('');
+    const moreLabel = events.length>4 ? `<span class="text-[9px] text-slate-400 ml-0.5">+${events.length-4}</span>` : '';
+    const dayNumHtml = isToday
+      ? `<span class="text-[11px] font-bold inline-flex items-center justify-center" style="width:18px;height:18px;border-radius:50%;background:var(--brand-600);color:#fff">${c.day}</span>`
+      : `<span class="text-[11px] font-bold ${c.otherMonth?'text-slate-300':'text-slate-600'}">${c.day}</span>`;
+    return `<button onclick="selectAgendaDay('${c.dateStr}')" class="rounded-lg p-1.5 text-left h-16 sm:h-20 flex flex-col justify-between transition"
+      style="border:1px solid ${isSelected?'var(--brand-500)':'var(--line)'};background:${isSelected?'#f0fdf6':(c.otherMonth?'#fafafa':'#fff')}">
+      ${dayNumHtml}
+      <span class="flex items-center flex-wrap">${dots}${moreLabel}</span>
+    </button>`;
+  }).join('');
+
+  const selDateObj = new Date(agendaSelectedDate+'T00:00:00');
+  document.getElementById('agenda-selected-date-label').innerText = selDateObj.toLocaleDateString('id-ID',{weekday:'long', day:'numeric', month:'long', year:'numeric'});
+  const dayEvents = getAgendaEventsForDate(agendaSelectedDate);
+  const dayList = document.getElementById('agenda-day-list');
+  const dayEmpty = document.getElementById('agenda-day-empty');
+  if(dayEvents.length===0){ dayList.innerHTML=''; dayEmpty.classList.remove('hidden'); }
+  else { dayEmpty.classList.add('hidden'); dayList.innerHTML = dayEvents.map(agendaEventRowHtml).join(''); }
+
+  // Kegiatan mendatang: gabungkan kegiatan biasa + kejadian rutin 30 hari ke depan
+  const upcomingRaw = (state.agenda||[]).filter(e=>e.date >= todayStr);
+  for(let i=0;i<30;i++){
+    const d = new Date(); d.setDate(d.getDate()+i);
+    upcomingRaw.push(...getRecurringOccurrencesForDate(toYMD(d)));
+  }
+  const upcoming = upcomingRaw
+    .sort((a,b)=>(a.date+(a.time||'99:99')).localeCompare(b.date+(b.time||'99:99')))
+    .slice(0,7);
+  const upcomingList = document.getElementById('agenda-upcoming-list');
+  const upcomingEmpty = document.getElementById('agenda-upcoming-empty');
+  if(upcoming.length===0){ upcomingList.innerHTML=''; upcomingEmpty.classList.remove('hidden'); }
+  else {
+    upcomingEmpty.classList.add('hidden');
+    upcomingList.innerHTML = upcoming.map(e=>{
+      const cMeta = agendaEventColorMeta(e);
+      const dLabel = new Date(e.date+'T00:00:00').toLocaleDateString('id-ID',{day:'numeric', month:'short'});
+      const sMeta = agendaStatusMeta(getAgendaEffectiveStatus(e));
+      return `<div class="lesson-row cursor-pointer" onclick="selectAgendaDay('${e.date}')">
+        <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style="background:${cMeta.bg};color:${cMeta.color}"><i class="fa-solid ${e.isRecurring?'fa-repeat':'fa-calendar-day'} text-xs"></i></div>
+        <div class="flex-1 min-w-0">
+          <p class="text-xs font-bold truncate">${escapeHtml(e.title)}</p>
+          <p class="text-[10px] text-slate-400">${dLabel}${e.time?', '+e.time:''}${e.day?' &middot; '+escapeHtml(e.day):''}</p>
+        </div>
+        <span class="badge flex-shrink-0" style="background:${sMeta.bg};color:${sMeta.color}"><i class="fa-solid ${sMeta.icon} mr-1"></i>${sMeta.label}</span>
+      </div>`;
+    }).join('');
+  }
+}
+// Klik kegiatan: kegiatan biasa langsung buka form edit. Kegiatan rutin
+// menawarkan kelola seluruh jadwal, atau lewati (skip) tanggal itu saja.
+function agendaItemClick(dateStr, concreteId, recurringId){
+  if(recurringId){
+    const rule = (state.agendaRecurring||[]).find(r=>r.id===recurringId);
+    const title = rule ? rule.title : 'Training rutin';
+    const manage = confirm(`"${title}" adalah jadwal training rutin mingguan (${rule?WEEKDAY_NAMES_ID[rule.weekday]:''}).\n\nKlik OK untuk buka Kelola Jadwal Rutin (edit/hapus seluruh jadwal ini, semua minggu).\nKlik Cancel untuk pilihan lain.`);
+    if(manage){ openRecurringManager(recurringId); return; }
+    if(confirm(`Lewati (skip) training ini HANYA untuk tanggal ${dateStr}? Jadwal minggu lain tidak berubah.`)){
+      skipRecurringOccurrence(recurringId, dateStr);
+    }
+    return;
+  }
+  openAgendaModal(dateStr, concreteId);
+}
+function skipRecurringOccurrence(recurringId, dateStr){
+  if(!Array.isArray(state.agendaRecurringSkips)) state.agendaRecurringSkips = [];
+  state.agendaRecurringSkips.push(recurringId+'|'+dateStr);
+  logActivity(`Jadwal rutin dilewati untuk tanggal ${dateStr}`);
+  saveState();
+  renderAgenda();
+  toast('Jadwal dilewati untuk tanggal tersebut');
+}
+function openAgendaModal(dateStr, id){
+  editingAgendaId = id || null;
+  document.getElementById('agenda-modal-title').innerText = id ? 'Edit Kegiatan' : 'Tambah Kegiatan';
+  document.getElementById('agenda-delete-btn').classList.toggle('hidden', !id);
+  if(id){
+    const e = (state.agenda||[]).find(x=>x.id===id);
+    if(e){
+      document.getElementById('ag-title').value = e.title||'';
+      document.getElementById('ag-date').value = e.date||'';
+      document.getElementById('ag-time').value = e.time||'';
+      document.getElementById('ag-category').value = e.category||'training';
+      document.getElementById('ag-location').value = e.location||'';
+      document.getElementById('ag-notes').value = e.notes||'';
+      selectAgendaColor(e.color||'', 'ag-color', 'ag-color-picker');
+    }
+  } else {
+    document.getElementById('ag-title').value = '';
+    document.getElementById('ag-date').value = dateStr || agendaSelectedDate;
+    document.getElementById('ag-time').value = '';
+    document.getElementById('ag-category').value = 'training';
+    document.getElementById('ag-location').value = '';
+    document.getElementById('ag-notes').value = '';
+    selectAgendaColor('', 'ag-color', 'ag-color-picker');
+  }
+  document.getElementById('agenda-modal').classList.remove('hidden');
+}
+function closeAgendaModal(){
+  document.getElementById('agenda-modal').classList.add('hidden');
+  editingAgendaId = null;
+}
+function saveAgendaEvent(){
+  const title = document.getElementById('ag-title').value.trim();
+  const date = document.getElementById('ag-date').value;
+  if(!title){ toast('Judul kegiatan wajib diisi'); return; }
+  if(!date){ toast('Tanggal wajib diisi'); return; }
+  const fields = {
+    title, date,
+    time: document.getElementById('ag-time').value,
+    category: document.getElementById('ag-category').value,
+    location: document.getElementById('ag-location').value.trim(),
+    notes: document.getElementById('ag-notes').value.trim(),
+    color: document.getElementById('ag-color').value || ''
+  };
+  if(!Array.isArray(state.agenda)) state.agenda = [];
+  if(editingAgendaId){
+    const e = state.agenda.find(x=>x.id===editingAgendaId);
+    if(e){ Object.assign(e, fields); logActivity(`Kegiatan agenda "${title}" diperbarui`); toast('Kegiatan diperbarui'); }
+  } else {
+    const id = 'ag'+Date.now()+Math.floor(Math.random()*1000);
+    state.agenda.push({ id, ...fields });
+    logActivity(`Kegiatan agenda "${title}" ditambahkan pada ${date}`);
+    toast('Kegiatan ditambahkan ke agenda');
+  }
+  agendaSelectedDate = date;
+  agendaViewDate = new Date(date+'T00:00:00');
+  saveState();
+  closeAgendaModal();
+  renderAgenda();
+}
+function deleteAgendaEvent(){
+  if(!editingAgendaId) return;
+  const e = (state.agenda||[]).find(x=>x.id===editingAgendaId);
+  if(!e) return;
+  if(!confirm(`Hapus kegiatan "${e.title}"?`)) return;
+  state.agenda = state.agenda.filter(x=>x.id!==editingAgendaId);
+  logActivity(`Kegiatan agenda "${e.title}" dihapus`);
+  saveState();
+  closeAgendaModal();
+  renderAgenda();
+  toast('Kegiatan dihapus');
+}
+
+/* ===== Jadwal Training Rutin Mingguan (Recurring Weekly Schedule) ===== */
+function openRecurringManager(highlightId){
+  clearRecurringForm();
+  renderRecurringManagerList();
+  document.getElementById('agenda-recurring-modal').classList.remove('hidden');
+  if(highlightId){
+    const rule = (state.agendaRecurring||[]).find(r=>r.id===highlightId);
+    if(rule) editRecurringRule(highlightId);
+  }
+}
+function closeRecurringManager(){
+  document.getElementById('agenda-recurring-modal').classList.add('hidden');
+  clearRecurringForm();
+}
+function renderRecurringManagerList(){
+  const wrap = document.getElementById('agenda-recurring-list');
+  if(!wrap) return;
+  const rules = state.agendaRecurring || [];
+  if(rules.length===0){
+    wrap.innerHTML = `<div class="text-center py-6 text-slate-400"><i class="fa-regular fa-calendar-xmark text-2xl mb-2"></i><p class="text-xs">Belum ada jadwal training rutin</p></div>`;
+    return;
+  }
+  const byWeekday = {};
+  rules.forEach(r=>{ (byWeekday[r.weekday]=byWeekday[r.weekday]||[]).push(r); });
+  const order = [1,2,3,4,5,6,0];
+  wrap.innerHTML = order.filter(w=>byWeekday[w]).map(w=>{
+    const items = byWeekday[w];
+    return `<div>
+      <p class="text-[11px] font-extrabold uppercase tracking-wide mb-2" style="color:var(--brand-600)">${WEEKDAY_NAMES_ID[w]} <span class="text-slate-300 font-normal">&middot; ${items.length} training</span></p>
+      <div class="space-y-2">
+        ${items.map(r=>{
+          const cMeta = agendaEventColorMeta({ category:r.category||'training', color:r.color });
+          return `
+          <div class="lesson-row items-center">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:${cMeta.bg};color:${cMeta.color}"><i class="fa-solid fa-repeat text-xs"></i></div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <p class="text-xs font-bold">${escapeHtml(r.title)}</p>
+                ${r.day?`<span class="badge badge-slate">${escapeHtml(r.day)}</span>`:''}
+                ${r.wajib!==false?'<span class="badge badge-red">Wajib</span>':''}
+              </div>
+              ${r.time||r.location?`<p class="text-[10px] text-slate-400 mt-0.5">${r.time?r.time+' &middot; ':''}${escapeHtml(r.location||'')}</p>`:''}
+            </div>
+            <button onclick="editRecurringRule('${r.id}')" class="w-7 h-7 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-[var(--brand-600)] flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-pen text-[11px]"></i></button>
+            <button onclick="deleteRecurringRule('${r.id}')" class="w-7 h-7 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-trash-can text-[11px]"></i></button>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+function clearRecurringForm(){
+  editingRecurringId = null;
+  document.getElementById('agenda-recurring-form-title').innerText = '+ Tambah Jadwal Rutin';
+  document.getElementById('agenda-recurring-cancel-btn').classList.add('hidden');
+  document.getElementById('ar-title').value = '';
+  document.getElementById('ar-weekday').value = '2';
+  document.getElementById('ar-day').value = '';
+  document.getElementById('ar-time').value = '';
+  document.getElementById('ar-wajib').checked = true;
+  document.getElementById('ar-location').value = '';
+  selectAgendaColor('', 'ar-color', 'ar-color-picker');
+}
+function editRecurringRule(id){
+  const r = (state.agendaRecurring||[]).find(x=>x.id===id);
+  if(!r) return;
+  editingRecurringId = id;
+  document.getElementById('agenda-recurring-form-title').innerText = 'Edit Jadwal Rutin';
+  document.getElementById('agenda-recurring-cancel-btn').classList.remove('hidden');
+  document.getElementById('ar-title').value = r.title||'';
+  document.getElementById('ar-weekday').value = String(r.weekday);
+  document.getElementById('ar-day').value = r.day||'';
+  document.getElementById('ar-time').value = r.time||'';
+  document.getElementById('ar-wajib').checked = r.wajib!==false;
+  document.getElementById('ar-location').value = r.location||'';
+  selectAgendaColor(r.color||'', 'ar-color', 'ar-color-picker');
+}
+function saveRecurringRule(){
+  const title = document.getElementById('ar-title').value.trim();
+  if(!title){ toast('Judul training wajib diisi'); return; }
+  const fields = {
+    title,
+    weekday: parseInt(document.getElementById('ar-weekday').value, 10),
+    day: document.getElementById('ar-day').value.trim(),
+    time: document.getElementById('ar-time').value,
+    wajib: document.getElementById('ar-wajib').checked,
+    location: document.getElementById('ar-location').value.trim(),
+    category: 'training',
+    color: document.getElementById('ar-color').value || ''
+  };
+  if(!Array.isArray(state.agendaRecurring)) state.agendaRecurring = [];
+  if(editingRecurringId){
+    const r = state.agendaRecurring.find(x=>x.id===editingRecurringId);
+    if(r){ Object.assign(r, fields); logActivity(`Jadwal rutin "${title}" diperbarui`); toast('Jadwal rutin diperbarui'); }
+  } else {
+    const id = 'arc'+Date.now()+Math.floor(Math.random()*1000);
+    state.agendaRecurring.push({ id, ...fields });
+    logActivity(`Jadwal rutin "${title}" ditambahkan (setiap ${WEEKDAY_NAMES_ID[fields.weekday]})`);
+    toast('Jadwal rutin ditambahkan');
+  }
+  saveState();
+  clearRecurringForm();
+  renderRecurringManagerList();
+  renderAgenda();
+}
+function deleteRecurringRule(id){
+  const r = (state.agendaRecurring||[]).find(x=>x.id===id);
+  if(!r) return;
+  if(!confirm(`Hapus jadwal rutin "${r.title}"? Ini akan menghapusnya dari SEMUA minggu ke depan.`)) return;
+  state.agendaRecurring = state.agendaRecurring.filter(x=>x.id!==id);
+  state.agendaRecurringSkips = (state.agendaRecurringSkips||[]).filter(s=>!s.startsWith(id+'|'));
+  logActivity(`Jadwal rutin "${r.title}" dihapus`);
+  saveState();
+  if(editingRecurringId===id) clearRecurringForm();
+  renderRecurringManagerList();
+  renderAgenda();
+  toast('Jadwal rutin dihapus');
+}
+
+
 /* ===================== EXPORT: DASHBOARD EXCEL ===================== */
 function exportDashboardExcel(){
   const scoped = getFilteredParticipants();
@@ -3862,12 +4925,14 @@ function renderAll(){
   rebuildModules();
   renderDashboard();
   renderResume();
+  renderResumeKpi();
   renderPencapaian();
   renderModules();
   renderQuizPicker();
   renderParticipants();
   renderTrainingTargets();
   renderCertificates();
+  renderAgenda();
   renderTrash();
 }
 /* ===================== AUTH (FIREBASE AUTHENTICATION) ===================== */
@@ -3879,6 +4944,10 @@ async function showApp(){
   await loadAllCloudData();
   renderAll();
   switchTab('dashboard');
+  const autoMergedOnLoad = mergeAllDuplicateParticipants(true);
+  if(autoMergedOnLoad){
+    toast(`✅ ${autoMergedOnLoad} peserta duplikat berhasil digabungkan otomatis`);
+  }
 }
 function showLogin(){
   document.getElementById('app-root').classList.add('hidden');
