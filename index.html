@@ -49,6 +49,8 @@
   ::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:10px}
 
   #sidebar{background:var(--sidebar-bg)}
+  #main-content{transition:margin-left .2s ease}
+  @media (min-width: 768px){ #main-content.sidebar-shift{margin-left:15rem} }
   .nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;color:rgba(255,255,255,.45);font-size:.8125rem;font-weight:600;margin-bottom:2px;transition:all .15s}
   .nav-item:hover{background:rgba(255,255,255,.05);color:rgba(255,255,255,.85)}
   .nav-item.active{background:linear-gradient(135deg, var(--brand-500), var(--brand-700));color:#fff;box-shadow:0 4px 12px -2px rgba(16,163,122,.4)}
@@ -123,7 +125,7 @@
 <div class="flex h-full overflow-hidden">
 
   <!-- SIDEBAR -->
-  <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-60 flex flex-col -translate-x-full md:translate-x-0 md:static transition-transform">
+  <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-60 flex flex-col -translate-x-full transition-transform duration-200 shadow-2xl">
     <div class="flex items-center justify-between h-16 px-4" style="border-bottom:1px solid rgba(255,255,255,.06)">
       <div class="flex items-center gap-2.5">
         <div class="w-9 h-9 rounded-lg flex items-center justify-center overflow-hidden bg-white">
@@ -163,6 +165,9 @@
       <a href="#" onclick="switchTab('feedbacktl');return false" id="nav-feedbacktl" class="nav-item">
         <i class="icon fa-solid fa-clipboard-check"></i><span>Tindak Lanjut Feedback</span>
       </a>
+      <a href="#" onclick="switchTab('tasklistmarketing');return false" id="nav-tasklistmarketing" class="nav-item">
+        <i class="icon fa-solid fa-bullhorn"></i><span>Tasklist Marketing</span>
+      </a>
 
       <div class="eyebrow px-3 mt-4 mb-2">Manajemen</div>
       <a href="#" onclick="switchTab('participants');return false" id="nav-participants" class="nav-item">
@@ -179,6 +184,9 @@
       <a href="#" onclick="switchTab('agenda');return false" id="nav-agenda" class="nav-item">
         <i class="icon fa-solid fa-calendar-days"></i><span>Agenda Kegiatan</span>
       </a>
+      <a href="#" onclick="switchTab('supportcoaching');return false" id="nav-supportcoaching" class="nav-item">
+        <i class="icon fa-solid fa-people-arrows"></i><span>Support Coaching</span>
+      </a>
 
       <div class="eyebrow px-3 mt-4 mb-2">Sistem</div>
       <a href="#" onclick="switchTab('trash');return false" id="nav-trash" class="nav-item">
@@ -192,13 +200,14 @@
     </nav>
 
   </aside>
-  <div id="sidebar-overlay" onclick="toggleSidebar()" class="hidden fixed inset-0 bg-black/40 z-40 md:hidden"></div>
+  <div id="sidebar-hover-zone" class="hidden md:block fixed inset-y-0 left-0 w-3 z-40"></div>
+  <div id="sidebar-overlay" onclick="closeSidebarForce()" class="hidden fixed inset-0 bg-black/40 z-40"></div>
 
   <!-- MAIN -->
-  <div class="flex-1 flex flex-col h-full overflow-hidden">
+  <div id="main-content" class="flex-1 flex flex-col h-full overflow-hidden">
     <header class="flex items-center justify-between h-14 px-6" style="border-bottom:1px solid var(--line);background:#fff">
       <div class="flex items-center gap-4">
-        <button onclick="toggleSidebar()" class="text-slate-500 md:hidden"><i class="fa-solid fa-bars"></i></button>
+        <button id="sidebar-toggle-btn" onclick="toggleSidebar()" title="Buka/kunci sidebar" class="w-8 h-8 rounded-lg text-slate-500 hover:bg-slate-100 flex items-center justify-center"><i class="fa-solid fa-bars"></i></button>
         <div>
           <div id="page-eyebrow" class="text-[11px] font-bold uppercase tracking-wide" style="color:var(--brand-600)">Training</div>
           <h1 id="page-title" class="text-sm sm:text-base font-extrabold tracking-tight">Dashboard</h1>
@@ -419,39 +428,87 @@
               </div>
             </div>
           </div>
-          <p class="text-xs text-slate-400 mb-2">Ringkasan 3 indikator utama untuk bulan yang dipilih. Filter bulan &amp; tahun ini terhubung dengan filter di tab Dashboard.</p>
+          <p class="text-xs text-slate-400 mb-2">Ringkasan 8 indikator utama untuk bulan yang dipilih. Filter bulan &amp; tahun ini terhubung dengan filter di tab Dashboard.</p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-5">
-          <div class="card p-5 text-center resumekpi-card" onclick="openPesertaListModal()" title="Klik untuk lihat detail per peserta">
-            <p class="text-xs font-bold text-slate-400 uppercase mb-3">Training Sales Selesai</p>
-            <p id="resumekpi-training-pct" class="text-4xl font-extrabold" style="color:var(--brand-600)">0%</p>
-            <p id="resumekpi-training-sub" class="text-xs text-slate-400 mt-2">0 dari 0 peserta</p>
-            <p class="text-[10px] font-bold mt-3" style="color:var(--brand-600)"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i>Lihat detail</p>
+        <div class="flex flex-col xl:flex-row gap-5 items-stretch">
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 flex-1">
+            <div class="card p-4 text-center resumekpi-card flex flex-col h-full" onclick="openAgendaWajibDetailModal()" title="Klik untuk lihat rincian kegiatan wajib">
+              <p class="text-[10px] font-bold text-slate-400 uppercase mb-2 leading-tight min-h-[24px] flex items-center justify-center">1. Penyelesaian Agenda Wajib</p>
+              <p id="resumekpi-agenda-pct" class="text-2xl font-extrabold" style="color:#d97706">0%</p>
+              <p id="resumekpi-agenda-sub" class="text-[10px] text-slate-400 mt-1 leading-tight flex-1">0 dari 0 kegiatan</p>
+              <p class="text-[9px] font-bold mt-2" style="color:#d97706"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i>Detail</p>
+            </div>
+            <div class="card p-4 text-center resumekpi-card flex flex-col h-full" onclick="openPesertaListModal()" title="Klik untuk lihat detail per peserta">
+              <p class="text-[10px] font-bold text-slate-400 uppercase mb-2 leading-tight min-h-[24px] flex items-center justify-center">2. Training Sales Selesai</p>
+              <p id="resumekpi-training-pct" class="text-2xl font-extrabold" style="color:var(--brand-600)">0%</p>
+              <p id="resumekpi-training-sub" class="text-[10px] text-slate-400 mt-1 leading-tight flex-1">0 dari 0 peserta</p>
+              <p class="text-[9px] font-bold mt-2" style="color:var(--brand-600)"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i>Detail</p>
+            </div>
+            <div class="card p-4 text-center resumekpi-card flex flex-col h-full" onclick="switchTab('closingskill')" title="Klik untuk lihat detail skill closing per peserta">
+              <p class="text-[10px] font-bold text-slate-400 uppercase mb-2 leading-tight min-h-[24px] flex items-center justify-center">3. Skill Closing (Growth &ge;80)</p>
+              <p id="resumekpi-closing-pct" class="text-2xl font-extrabold" style="color:#7c3aed">0%</p>
+              <p id="resumekpi-closing-sub" class="text-[10px] text-slate-400 mt-1 leading-tight flex-1">0 growth dari 0 peserta</p>
+              <p class="text-[9px] font-bold mt-2" style="color:#7c3aed"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i>Detail</p>
+            </div>
+            <div class="card p-4 text-center resumekpi-card flex flex-col h-full" onclick="switchTab('tasklistmarketing')" title="Klik untuk lihat detail Tasklist Marketing">
+              <p class="text-[10px] font-bold text-slate-400 uppercase mb-2 leading-tight min-h-[24px] flex items-center justify-center">4. Tasklist Marketing</p>
+              <p id="resumekpi-tm-pct" class="text-2xl font-extrabold" style="color:#ea580c">0%</p>
+              <p id="resumekpi-tm-sub" class="text-[10px] text-slate-400 mt-1 leading-tight flex-1">0 dari 0 task selesai</p>
+              <p class="text-[9px] font-bold mt-2" style="color:#ea580c"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i>Detail</p>
+            </div>
+            <div class="card p-4 text-center resumekpi-card flex flex-col h-full" onclick="switchTab('pencapaian')" title="Klik untuk lihat detail pencapaian booking">
+              <p class="text-[10px] font-bold text-slate-400 uppercase mb-2 leading-tight min-h-[24px] flex items-center justify-center">5. Pencapaian Booking</p>
+              <p id="resumekpi-booking-pct" class="text-2xl font-extrabold" style="color:#2563eb">0%</p>
+              <p id="resumekpi-booking-sub" class="text-[10px] text-slate-400 mt-1 leading-tight flex-1">0 booking dari 0 data</p>
+              <p class="text-[9px] font-bold mt-2" style="color:#2563eb"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i>Detail</p>
+            </div>
+            <div class="card p-4 text-center resumekpi-card flex flex-col h-full" title="Persentase indikator resume di atas yang sudah terisi (punya nilai/data)">
+              <p class="text-[10px] font-bold text-slate-400 uppercase mb-2 leading-tight min-h-[24px] flex items-center justify-center">6. Laporan Training Lengkap</p>
+              <p id="resumekpi-lengkap-pct" class="text-2xl font-extrabold" style="color:#1e293b">0%</p>
+              <p id="resumekpi-lengkap-sub" class="text-[10px] text-slate-400 mt-1 leading-tight flex-1">0 dari 0 indikator terisi</p>
+            </div>
+            <div class="card p-4 text-center resumekpi-card flex flex-col h-full" onclick="switchTab('feedbacktl')" title="Klik untuk lihat detail tindak lanjut feedback">
+              <p class="text-[10px] font-bold text-slate-400 uppercase mb-2 leading-tight min-h-[24px] flex items-center justify-center">7. Tindak Lanjut Feedback</p>
+              <p id="resumekpi-fltl-pct" class="text-2xl font-extrabold" style="color:#0d9488">0%</p>
+              <p id="resumekpi-fltl-sub" class="text-[10px] text-slate-400 mt-1 leading-tight flex-1">0 dari 0 point selesai</p>
+              <p class="text-[9px] font-bold mt-2" style="color:#0d9488"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i>Detail</p>
+            </div>
+            <div class="card p-4 text-center resumekpi-card flex flex-col h-full" onclick="switchTab('supportcoaching')" title="Klik untuk lihat detail support coaching">
+              <p class="text-[10px] font-bold text-slate-400 uppercase mb-2 leading-tight min-h-[24px] flex items-center justify-center">8. Support Coaching</p>
+              <p id="resumekpi-sc-pct" class="text-2xl font-extrabold" style="color:#be185d">0%</p>
+              <p id="resumekpi-sc-sub" class="text-[10px] text-slate-400 mt-1 leading-tight flex-1">0 dari 0 sesi done</p>
+              <p class="text-[9px] font-bold mt-2" style="color:#be185d"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i>Detail</p>
+            </div>
           </div>
-          <div class="card p-5 text-center resumekpi-card" onclick="switchTab('pencapaian')" title="Klik untuk lihat detail pencapaian booking">
-            <p class="text-xs font-bold text-slate-400 uppercase mb-3">Pencapaian Booking</p>
-            <p id="resumekpi-booking-pct" class="text-4xl font-extrabold" style="color:#2563eb">0%</p>
-            <p id="resumekpi-booking-sub" class="text-xs text-slate-400 mt-2">0 booking dari 0 data</p>
-            <p class="text-[10px] font-bold mt-3" style="color:#2563eb"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i>Lihat detail</p>
+
+          <div class="card p-6 flex flex-col items-center justify-center text-center xl:w-64 shrink-0 cursor-pointer resumekpi-card" onclick="openKpiConfigModal()" title="Klik untuk atur bobot/poin tiap indikator KPI">
+            <p class="text-xs font-bold text-slate-400 uppercase mb-2">Skor KPI</p>
+            <svg width="160" height="160" viewBox="0 0 160 160" class="ring">
+              <circle cx="80" cy="80" r="68" stroke="#eef2ee" stroke-width="14" fill="none"/>
+              <circle id="kpi-ring" cx="80" cy="80" r="68" stroke="url(#gKpi)" stroke-width="14" fill="none" stroke-linecap="round" stroke-dasharray="427" stroke-dashoffset="427"/>
+              <defs><linearGradient id="gKpi"><stop offset="0%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#0e7c63"/></linearGradient></defs>
+            </svg>
+            <p id="kpi-score-label" class="text-3xl font-extrabold -mt-24 mono">0.0</p>
+            <p id="kpi-scale-label" class="text-xs text-slate-400 mt-24 pt-1">dari skala 4.0</p>
+            <p id="kpi-score-sub" class="text-[11px] text-slate-400 mt-2">0% dari 8 indikator</p>
+            <p class="text-[10px] font-bold mt-3" style="color:var(--brand-600)"><i class="fa-solid fa-sliders mr-1"></i>Atur poin KPI</p>
           </div>
-          <div class="card p-5 text-center resumekpi-card" onclick="openAgendaWajibDetailModal()" title="Klik untuk lihat rincian kegiatan wajib">
-            <p class="text-xs font-bold text-slate-400 uppercase mb-3">Penyelesaian Agenda Wajib</p>
-            <p id="resumekpi-agenda-pct" class="text-4xl font-extrabold" style="color:#d97706">0%</p>
-            <p id="resumekpi-agenda-sub" class="text-xs text-slate-400 mt-2">0 dari 0 kegiatan</p>
-            <p class="text-[10px] font-bold mt-3" style="color:#d97706"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i>Lihat detail</p>
+        </div>
+      </div>
+
+      <!-- Modal pengaturan poin/skor KPI per indikator -->
+      <div id="kpi-config-modal" class="modal-overlay hidden">
+        <div class="card p-6 w-full max-w-2xl max-h-[88vh] overflow-y-auto">
+          <div class="flex items-center justify-between mb-1">
+            <p class="text-sm font-extrabold">Pengaturan Skor KPI per Indikator</p>
+            <button onclick="closeKpiConfigModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
           </div>
-          <div class="card p-5 text-center resumekpi-card" onclick="switchTab('closingskill')" title="Klik untuk lihat detail skill closing per peserta">
-            <p class="text-xs font-bold text-slate-400 uppercase mb-3">Skill Closing (Growth &ge;80)</p>
-            <p id="resumekpi-closing-pct" class="text-4xl font-extrabold" style="color:#7c3aed">0%</p>
-            <p id="resumekpi-closing-sub" class="text-xs text-slate-400 mt-2">0 growth dari 0 peserta dinilai</p>
-            <p class="text-[10px] font-bold mt-3" style="color:#7c3aed"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i>Lihat detail</p>
-          </div>
-          <div class="card p-5 text-center resumekpi-card" onclick="switchTab('feedbacktl')" title="Klik untuk lihat detail tindak lanjut feedback">
-            <p class="text-xs font-bold text-slate-400 uppercase mb-3">Tindak Lanjut Feedback</p>
-            <p id="resumekpi-fltl-pct" class="text-4xl font-extrabold" style="color:#0d9488">0%</p>
-            <p id="resumekpi-fltl-sub" class="text-xs text-slate-400 mt-2">0 dari 0 point selesai</p>
-            <p class="text-[10px] font-bold mt-3" style="color:#0d9488"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i>Lihat detail</p>
+          <p class="text-xs text-slate-400 mb-4">Atur berapa poin yang didapat tiap indikator berdasarkan pencapaian persentasenya. Contoh: Training Sales Selesai jika &ge;80% dapat 0.6 poin. Skor KPI di bulatan besar = total poin dari semua indikator yang tercapai.</p>
+          <div id="kpi-config-body"></div>
+          <div class="flex items-center gap-2 mt-2">
+            <button class="btn-ghost !text-red-600" onclick="resetKpiConfigDefault()"><i class="fa-solid fa-rotate-left mr-1"></i>Kembalikan Default</button>
+            <button class="btn-primary flex-1" onclick="saveKpiConfig()">Simpan Pengaturan</button>
           </div>
         </div>
       </div>
@@ -739,7 +796,175 @@
         </div>
       </div>
 
-      <!-- ================= PARTICIPANTS ================= -->
+      <!-- ================= TASKLIST MARKETING ================= -->
+      <div id="tab-tasklistmarketing" class="tab-hidden space-y-6">
+        <div class="card p-5">
+          <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
+            <p class="text-sm font-bold">Tasklist Marketing (Probation)</p>
+            <div class="flex items-center gap-2 flex-wrap">
+              <label class="btn-ghost cursor-pointer">
+                <i class="fa-solid fa-file-arrow-up mr-1"></i>Impor dari Excel
+                <input type="file" accept=".xlsx,.xls" class="hidden" onchange="importTasklistMarketingExcel(event)">
+              </label>
+              <button class="btn-primary" onclick="openAddTasklistMarketing()"><i class="fa-solid fa-plus mr-1"></i>Tambah Task</button>
+              <button class="btn-ghost !text-red-600" onclick="clearTasklistMarketingData()"><i class="fa-solid fa-broom mr-1"></i>Bersihkan</button>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mb-4">Impor mendukung format export "Tasklist Marketing Probation" (kolom Tanggal, ID Task, Employee Name, Date of Joining, Deadline Date, Actual / Finish, Leadtime, % Task, % Waiting Approve, % Approve, SPV, MM). Baris dengan ID Task yang sudah ada akan diperbarui otomatis.</p>
+          <div class="flex flex-wrap items-end gap-2">
+            <div class="flex-1 min-w-[160px]">
+              <label class="text-[10px] font-bold text-slate-400 uppercase">Cari</label>
+              <div class="relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
+                <input id="tm-filter-search" type="text" placeholder="Nama, ID Task, SPV, MM..." class="field pl-8" oninput="applyTasklistMarketingFilter()">
+              </div>
+            </div>
+            <div>
+              <label class="text-[10px] font-bold text-slate-400 uppercase">Bulan</label>
+              <select id="tm-filter-bln" class="field" onchange="applyTasklistMarketingFilter()"></select>
+            </div>
+            <div>
+              <label class="text-[10px] font-bold text-slate-400 uppercase">Tahun</label>
+              <select id="tm-filter-tahun" class="field" onchange="applyTasklistMarketingFilter()"></select>
+            </div>
+            <div>
+              <label class="text-[10px] font-bold text-slate-400 uppercase">Status</label>
+              <select id="tm-filter-status" class="field" onchange="applyTasklistMarketingFilter()">
+                <option value="">Semua Status</option>
+                <option value="selesai">Selesai</option>
+                <option value="proses">Proses</option>
+                <option value="terlambat">Terlambat</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-5">
+          <div class="kpi text-center">
+            <p class="text-xs font-bold text-slate-400 uppercase mb-3">Total Task</p>
+            <p id="tm-kpi-total" class="text-4xl font-extrabold" style="color:#7c3aed">0</p>
+            <p id="tm-kpi-total-sub" class="text-xs text-slate-400 mt-2">sesuai filter</p>
+          </div>
+          <div class="kpi text-center">
+            <p class="text-xs font-bold text-slate-400 uppercase mb-3">Rata-rata % Task</p>
+            <p id="tm-kpi-pct" class="text-4xl font-extrabold" style="color:#0e7c63">0%</p>
+            <p id="tm-kpi-pct-sub" class="text-xs text-slate-400 mt-2">0 dari 0 task</p>
+          </div>
+          <div class="kpi text-center">
+            <p class="text-xs font-bold text-slate-400 uppercase mb-3">Task Selesai</p>
+            <p id="tm-kpi-lengkap" class="text-4xl font-extrabold" style="color:#15803d">0</p>
+            <p id="tm-kpi-lengkap-sub" class="text-xs text-slate-400 mt-2">0 dari 0 task</p>
+          </div>
+          <div class="kpi text-center">
+            <p class="text-xs font-bold text-slate-400 uppercase mb-3">Task Terlambat</p>
+            <p id="tm-kpi-belum" class="text-4xl font-extrabold" style="color:#dc2626">0</p>
+            <p id="tm-kpi-belum-sub" class="text-xs text-slate-400 mt-2">0 dari 0 task</p>
+          </div>
+        </div>
+
+        <div class="card p-5">
+          <div class="overflow-x-auto">
+            <table class="w-full text-[11px]">
+              <thead>
+                <tr class="text-left text-slate-400 border-b" style="border-color:var(--line)">
+                  <th class="py-2 pr-3 font-bold">No</th>
+                  <th class="py-2 pr-3 font-bold whitespace-nowrap">Tanggal</th>
+                  <th class="py-2 pr-3 font-bold whitespace-nowrap">ID Task</th>
+                  <th class="py-2 pr-3 font-bold whitespace-nowrap">Employee Name</th>
+                  <th class="py-2 pr-3 font-bold whitespace-nowrap">Join Date</th>
+                  <th class="py-2 pr-3 font-bold whitespace-nowrap">Deadline</th>
+                  <th class="py-2 pr-3 font-bold whitespace-nowrap">Actual/Finish</th>
+                  <th class="py-2 pr-3 font-bold text-center whitespace-nowrap">Leadtime</th>
+                  <th class="py-2 pr-3 font-bold text-center whitespace-nowrap">% Task</th>
+                  <th class="py-2 pr-3 font-bold text-center whitespace-nowrap">% Waiting<br>Approve</th>
+                  <th class="py-2 pr-3 font-bold text-center whitespace-nowrap">% Approve</th>
+                  <th class="py-2 pr-3 font-bold whitespace-nowrap">SPV</th>
+                  <th class="py-2 pr-3 font-bold whitespace-nowrap">MM</th>
+                  <th class="py-2 pr-3 font-bold whitespace-nowrap">Status</th>
+                  <th class="py-2 pr-3 font-bold whitespace-nowrap">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="tm-table-body"></tbody>
+            </table>
+            <p id="tm-empty" class="text-sm text-center text-slate-400 py-8 hidden">Belum ada data task marketing. Klik "Impor dari Excel" untuk mengimpor data, atau "Tambah Task" untuk menambah manual.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tasklist Marketing modal (tambah/edit manual) -->
+      <div id="tm-modal" class="modal-overlay hidden">
+        <div class="card p-6 w-full max-w-lg max-h-[88vh] overflow-y-auto">
+          <div class="flex items-center justify-between mb-4">
+            <p id="tm-modal-title" class="text-sm font-extrabold">Tambah Task Marketing</p>
+            <button onclick="closeTasklistMarketingModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+          <div class="space-y-3">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-[11px] font-bold text-slate-500">ID Task</label>
+                <input id="tm-f-idtask" type="text" placeholder="TMP202607280001" class="field">
+              </div>
+              <div>
+                <label class="text-[11px] font-bold text-slate-500">Tanggal</label>
+                <input id="tm-f-tanggal" type="date" class="field">
+              </div>
+            </div>
+            <div>
+              <label class="text-[11px] font-bold text-slate-500">Employee Name</label>
+              <input id="tm-f-employee" type="text" placeholder="Nama sales" class="field">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-[11px] font-bold text-slate-500">Date of Joining</label>
+                <input id="tm-f-doj" type="date" class="field">
+              </div>
+              <div>
+                <label class="text-[11px] font-bold text-slate-500">Deadline Date</label>
+                <input id="tm-f-deadline" type="date" class="field">
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-[11px] font-bold text-slate-500">Actual / Finish</label>
+                <input id="tm-f-actual" type="date" class="field">
+              </div>
+              <div>
+                <label class="text-[11px] font-bold text-slate-500">Leadtime (hari)</label>
+                <input id="tm-f-leadtime" type="number" class="field">
+              </div>
+            </div>
+            <div class="grid grid-cols-3 gap-3">
+              <div>
+                <label class="text-[11px] font-bold text-slate-500">% Task</label>
+                <input id="tm-f-pcttask" type="number" min="0" max="100" class="field">
+              </div>
+              <div>
+                <label class="text-[11px] font-bold text-slate-500">% Waiting Approve</label>
+                <input id="tm-f-pctwait" type="number" min="0" max="100" class="field">
+              </div>
+              <div>
+                <label class="text-[11px] font-bold text-slate-500">% Approve</label>
+                <input id="tm-f-pctapprove" type="number" min="0" max="100" class="field">
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-[11px] font-bold text-slate-500">SPV</label>
+                <input id="tm-f-spv" type="text" class="field">
+              </div>
+              <div>
+                <label class="text-[11px] font-bold text-slate-500">MM</label>
+                <input id="tm-f-mm" type="text" class="field">
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 mt-5">
+            <button id="tm-delete-btn" class="hidden btn-ghost !text-red-600" onclick="deleteTasklistMarketingFromModal()"><i class="fa-solid fa-trash-can mr-1"></i>Hapus</button>
+            <button class="btn-primary flex-1" onclick="saveTasklistMarketingModal()">Simpan Task</button>
+          </div>
+        </div>
+      </div>
+
       <div id="tab-participants" class="tab-hidden space-y-6">
         <div class="card p-5">
           <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
@@ -956,7 +1181,74 @@
         </div>
       </div>
 
-      <!-- ================= TRASH ================= -->
+      <!-- ================= SUPPORT COACHING ================= -->
+      <div id="tab-supportcoaching" class="tab-hidden space-y-6">
+        <div class="card p-5">
+          <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
+            <p class="text-sm font-bold">Keterlaksanaan Support Coaching</p>
+            <div class="flex items-end gap-2 flex-wrap">
+              <div>
+                <label class="text-[10px] font-bold text-slate-400 uppercase">Bulan</label>
+                <select id="sc-filter-bln" class="field" onchange="applySupportCoachingFilter()"></select>
+              </div>
+              <div>
+                <label class="text-[10px] font-bold text-slate-400 uppercase">Tahun</label>
+                <select id="sc-filter-tahun" class="field" onchange="applySupportCoachingFilter()"></select>
+              </div>
+              <button class="btn-primary !py-1.5 !px-3 text-[11px]" onclick="openSupportCoachingModal()"><i class="fa-solid fa-plus mr-1"></i>Tambah Coaching</button>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400">Jadwal &amp; keterlaksanaan support coaching per minggu (mengikuti plan trainer/coach bulan berjalan), lengkap dengan target vs actual dan kendala di lapangan.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div class="kpi text-center">
+            <p class="text-xs font-bold text-slate-400 uppercase mb-3">Keterlaksanaan Monthly</p>
+            <p id="sc-kpi-pct" class="text-4xl font-extrabold" style="color:#0d9488">0%</p>
+            <p id="sc-kpi-pct-sub" class="text-xs text-slate-400 mt-2">0 dari 0 sesi</p>
+          </div>
+          <div class="kpi text-center">
+            <p class="text-xs font-bold text-slate-400 uppercase mb-3">Sudah Done</p>
+            <p id="sc-kpi-done" class="text-4xl font-extrabold" style="color:#15803d">0</p>
+            <p id="sc-kpi-done-sub" class="text-xs text-slate-400 mt-2">0 dari 0 sesi</p>
+          </div>
+          <div class="kpi text-center">
+            <p class="text-xs font-bold text-slate-400 uppercase mb-3">Belum / Proses</p>
+            <p id="sc-kpi-belum" class="text-4xl font-extrabold" style="color:#dc2626">0</p>
+            <p id="sc-kpi-belum-sub" class="text-xs text-slate-400 mt-2">0 dari 0 sesi</p>
+          </div>
+        </div>
+
+        <div class="card p-5">
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+              <thead>
+                <tr class="text-left text-slate-400 border-b" style="border-color:var(--line)">
+                  <th class="py-2 pr-3 font-bold">Week</th>
+                  <th class="py-2 pr-3 font-bold">Plan Trainer / Coach</th>
+                  <th class="py-2 pr-3 font-bold">Status</th>
+                  <th class="py-2 pr-3 font-bold">Bulan</th>
+                  <th class="py-2 pr-3 font-bold">Target</th>
+                  <th class="py-2 pr-3 font-bold">Actual</th>
+                  <th class="py-2 pr-3 font-bold">Kendala / Catatan</th>
+                  <th class="py-2 pr-3 font-bold">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="sc-table-body"></tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="4" class="py-2 pr-3 font-extrabold" style="color:var(--brand-700)">Keterlaksanaan Monthly :</td>
+                  <td class="py-2 pr-3 font-extrabold" id="sc-foot-target" style="color:var(--brand-700)">0%</td>
+                  <td class="py-2 pr-3 font-extrabold" id="sc-foot-actual" style="color:var(--brand-700)">0%</td>
+                  <td colspan="2"></td>
+                </tr>
+              </tfoot>
+            </table>
+            <p id="sc-empty" class="text-sm text-center text-slate-400 py-8 hidden">Belum ada jadwal support coaching untuk periode ini. Klik "Tambah Coaching" untuk mulai mengisi.</p>
+          </div>
+        </div>
+      </div>
+
       <div id="tab-trash" class="tab-hidden space-y-6">
         <div class="card p-5">
           <div class="flex items-center justify-between mb-1">
@@ -1299,6 +1591,68 @@
     <div class="flex items-center gap-2 mt-5">
       <button id="fltl-delete-btn" class="hidden btn-ghost !text-red-600" onclick="deleteFeedbackTLItem()"><i class="fa-solid fa-trash-can mr-1"></i>Hapus</button>
       <button class="btn-primary flex-1" onclick="saveFeedbackTLItem()">Simpan Point</button>
+    </div>
+  </div>
+</div>
+
+<!-- Support Coaching modal -->
+<div id="sc-modal" class="modal-overlay hidden">
+  <div class="card p-6 w-full max-w-md max-h-[88vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-4">
+      <p id="sc-modal-title" class="text-sm font-extrabold">Tambah Support Coaching</p>
+      <button onclick="closeSupportCoachingModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="space-y-3">
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-[11px] font-bold text-slate-500">Bulan</label>
+          <select id="sc-bln" class="field"></select>
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-slate-500">Tahun</label>
+          <input id="sc-tahun" type="number" class="field" placeholder="2026">
+        </div>
+      </div>
+      <div>
+        <label class="text-[11px] font-bold text-slate-500">Minggu</label>
+        <select id="sc-week" class="field">
+          <option value="1">Minggu 1 (W1)</option>
+          <option value="2">Minggu 2 (W2)</option>
+          <option value="3">Minggu 3 (W3)</option>
+          <option value="4">Minggu 4 (W4)</option>
+          <option value="5">Minggu 5 (W5)</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-[11px] font-bold text-slate-500">Plan Trainer / Coach</label>
+        <input id="sc-trainer" type="text" placeholder="mis. Kevin" class="field">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-[11px] font-bold text-slate-500">Target (%)</label>
+          <input id="sc-target" type="number" min="0" max="100" placeholder="25" class="field">
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-slate-500">Actual (%)</label>
+          <input id="sc-actual" type="number" min="0" max="100" placeholder="25" class="field">
+        </div>
+      </div>
+      <div>
+        <label class="text-[11px] font-bold text-slate-500">Status</label>
+        <select id="sc-status" class="field">
+          <option value="belum">Belum</option>
+          <option value="proses">Proses</option>
+          <option value="done">Done</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-[11px] font-bold text-slate-500">Kendala / Catatan (opsional)</label>
+        <textarea id="sc-catatan" rows="3" placeholder="mis. beberapa sales masih kurang percaya diri saat roleplay" class="field"></textarea>
+      </div>
+    </div>
+    <div class="flex items-center gap-2 mt-5">
+      <button id="sc-delete-btn" class="hidden btn-ghost !text-red-600" onclick="deleteSupportCoachingItem()"><i class="fa-solid fa-trash-can mr-1"></i>Hapus</button>
+      <button class="btn-primary flex-1" onclick="saveSupportCoachingItem()">Simpan Coaching</button>
     </div>
   </div>
 </div>
@@ -2273,7 +2627,10 @@ function defaultState(){
     agendaRecurringSeeded:true,
     agendaStatus:{},
     agendaColorNames:{},
-    feedbackTL:[]
+    feedbackTL:[],
+    supportCoaching:[],
+    tasklistMarketing:{ tasks:[] },
+    kpiConfig:{ indicators:{} }
   };
 }
 function normalizeState(parsed){
@@ -2294,6 +2651,11 @@ function normalizeState(parsed){
   if(!parsed.agendaStatus || typeof parsed.agendaStatus!=='object') parsed.agendaStatus = {};
   if(!parsed.agendaColorNames || typeof parsed.agendaColorNames!=='object') parsed.agendaColorNames = {};
   if(!Array.isArray(parsed.feedbackTL)) parsed.feedbackTL = [];
+  if(!Array.isArray(parsed.supportCoaching)) parsed.supportCoaching = [];
+  if(!parsed.tasklistMarketing || typeof parsed.tasklistMarketing!=='object' || Array.isArray(parsed.tasklistMarketing)) parsed.tasklistMarketing = { tasks:[] };
+  if(!Array.isArray(parsed.tasklistMarketing.tasks)) parsed.tasklistMarketing.tasks = [];
+  if(!parsed.kpiConfig || typeof parsed.kpiConfig!=='object') parsed.kpiConfig = { indicators:{} };
+  if(!parsed.kpiConfig.indicators || typeof parsed.kpiConfig.indicators!=='object') parsed.kpiConfig.indicators = {};
   if(!parsed.agendaRecurringSeeded){
     parsed.agendaRecurring = parsed.agendaRecurring.concat(
       DEFAULT_AGENDA_RECURRING.map((r,i)=>({ id:'arc_seed_'+Date.now()+'_'+i, ...r }))
@@ -2745,6 +3107,18 @@ function computeFeedbackTLStatsFor(blnName, tahunNum){
   const list = state.feedbackTL.filter(f=> f.bln===blnName && Number(f.tahun)===Number(tahunNum));
   return computeFeedbackTLStats(list);
 }
+// Statistik Tasklist Marketing untuk satu periode Bulan/Tahun tertentu (dipakai
+// oleh kartu Resume KPI), dihitung dari state.tasklistMarketing.tasks berdasarkan
+// kolom Tanggal tiap task.
+function computeTasklistMarketingStatsFor(blnName, tahunNum){
+  const list = (state.tasklistMarketing.tasks||[]).filter(t=>
+    monthNameFromDate(t.tanggal)===blnName && yearFromDate(t.tanggal)===String(tahunNum)
+  );
+  const total = list.length;
+  const done = list.filter(t=>!!t.actual).length;
+  const pct = total ? Math.round(list.reduce((a,t)=>a+(Number(t.pctTask)||0),0)/total) : 0;
+  return { total, done, pct };
+}
 function renderFeedbackTL(){
   renderFeedbackTLFilters();
   const list = getFeedbackTLFiltered();
@@ -2870,8 +3244,446 @@ function deleteFeedbackTLItem(){
   toast('Point tindak lanjut dihapus');
 }
 
+/* ===================== SUPPORT COACHING ===================== */
+// Setiap sesi tersimpan sebagai: { id, bln, tahun, week(1-5), trainer, target, actual, status:'belum'|'proses'|'done', catatan }
+let scFilterBln = MONTH_NAMES_ID[new Date().getMonth()];
+let scFilterTahun = String(new Date().getFullYear());
+let scEditingId = null;
+
+function scStatusBadge(status){
+  if(status==='done') return '<span class="badge badge-green"><i class="fa-solid fa-check mr-1"></i>Done</span>';
+  if(status==='proses') return '<span class="badge badge-amber"><i class="fa-solid fa-hourglass-half mr-1"></i>Proses</span>';
+  return '<span class="badge badge-slate">Belum</span>';
+}
+function renderSupportCoachingFilters(){
+  const blnSel = document.getElementById('sc-filter-bln');
+  const tahunSel = document.getElementById('sc-filter-tahun');
+  if(!blnSel || !tahunSel) return;
+  blnSel.innerHTML = '<option value="">Semua Bulan</option>' + MONTH_NAMES_ID.map(v=>`<option value="${v}" ${v===scFilterBln?'selected':''}>${v}</option>`).join('');
+  const tahunValues = Array.from(new Set(state.supportCoaching.map(f=>String(f.tahun)).filter(Boolean).concat([String(new Date().getFullYear())]))).sort((a,b)=>b-a);
+  tahunSel.innerHTML = '<option value="">Semua Tahun</option>' + tahunValues.map(v=>`<option value="${v}" ${v===scFilterTahun?'selected':''}>${v}</option>`).join('');
+}
+function applySupportCoachingFilter(){
+  scFilterBln = document.getElementById('sc-filter-bln').value;
+  scFilterTahun = document.getElementById('sc-filter-tahun').value;
+  renderSupportCoaching();
+}
+function getSupportCoachingFiltered(){
+  return state.supportCoaching.filter(f=>{
+    if(scFilterBln && f.bln !== scFilterBln) return false;
+    if(scFilterTahun && String(f.tahun) !== scFilterTahun) return false;
+    return true;
+  }).sort((a,b)=> (a.week||0)-(b.week||0) || String(a.trainer||'').localeCompare(String(b.trainer||''),'id'));
+}
+function computeSupportCoachingStats(list){
+  const total = list.length;
+  const done = list.filter(f=>f.status==='done').length;
+  const pct = total>0 ? Math.round((done/total)*100) : 0;
+  const sumTarget = Math.min(100, Math.round(list.reduce((s,f)=>s+(Number(f.target)||0),0)));
+  const sumActual = Math.min(100, Math.round(list.reduce((s,f)=>s+(Number(f.actual)||0),0)));
+  return { total, done, pct, avgTarget: sumTarget, avgActual: sumActual };
+}
+// Dipakai juga oleh kartu Resume: menghitung keterlaksanaan support coaching untuk
+// bulan/tahun tertentu (nama bulan Indonesia + tahun angka).
+function computeSupportCoachingStatsFor(blnName, tahunNum){
+  const list = state.supportCoaching.filter(f=> f.bln===blnName && Number(f.tahun)===Number(tahunNum));
+  return computeSupportCoachingStats(list);
+}
+function renderSupportCoaching(){
+  renderSupportCoachingFilters();
+  const list = getSupportCoachingFiltered();
+  const stats = computeSupportCoachingStats(list);
+  document.getElementById('sc-kpi-pct').innerText = stats.pct + '%';
+  document.getElementById('sc-kpi-pct-sub').innerText = `${stats.done} dari ${stats.total} sesi`;
+  document.getElementById('sc-kpi-done').innerText = stats.done;
+  document.getElementById('sc-kpi-done-sub').innerText = `${stats.done} dari ${stats.total} sesi`;
+  document.getElementById('sc-kpi-belum').innerText = stats.total - stats.done;
+  document.getElementById('sc-kpi-belum-sub').innerText = `${stats.total - stats.done} dari ${stats.total} sesi`;
+  document.getElementById('sc-foot-target').innerText = stats.avgTarget + '%';
+  document.getElementById('sc-foot-actual').innerText = stats.avgActual + '%';
+
+  const body = document.getElementById('sc-table-body');
+  const emptyEl = document.getElementById('sc-empty');
+  emptyEl.classList.toggle('hidden', list.length>0);
+  body.innerHTML = list.map(f=>{
+    return `<tr class="border-b align-top" style="border-color:var(--line)">
+      <td class="py-2 pr-3"><span class="badge badge-slate">W${f.week||1}</span></td>
+      <td class="py-2 pr-3 font-semibold">${escapeHtml(f.trainer)||'(Belum diisi)'}</td>
+      <td class="py-2 pr-3">
+        <select class="field !py-1 !text-[11px]" style="margin-top:0" onchange="updateSupportCoachingStatusInline('${escapeHtml(f.id)}', this.value)">
+          <option value="belum" ${f.status==='belum'?'selected':''}>Belum</option>
+          <option value="proses" ${f.status==='proses'?'selected':''}>Proses</option>
+          <option value="done" ${f.status==='done'?'selected':''}>Done</option>
+        </select>
+      </td>
+      <td class="py-2 pr-3 text-slate-500 whitespace-nowrap">${escapeHtml(f.bln)} ${f.tahun||''}</td>
+      <td class="py-2 pr-3">${Number(f.target)||0}%</td>
+      <td class="py-2 pr-3">${Number(f.actual)||0}%</td>
+      <td class="py-2 pr-3 text-slate-500" style="max-width:260px">${escapeHtml(f.catatan)||'&mdash;'}</td>
+      <td class="py-2 pr-3 whitespace-nowrap">
+        <button class="text-slate-400 hover:text-[var(--brand-600)] mr-2" title="Edit" onclick="openSupportCoachingModal('${escapeHtml(f.id)}')"><i class="fa-solid fa-pen"></i></button>
+        <button class="text-slate-400 hover:text-red-600" title="Hapus" onclick="quickDeleteSupportCoaching('${escapeHtml(f.id)}')"><i class="fa-solid fa-trash-can"></i></button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+function updateSupportCoachingStatusInline(id, value){
+  const item = state.supportCoaching.find(f=>f.id===id);
+  if(!item) return;
+  item.status = value;
+  saveState();
+  renderSupportCoaching();
+  renderResumeKpi();
+}
+function quickDeleteSupportCoaching(id){
+  if(!confirm('Hapus jadwal support coaching ini?')) return;
+  state.supportCoaching = state.supportCoaching.filter(f=>f.id!==id);
+  saveState();
+  renderSupportCoaching();
+  renderResumeKpi();
+  toast('Jadwal support coaching dihapus');
+}
+function openSupportCoachingModal(id){
+  scEditingId = id || null;
+  const blnSel = document.getElementById('sc-bln');
+  blnSel.innerHTML = MONTH_NAMES_ID.map(v=>`<option value="${v}">${v}</option>`).join('');
+  const deleteBtn = document.getElementById('sc-delete-btn');
+  if(id){
+    const item = state.supportCoaching.find(f=>f.id===id);
+    if(!item) return;
+    document.getElementById('sc-modal-title').innerText = 'Edit Support Coaching';
+    blnSel.value = item.bln;
+    document.getElementById('sc-tahun').value = item.tahun;
+    document.getElementById('sc-week').value = item.week || 1;
+    document.getElementById('sc-trainer').value = item.trainer || '';
+    document.getElementById('sc-target').value = item.target || '';
+    document.getElementById('sc-actual').value = item.actual || '';
+    document.getElementById('sc-status').value = item.status || 'belum';
+    document.getElementById('sc-catatan').value = item.catatan || '';
+    deleteBtn.classList.remove('hidden');
+  } else {
+    document.getElementById('sc-modal-title').innerText = 'Tambah Support Coaching';
+    blnSel.value = scFilterBln || MONTH_NAMES_ID[new Date().getMonth()];
+    document.getElementById('sc-tahun').value = scFilterTahun || new Date().getFullYear();
+    document.getElementById('sc-week').value = 1;
+    document.getElementById('sc-trainer').value = '';
+    document.getElementById('sc-target').value = 25;
+    document.getElementById('sc-actual').value = '';
+    document.getElementById('sc-status').value = 'belum';
+    document.getElementById('sc-catatan').value = '';
+    deleteBtn.classList.add('hidden');
+  }
+  document.getElementById('sc-modal').classList.remove('hidden');
+}
+function closeSupportCoachingModal(){
+  document.getElementById('sc-modal').classList.add('hidden');
+  scEditingId = null;
+}
+function saveSupportCoachingItem(){
+  const trainer = document.getElementById('sc-trainer').value.trim();
+  if(!trainer){ toast('Nama trainer / coach wajib diisi'); return; }
+  const tahunVal = Number(document.getElementById('sc-tahun').value) || new Date().getFullYear();
+  const data = {
+    bln: document.getElementById('sc-bln').value,
+    tahun: tahunVal,
+    week: Number(document.getElementById('sc-week').value) || 1,
+    trainer,
+    target: Number(document.getElementById('sc-target').value) || 0,
+    actual: Number(document.getElementById('sc-actual').value) || 0,
+    status: document.getElementById('sc-status').value,
+    catatan: document.getElementById('sc-catatan').value.trim()
+  };
+  if(scEditingId){
+    const item = state.supportCoaching.find(f=>f.id===scEditingId);
+    if(item) Object.assign(item, data);
+  } else {
+    state.supportCoaching.push({ id:'sc_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), ...data });
+  }
+  saveState();
+  closeSupportCoachingModal();
+  renderSupportCoaching();
+  renderResumeKpi();
+  toast('Support coaching tersimpan');
+}
+function deleteSupportCoachingItem(){
+  if(!scEditingId) return;
+  if(!confirm('Hapus jadwal support coaching ini?')) return;
+  state.supportCoaching = state.supportCoaching.filter(f=>f.id!==scEditingId);
+  saveState();
+  closeSupportCoachingModal();
+  renderSupportCoaching();
+  renderResumeKpi();
+  toast('Jadwal support coaching dihapus');
+}
+
+/* ===================== TASKLIST MARKETING (PROBATION) ===================== */
+// Data task disimpan sebagai array di state.tasklistMarketing.tasks. Setiap
+// item merepresentasikan satu baris pada file export "Tasklist Marketing
+// Probation" (Tanggal, ID Task, Employee Name, Date of Joining, Deadline Date,
+// Actual / Finish, Leadtime, % Task, % Waiting Approve, % Approve, SPV, MM).
+// Data bisa diisi lewat tombol "Impor dari Excel" (upsert berdasarkan ID Task)
+// atau ditambah/diedit manual lewat modal.
+let tmFilterBln = '';
+let tmFilterTahun = '';
+let tmFilterStatus = '';
+let tmFilterSearch = '';
+let tmEditingId = null;
+function tmTasks(){ return state.tasklistMarketing.tasks; }
+function tmStatusOf(t){
+  if(t.actual) return 'selesai';
+  if(t.deadline && new Date(t.deadline) < new Date(new Date().toDateString())) return 'terlambat';
+  return 'proses';
+}
+function tmStatusBadge(status){
+  if(status==='selesai') return '<span class="badge badge-green"><i class="fa-solid fa-circle-check"></i>Selesai</span>';
+  if(status==='terlambat') return '<span class="badge badge-red"><i class="fa-solid fa-triangle-exclamation"></i>Terlambat</span>';
+  return '<span class="badge badge-amber"><i class="fa-solid fa-hourglass-half"></i>Proses</span>';
+}
+function getTasklistMarketingFiltered(){
+  const q = tmFilterSearch.trim().toLowerCase();
+  return tmTasks().filter(t=>{
+    if(tmFilterBln && monthNameFromDate(t.tanggal) !== tmFilterBln) return false;
+    if(tmFilterTahun && yearFromDate(t.tanggal) !== tmFilterTahun) return false;
+    if(tmFilterStatus && tmStatusOf(t) !== tmFilterStatus) return false;
+    if(q){
+      const hay = [t.idTask, t.employeeName, t.spv, t.mm].map(v=>String(v||'').toLowerCase()).join(' ');
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  }).sort((a,b)=> String(b.tanggal||'').localeCompare(String(a.tanggal||'')));
+}
+function renderTasklistMarketingFilters(){
+  const blnSel = document.getElementById('tm-filter-bln');
+  const tahunSel = document.getElementById('tm-filter-tahun');
+  if(!blnSel || !tahunSel) return;
+  const blnValues = sortFilterValues('bln', Array.from(new Set(tmTasks().map(t=>monthNameFromDate(t.tanggal)).filter(Boolean))));
+  const tahunValues = Array.from(new Set(tmTasks().map(t=>yearFromDate(t.tanggal)).filter(Boolean))).sort((a,b)=>b-a);
+  blnSel.innerHTML = '<option value="">Semua Bulan</option>' + blnValues.map(v=>`<option value="${escapeHtml(v)}" ${v===tmFilterBln?'selected':''}>${escapeHtml(v)}</option>`).join('');
+  tahunSel.innerHTML = '<option value="">Semua Tahun</option>' + tahunValues.map(v=>`<option value="${escapeHtml(v)}" ${v===tmFilterTahun?'selected':''}>${escapeHtml(v)}</option>`).join('');
+}
+function applyTasklistMarketingFilter(){
+  tmFilterBln = document.getElementById('tm-filter-bln').value;
+  tmFilterTahun = document.getElementById('tm-filter-tahun').value;
+  tmFilterStatus = document.getElementById('tm-filter-status').value;
+  tmFilterSearch = document.getElementById('tm-filter-search').value;
+  renderTasklistMarketing();
+}
+function fmtTmDate(d){
+  if(!d) return '-';
+  const dt = new Date(d);
+  if(isNaN(dt)) return '-';
+  return dt.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'});
+}
+function renderTasklistMarketing(){
+  renderTasklistMarketingFilters();
+  const list = getTasklistMarketingFiltered();
+  const body = document.getElementById('tm-table-body');
+  const emptyEl = document.getElementById('tm-empty');
+  emptyEl.classList.toggle('hidden', list.length>0);
+  let sumPct = 0, selesaiCount = 0, terlambatCount = 0;
+  body.innerHTML = list.map((t,idx)=>{
+    const status = tmStatusOf(t);
+    if(status==='selesai') selesaiCount++;
+    if(status==='terlambat') terlambatCount++;
+    sumPct += Number(t.pctTask)||0;
+    return `<tr class="border-b align-middle" style="border-color:var(--line)">
+      <td class="py-2 pr-3">${idx+1}</td>
+      <td class="py-2 pr-3 whitespace-nowrap">${fmtTmDate(t.tanggal)}</td>
+      <td class="py-2 pr-3 mono whitespace-nowrap">${escapeHtml(t.idTask||'-')}</td>
+      <td class="py-2 pr-3 font-semibold whitespace-nowrap">${escapeHtml(t.employeeName||'-')}</td>
+      <td class="py-2 pr-3 whitespace-nowrap">${fmtTmDate(t.doj)}</td>
+      <td class="py-2 pr-3 whitespace-nowrap">${fmtTmDate(t.deadline)}</td>
+      <td class="py-2 pr-3 whitespace-nowrap">${t.actual ? fmtTmDate(t.actual) : '-'}</td>
+      <td class="py-2 pr-3 text-center">${t.leadtime ?? '-'}</td>
+      <td class="py-2 pr-3 text-center font-bold">${Number(t.pctTask)||0}%</td>
+      <td class="py-2 pr-3 text-center">${Number(t.pctWaitingApprove)||0}%</td>
+      <td class="py-2 pr-3 text-center">${Number(t.pctApprove)||0}%</td>
+      <td class="py-2 pr-3 whitespace-nowrap">${escapeHtml(t.spv||'-')}</td>
+      <td class="py-2 pr-3 whitespace-nowrap">${escapeHtml(t.mm||'-')}</td>
+      <td class="py-2 pr-3 whitespace-nowrap">${tmStatusBadge(status)}</td>
+      <td class="py-2 pr-3 whitespace-nowrap">
+        ${!t.actual ? `<button onclick="markTasklistMarketingDone('${escapeHtml(t.id)}')" title="Tandai Selesai" class="text-base hover:opacity-70" style="color:var(--brand-600)"><i class="fa-solid fa-square-check"></i></button>` : ''}
+        <button onclick="openEditTasklistMarketing('${escapeHtml(t.id)}')" title="Edit" class="text-base hover:opacity-70 text-slate-400 ml-2"><i class="fa-solid fa-pen"></i></button>
+        <button onclick="deleteTasklistMarketingTask('${escapeHtml(t.id)}')" title="Hapus" class="text-base hover:opacity-70 text-red-500 ml-2"><i class="fa-solid fa-trash-can"></i></button>
+      </td>
+    </tr>`;
+  }).join('');
+  const total = list.length;
+  const avgPct = total>0 ? Math.round(sumPct/total) : 0;
+  document.getElementById('tm-kpi-total').innerText = total;
+  document.getElementById('tm-kpi-total-sub').innerText = `${tmFilterBln||'Semua Bulan'} ${tmFilterTahun}`.trim();
+  document.getElementById('tm-kpi-pct').innerText = avgPct + '%';
+  document.getElementById('tm-kpi-pct-sub').innerText = `${total} task`;
+  document.getElementById('tm-kpi-lengkap').innerText = selesaiCount;
+  document.getElementById('tm-kpi-lengkap-sub').innerText = `${selesaiCount} dari ${total} task`;
+  document.getElementById('tm-kpi-belum').innerText = terlambatCount;
+  document.getElementById('tm-kpi-belum-sub').innerText = `${terlambatCount} dari ${total} task`;
+}
+function markTasklistMarketingDone(id){
+  const t = tmTasks().find(x=>x.id===id);
+  if(!t) return;
+  t.actual = new Date().toISOString().slice(0,10);
+  if(!t.pctTask) t.pctTask = 100;
+  saveState();
+  renderTasklistMarketing();
+  toast('Task ditandai selesai');
+}
+function deleteTasklistMarketingTask(id){
+  const t = tmTasks().find(x=>x.id===id);
+  if(!t) return;
+  if(!confirm(`Hapus task "${t.idTask||t.employeeName}"?`)) return;
+  addToTrash('tmtask', `${t.idTask||'Task'} - ${t.employeeName||'-'}`, { task: t });
+  state.tasklistMarketing.tasks = tmTasks().filter(x=>x.id!==id);
+  saveState();
+  renderTasklistMarketing();
+  toast('Task dipindahkan ke sampah');
+}
+function clearTasklistMarketingData(){
+  if(!tmTasks().length){ toast('Belum ada data untuk dibersihkan'); return; }
+  if(!confirm('Bersihkan semua data Tasklist Marketing? Data akan dipindahkan ke sampah.')) return;
+  addToTrash('tmtask_bulk', `${tmTasks().length} task marketing`, { tasks: tmTasks() });
+  state.tasklistMarketing.tasks = [];
+  saveState();
+  renderTasklistMarketing();
+  toast('Data Tasklist Marketing dibersihkan');
+}
+/* ---- Modal tambah/edit manual ---- */
+function openAddTasklistMarketing(){
+  tmEditingId = null;
+  document.getElementById('tm-modal-title').innerText = 'Tambah Task Marketing';
+  document.getElementById('tm-delete-btn').classList.add('hidden');
+  ['idtask','tanggal','employee','doj','deadline','actual','leadtime','pcttask','pctwait','pctapprove','spv','mm'].forEach(f=>{
+    document.getElementById('tm-f-'+f).value = '';
+  });
+  document.getElementById('tm-modal').classList.remove('hidden');
+}
+function openEditTasklistMarketing(id){
+  const t = tmTasks().find(x=>x.id===id);
+  if(!t) return;
+  tmEditingId = id;
+  document.getElementById('tm-modal-title').innerText = 'Edit Task Marketing';
+  document.getElementById('tm-delete-btn').classList.remove('hidden');
+  document.getElementById('tm-f-idtask').value = t.idTask||'';
+  document.getElementById('tm-f-tanggal').value = t.tanggal||'';
+  document.getElementById('tm-f-employee').value = t.employeeName||'';
+  document.getElementById('tm-f-doj').value = t.doj||'';
+  document.getElementById('tm-f-deadline').value = t.deadline||'';
+  document.getElementById('tm-f-actual').value = t.actual||'';
+  document.getElementById('tm-f-leadtime').value = t.leadtime ?? '';
+  document.getElementById('tm-f-pcttask').value = t.pctTask ?? '';
+  document.getElementById('tm-f-pctwait').value = t.pctWaitingApprove ?? '';
+  document.getElementById('tm-f-pctapprove').value = t.pctApprove ?? '';
+  document.getElementById('tm-f-spv').value = t.spv||'';
+  document.getElementById('tm-f-mm').value = t.mm||'';
+  document.getElementById('tm-modal').classList.remove('hidden');
+}
+function closeTasklistMarketingModal(){
+  document.getElementById('tm-modal').classList.add('hidden');
+  tmEditingId = null;
+}
+function saveTasklistMarketingModal(){
+  const idTask = document.getElementById('tm-f-idtask').value.trim();
+  const employeeName = document.getElementById('tm-f-employee').value.trim();
+  if(!employeeName){ toast('Employee Name wajib diisi'); return; }
+  const payload = {
+    idTask,
+    tanggal: document.getElementById('tm-f-tanggal').value || '',
+    employeeName,
+    doj: document.getElementById('tm-f-doj').value || '',
+    deadline: document.getElementById('tm-f-deadline').value || '',
+    actual: document.getElementById('tm-f-actual').value || '',
+    leadtime: document.getElementById('tm-f-leadtime').value===''? null : Number(document.getElementById('tm-f-leadtime').value),
+    pctTask: Number(document.getElementById('tm-f-pcttask').value)||0,
+    pctWaitingApprove: Number(document.getElementById('tm-f-pctwait').value)||0,
+    pctApprove: Number(document.getElementById('tm-f-pctapprove').value)||0,
+    spv: document.getElementById('tm-f-spv').value.trim(),
+    mm: document.getElementById('tm-f-mm').value.trim()
+  };
+  if(tmEditingId){
+    const t = tmTasks().find(x=>x.id===tmEditingId);
+    if(t) Object.assign(t, payload);
+  } else {
+    tmTasks().push({ id:'tm_'+Date.now()+Math.floor(Math.random()*1000), ...payload });
+  }
+  saveState();
+  closeTasklistMarketingModal();
+  renderTasklistMarketing();
+  toast('Task marketing tersimpan');
+}
+function deleteTasklistMarketingFromModal(){
+  if(!tmEditingId) return;
+  const id = tmEditingId;
+  closeTasklistMarketingModal();
+  deleteTasklistMarketingTask(id);
+}
+/* ---- Impor Excel ---- */
+function importTasklistMarketingExcel(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  showImportLoading('Sedang mengimpor Tasklist Marketing...');
+  const reader = new FileReader();
+  reader.onerror = ()=>{ hideImportLoading(); toast('Gagal membaca file'); event.target.value=''; };
+  reader.onload = e=>{
+    try{
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, {type:'array', cellDates:true});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+      let headerRowIdx = rows.findIndex(r=>r && r.includes('ID Task') && r.includes('Employee Name'));
+      if(headerRowIdx===-1){ toast('Format Excel tidak dikenali (kolom ID Task/Employee Name tidak ditemukan)'); hideImportLoading(); event.target.value=''; return; }
+      const headers = rows[headerRowIdx];
+      const col = name => headers.indexOf(name);
+      const idx = {
+        tanggal: col('Tanggal'), idTask: col('ID Task'), employeeName: col('Employee Name'),
+        doj: col('Date of Joining'), deadline: col('Deadline Date'), actual: col('Actual / Finish'),
+        leadtime: col('Leadtime'), pctTask: col('% Task'), pctWaitingApprove: col('% Waiting Approve'),
+        pctApprove: col('% Approve'), spv: col('SPV'), mm: col('MM')
+      };
+      let created = 0, updated = 0;
+      for(let i=headerRowIdx+1; i<rows.length; i++){
+        const row = rows[i];
+        if(!row || !row[idx.idTask]) continue;
+        const idTask = String(row[idx.idTask]).trim();
+        if(!idTask) continue;
+        let t = tmTasks().find(x=>String(x.idTask||'').trim().toLowerCase()===idTask.toLowerCase());
+        const isNew = !t;
+        if(!t){
+          t = { id:'tm_'+Date.now()+Math.floor(Math.random()*10000)+i, idTask };
+          tmTasks().push(t);
+          created++;
+        } else {
+          updated++;
+        }
+        if(idx.tanggal>-1) t.tanggal = excelDateToYMD(row[idx.tanggal]) || t.tanggal || '';
+        if(idx.employeeName>-1 && row[idx.employeeName]) t.employeeName = String(row[idx.employeeName]).trim();
+        if(idx.doj>-1) t.doj = excelDateToYMD(row[idx.doj]) || t.doj || '';
+        if(idx.deadline>-1) t.deadline = excelDateToYMD(row[idx.deadline]) || t.deadline || '';
+        if(idx.actual>-1) t.actual = excelDateToYMD(row[idx.actual]) || '';
+        if(idx.leadtime>-1 && row[idx.leadtime]!==null) t.leadtime = Number(row[idx.leadtime]);
+        if(idx.pctTask>-1 && row[idx.pctTask]!==null) t.pctTask = Number(row[idx.pctTask]);
+        if(idx.pctWaitingApprove>-1 && row[idx.pctWaitingApprove]!==null) t.pctWaitingApprove = Number(row[idx.pctWaitingApprove]);
+        if(idx.pctApprove>-1 && row[idx.pctApprove]!==null) t.pctApprove = Number(row[idx.pctApprove]);
+        if(idx.spv>-1 && row[idx.spv]) t.spv = String(row[idx.spv]).trim();
+        if(idx.mm>-1 && row[idx.mm]) t.mm = String(row[idx.mm]).trim();
+      }
+      saveState();
+      logActivity(`Impor Tasklist Marketing: ${created} task baru, ${updated} task diperbarui`);
+      renderTasklistMarketing();
+      toast(`Impor selesai: ${created} task baru, ${updated} diperbarui`);
+    }catch(err){
+      console.error(err);
+      toast('Gagal mengimpor file. Pastikan format sesuai template.');
+    }finally{
+      hideImportLoading();
+      event.target.value='';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
 /* ===================== RENDER: NAV / TABS ===================== */
 function switchTab(tab){
+  closeSidebarOnNavigate();
   document.querySelectorAll('[id^="tab-"]').forEach(el=>el.classList.add('tab-hidden'));
   document.getElementById('tab-'+tab).classList.remove('tab-hidden');
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
@@ -2883,9 +3695,11 @@ function switchTab(tab){
     closingskill:['Kinerja Sales','Peningkatan Skill Closing'],
     modules:['Konten Training','Modul Training'], quiz:['Penilaian','Kuis & Penilaian'],
     feedbacktl:['Konten Training','Tindak Lanjut Feedback'],
+    tasklistmarketing:['Konten Training','Tasklist Marketing'],
     participants:['Tim','Peserta & Progress'], targettraining:['Onboarding','Target Training'],
     certificates:['Kelulusan','Sertifikat'],
     agenda:['Agenda','Agenda Kegiatan'],
+    supportcoaching:['Agenda','Support Coaching'],
     trash:['Sistem','Sampah'],
     settings:['Sistem','Pengaturan']
   };
@@ -2898,20 +3712,76 @@ function switchTab(tab){
   if(tab==='modules') renderModules();
   if(tab==='quiz') renderQuizPicker();
   if(tab==='feedbacktl') renderFeedbackTL();
+  if(tab==='tasklistmarketing') renderTasklistMarketing();
   if(tab==='participants') renderParticipants();
   if(tab==='targettraining') renderTrainingTargets();
   if(tab==='certificates') renderCertificates();
   if(tab==='agenda') renderAgenda();
+  if(tab==='supportcoaching') renderSupportCoaching();
   if(tab==='trash') renderTrash();
   if(tab==='settings'){
     const accUsername = document.getElementById('acc-username');
     if(accUsername && fbAuth.currentUser) accUsername.value = fbAuth.currentUser.email || '';
   }
 }
-function toggleSidebar(){
-  document.getElementById('sidebar').classList.toggle('-translate-x-full');
-  document.getElementById('sidebar-overlay').classList.toggle('hidden');
+/* ===================== SIDEBAR: AUTO-HIDE / HOVER-OPEN / PIN ===================== */
+let sidebarPinned = false;
+let sidebarHoverTimer = null;
+const isDesktopViewport = () => window.matchMedia('(min-width: 768px)').matches;
+
+function showSidebarUI(){
+  document.getElementById('sidebar').classList.remove('-translate-x-full');
+  document.getElementById('sidebar-overlay').classList.toggle('hidden', isDesktopViewport());
+  document.getElementById('main-content').classList.toggle('sidebar-shift', isDesktopViewport());
+  const btn = document.getElementById('sidebar-toggle-btn');
+  if(btn) btn.classList.toggle('bg-slate-100', sidebarPinned);
 }
+function hideSidebarUI(){
+  document.getElementById('sidebar').classList.add('-translate-x-full');
+  document.getElementById('sidebar-overlay').classList.add('hidden');
+  document.getElementById('main-content').classList.remove('sidebar-shift');
+  const btn = document.getElementById('sidebar-toggle-btn');
+  if(btn) btn.classList.remove('bg-slate-100');
+}
+function toggleSidebar(){
+  sidebarPinned = !sidebarPinned;
+  clearTimeout(sidebarHoverTimer);
+  if(sidebarPinned){ showSidebarUI(); } else { hideSidebarUI(); }
+}
+function closeSidebarForce(){
+  sidebarPinned = false;
+  clearTimeout(sidebarHoverTimer);
+  hideSidebarUI();
+}
+function cancelSidebarAutoClose(){ clearTimeout(sidebarHoverTimer); }
+function scheduleSidebarAutoClose(){
+  if(sidebarPinned) return;
+  clearTimeout(sidebarHoverTimer);
+  sidebarHoverTimer = setTimeout(()=>{ if(!sidebarPinned) hideSidebarUI(); }, 250);
+}
+function closeSidebarOnNavigate(){
+  if(!sidebarPinned && !isDesktopViewport()){
+    // mobile: nothing extra, already closes via overlay
+  }
+  if(!isDesktopViewport()){
+    sidebarPinned = false;
+    hideSidebarUI();
+  }
+}
+(function initSidebarAutoHide(){
+  document.addEventListener('DOMContentLoaded', function(){
+    const sidebar = document.getElementById('sidebar');
+    const hoverZone = document.getElementById('sidebar-hover-zone');
+    if(hoverZone){
+      hoverZone.addEventListener('mouseenter', function(){ if(isDesktopViewport()){ cancelSidebarAutoClose(); showSidebarUI(); } });
+      hoverZone.addEventListener('mouseleave', function(){ if(isDesktopViewport()){ scheduleSidebarAutoClose(); } });
+    }
+    if(sidebar){
+      sidebar.addEventListener('mouseenter', function(){ if(isDesktopViewport()){ cancelSidebarAutoClose(); } });
+      sidebar.addEventListener('mouseleave', function(){ if(isDesktopViewport()){ scheduleSidebarAutoClose(); } });
+    }
+  });
+})();
 function toast(msg){
   const el = document.createElement('div');
   el.className='toast-item';
@@ -3198,6 +4068,190 @@ function renderResumeKpi(){
   const fltlStats = computeFeedbackTLStatsFor(fltlBlnName, fltlTahunNum);
   document.getElementById('resumekpi-fltl-pct').innerText = fltlStats.pct + '%';
   document.getElementById('resumekpi-fltl-sub').innerText = `${fltlStats.done} dari ${fltlStats.total} point selesai (${fltlBlnName} ${fltlTahunNum})`;
+
+  // 6) Keterlaksanaan Support Coaching untuk bulan yang sama (jumlah target/actual
+  // mingguan) — memakai periode yang sama dengan kartu Tindak Lanjut Feedback di atas.
+  const scStats = computeSupportCoachingStatsFor(fltlBlnName, fltlTahunNum);
+  document.getElementById('resumekpi-sc-pct').innerText = scStats.avgActual + '%';
+  document.getElementById('resumekpi-sc-sub').innerText = `${scStats.done} dari ${scStats.total} sesi done (${fltlBlnName} ${fltlTahunNum})`;
+
+  // 7) Tasklist Marketing: rata-rata % Task dari data Tasklist Marketing (Excel)
+  // untuk bulan/tahun yang sama (berdasarkan kolom Tanggal), dan jumlah task yang
+  // sudah selesai (Actual/Finish terisi) dari total task pada periode tersebut.
+  const tmStats = computeTasklistMarketingStatsFor(fltlBlnName, fltlTahunNum);
+  document.getElementById('resumekpi-tm-pct').innerText = tmStats.pct + '%';
+  document.getElementById('resumekpi-tm-sub').innerText = `${tmStats.done} dari ${tmStats.total} task selesai (${fltlBlnName} ${fltlTahunNum})`;
+
+  // 8) Laporan Training Lengkap: persentase kelengkapan berdasarkan berapa dari
+  // 7 indikator di atas yang sudah punya nilai (>0). Semua terisi = 100%, kalau
+  // ada 1 indikator yang masih 0 (belum ada data), otomatis di bawah 100%.
+  const indikatorValues = [trainingPct, bookingPct, agendaStats.pct, csAvg, fltlStats.pct, scStats.avgActual, tmStats.pct];
+  const indikatorTerisi = indikatorValues.filter(v=>v>0).length;
+  const lengkapPct = Math.round((indikatorTerisi/indikatorValues.length)*100);
+  document.getElementById('resumekpi-lengkap-pct').innerText = lengkapPct + '%';
+  document.getElementById('resumekpi-lengkap-sub').innerText = `${indikatorTerisi} dari ${indikatorValues.length} indikator terisi`;
+
+  // Skor KPI (bulatan besar): dihitung dari poin tiap indikator sesuai pengaturan
+  // tingkat (tier) yang bisa diatur admin lewat "Atur poin KPI" (klik bulatannya).
+  // Tiap indikator mendapat poin sesuai tingkat % tertinggi yang tercapai.
+  renderKpiScore({
+    training: trainingPct, booking: bookingPct, agenda: agendaStats.pct, closing: csAvg,
+    fltl: fltlStats.pct, sc: scStats.avgActual, tm: tmStats.pct, lengkap: lengkapPct
+  });
+}
+/* ===================== SKOR KPI (bulatan besar, poin bisa diatur admin) ===================== */
+const KPI_INDICATORS = [
+  { key:'agenda', label:'Penyelesaian Agenda Wajib' },
+  { key:'training', label:'Training Sales Selesai' },
+  { key:'closing', label:'Skill Closing (Growth ≥80)' },
+  { key:'tm', label:'Tasklist Marketing' },
+  { key:'booking', label:'Pencapaian Booking' },
+  { key:'lengkap', label:'Laporan Training Lengkap' },
+  { key:'fltl', label:'Tindak Lanjut Feedback' },
+  { key:'sc', label:'Support Coaching' }
+];
+// Skema skor default: Achv (Actual/Target) dipetakan ke Skor skala 0-4, mengikuti
+// pola umum skor KPI HR (Achv 100% = 4, 90-99% = 3, 80-89% = 2, 70-79% = 1, <70% = 0).
+function defaultKpiTiers(){
+  return [ {minAchv:0, score:0}, {minAchv:70, score:1}, {minAchv:80, score:2}, {minAchv:90, score:3}, {minAchv:100, score:4} ];
+}
+function trimNum(n){ return (Math.round((n||0)*100)/100).toString(); }
+function ensureKpiConfig(){
+  if(!state.kpiConfig || typeof state.kpiConfig!=='object') state.kpiConfig = { indicators:{} };
+  if(!state.kpiConfig.indicators || typeof state.kpiConfig.indicators!=='object') state.kpiConfig.indicators = {};
+  const defaultWeight = Math.round((100/KPI_INDICATORS.length)*100)/100;
+  KPI_INDICATORS.forEach(ind=>{
+    const cur = state.kpiConfig.indicators[ind.key];
+    if(!cur || typeof cur!=='object'){
+      state.kpiConfig.indicators[ind.key] = { target:100, weight:defaultWeight, tiers: defaultKpiTiers().map(t=>({...t})) };
+    } else {
+      if(typeof cur.target!=='number') cur.target = 100;
+      if(typeof cur.weight!=='number') cur.weight = defaultWeight;
+      if(!Array.isArray(cur.tiers) || !cur.tiers.length) cur.tiers = defaultKpiTiers().map(t=>({...t}));
+    }
+  });
+}
+// Skor (0-4) untuk satu indikator: cari tingkat (tier) dengan ambang Achv tertinggi
+// yang masih terlampaui oleh pencapaian Achv aktualnya.
+function kpiScoreForAchv(key, achv){
+  ensureKpiConfig();
+  const tiers = [...state.kpiConfig.indicators[key].tiers].sort((a,b)=>a.minAchv-b.minAchv);
+  let score = 0;
+  tiers.forEach(t=>{ if(achv >= t.minAchv) score = t.score; });
+  return score;
+}
+function kpiMaxScoreFor(key){
+  ensureKpiConfig();
+  return Math.max(0, ...state.kpiConfig.indicators[key].tiers.map(t=>t.score));
+}
+// Hitung baris Target/Actual/Achv/Skor/Bobot/Hasil untuk semua indikator, persis
+// seperti pola kolom di spreadsheet KPI HR (Target, Weight, Actual, Achv, Score, Result).
+function computeKpiRows(pctMap){
+  ensureKpiConfig();
+  return KPI_INDICATORS.map(ind=>{
+    const cfg = state.kpiConfig.indicators[ind.key];
+    const actual = pctMap[ind.key] || 0;
+    const target = cfg.target || 0;
+    const achv = target>0 ? Math.round((actual/target)*1000)/10 : (actual>0 ? 100 : 0);
+    const score = kpiScoreForAchv(ind.key, achv);
+    const weight = cfg.weight || 0;
+    const result = Math.round(score*(weight/100)*1000)/1000;
+    return { ...ind, actual, target, weight, achv, score, result, maxScore: kpiMaxScoreFor(ind.key) };
+  });
+}
+let lastKpiPctMap = null;
+function renderKpiScore(pctMap){
+  lastKpiPctMap = pctMap;
+  const rows = computeKpiRows(pctMap);
+  const total = rows.reduce((a,r)=>a+r.result, 0);
+  const totalWeight = rows.reduce((a,r)=>a+r.weight, 0);
+  const maxTotal = rows.reduce((a,r)=>a+(r.maxScore*(r.weight/100)), 0);
+  const pctOfMax = maxTotal>0 ? Math.round((total/maxTotal)*1000)/10 : 0;
+  const circumference = 427;
+  document.getElementById('kpi-ring').setAttribute('stroke-dashoffset', circumference - (circumference*Math.min(pctOfMax,100)/100));
+  document.getElementById('kpi-score-label').innerText = trimNum(total);
+  document.getElementById('kpi-scale-label').innerText = `dari skala ${trimNum(maxTotal)}`;
+  document.getElementById('kpi-score-sub').innerText = `${pctOfMax}% • Total bobot ${trimNum(totalWeight)}%`;
+}
+function openKpiConfigModal(){
+  ensureKpiConfig();
+  renderKpiConfigModal();
+  document.getElementById('kpi-config-modal').classList.remove('hidden');
+}
+function closeKpiConfigModal(){
+  document.getElementById('kpi-config-modal').classList.add('hidden');
+}
+function renderKpiConfigModal(){
+  const rows = computeKpiRows(lastKpiPctMap || {});
+  const totalWeight = rows.reduce((a,r)=>a+r.weight, 0);
+  const body = document.getElementById('kpi-config-body');
+  const warnHtml = `<div class="text-[11px] font-bold mb-3 ${Math.round(totalWeight)===100?'text-slate-400':'text-amber-600'}">Total Bobot semua indikator saat ini: ${trimNum(totalWeight)}%${Math.round(totalWeight)===100?'':' — disarankan totalnya 100% supaya skala KPI = 4'}</div>`;
+  body.innerHTML = warnHtml + rows.map(r=>{
+    const tiers = state.kpiConfig.indicators[r.key].tiers;
+    const tierRows = tiers.map((t,i)=>`
+      <div class="flex items-center gap-2 mb-1.5">
+        <span class="text-[11px] text-slate-400 whitespace-nowrap">Jika Achv&ge;</span>
+        <input type="number" min="0" value="${t.minAchv}" class="field !py-1 !text-xs w-16" onchange="updateKpiTier('${r.key}',${i},'minAchv',this.value)">
+        <span class="text-[11px] text-slate-400 whitespace-nowrap">% &rarr; Skor</span>
+        <input type="number" step="0.1" min="0" max="4" value="${t.score}" class="field !py-1 !text-xs w-16" onchange="updateKpiTier('${r.key}',${i},'score',this.value)">
+        <button onclick="removeKpiTier('${r.key}',${i})" title="Hapus tingkat" class="text-red-500 hover:opacity-70 text-xs ml-1"><i class="fa-solid fa-trash-can"></i></button>
+      </div>`).join('');
+    return `<div class="border rounded-lg p-3 mb-3" style="border-color:var(--line)">
+      <div class="flex items-center justify-between mb-2">
+        <p class="text-xs font-bold">${escapeHtml(r.label)}</p>
+        <span class="text-[10px] text-slate-400">Actual saat ini: ${trimNum(r.actual)}%</span>
+      </div>
+      <div class="grid grid-cols-2 gap-2 mb-2">
+        <div>
+          <label class="text-[10px] font-bold text-slate-500">Target (%)</label>
+          <input type="number" min="0" value="${r.target}" class="field !py-1 !text-xs" onchange="updateKpiIndicatorField('${r.key}','target',this.value)">
+        </div>
+        <div>
+          <label class="text-[10px] font-bold text-slate-500">Bobot (%)</label>
+          <input type="number" min="0" value="${r.weight}" class="field !py-1 !text-xs" onchange="updateKpiIndicatorField('${r.key}','weight',this.value)">
+        </div>
+      </div>
+      <p class="text-[10px] text-slate-400 mb-1">Skor (0-4) berdasarkan % Pencapaian (Achv = Actual &divide; Target):</p>
+      ${tierRows}
+      <button onclick="addKpiTier('${r.key}')" class="text-[11px] font-bold mt-1" style="color:var(--brand-600)"><i class="fa-solid fa-plus mr-1"></i>Tambah tingkat</button>
+      <div class="mt-2 pt-2 border-t flex justify-between text-[11px] font-bold" style="border-color:var(--line)">
+        <span>Achv: ${trimNum(r.achv)}%</span><span>Skor: ${trimNum(r.score)}</span><span>Hasil: ${trimNum(r.result)}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+function updateKpiIndicatorField(key, field, val){
+  ensureKpiConfig();
+  state.kpiConfig.indicators[key][field] = Number(val)||0;
+  renderKpiConfigModal();
+}
+function updateKpiTier(key, idx, field, val){
+  ensureKpiConfig();
+  state.kpiConfig.indicators[key].tiers[idx][field] = field==='minAchv' ? Number(val) : parseFloat(val);
+  renderKpiConfigModal();
+}
+function addKpiTier(key){
+  ensureKpiConfig();
+  state.kpiConfig.indicators[key].tiers.push({minAchv:0, score:0});
+  renderKpiConfigModal();
+}
+function removeKpiTier(key, idx){
+  ensureKpiConfig();
+  if(state.kpiConfig.indicators[key].tiers.length<=1){ toast('Minimal harus ada 1 tingkat'); return; }
+  state.kpiConfig.indicators[key].tiers.splice(idx,1);
+  renderKpiConfigModal();
+}
+function resetKpiConfigDefault(){
+  if(!confirm('Kembalikan semua pengaturan skor KPI (target, bobot, skor) ke default?')) return;
+  const defaultWeight = Math.round((100/KPI_INDICATORS.length)*100)/100;
+  KPI_INDICATORS.forEach(ind=>{ state.kpiConfig.indicators[ind.key] = { target:100, weight:defaultWeight, tiers: defaultKpiTiers().map(t=>({...t})) }; });
+  renderKpiConfigModal();
+}
+function saveKpiConfig(){
+  saveState();
+  closeKpiConfigModal();
+  if(lastKpiPctMap) renderKpiScore(lastKpiPctMap);
+  toast('Pengaturan skor KPI tersimpan');
 }
 // Bulan/tahun yang sama seperti dipakai kartu "Penyelesaian Agenda Wajib": ikut
 // filter Bulan/Tahun di Resume/Dashboard, atau bulan berjalan jika belum dipilih.
@@ -3698,10 +4752,10 @@ function purgeOldTrash(){
   if(state.trash.length !== before) saveState();
 }
 function trashTypeLabel(type){
-  return {participant:'Peserta', module:'Modul', lesson:'Materi'}[type] || type;
+  return {participant:'Peserta', module:'Modul', lesson:'Materi', tmtask:'Task Marketing', tmtask_bulk:'Task Marketing (Massal)'}[type] || type;
 }
 function trashTypeIcon(type){
-  return {participant:'fa-user', module:'fa-book', lesson:'fa-file-lines'}[type] || 'fa-box-archive';
+  return {participant:'fa-user', module:'fa-book', lesson:'fa-file-lines', tmtask:'fa-bullhorn', tmtask_bulk:'fa-bullhorn'}[type] || 'fa-box-archive';
 }
 function restoreTrashItem(trashId){
   const item = state.trash.find(t=>t.id===trashId);
@@ -3732,6 +4786,14 @@ function restoreTrashItem(trashId){
       if(part && part.progress[p.moduleId]){
         part.progress[p.moduleId].lessonsDone = snap.lessonsDone;
       }
+    });
+  } else if(item.type === 'tmtask'){
+    if(!state.tasklistMarketing.tasks.some(t=>t.id===item.payload.task.id)){
+      state.tasklistMarketing.tasks.push(item.payload.task);
+    }
+  } else if(item.type === 'tmtask_bulk'){
+    (item.payload.tasks||[]).forEach(t=>{
+      if(!state.tasklistMarketing.tasks.some(x=>x.id===t.id)) state.tasklistMarketing.tasks.push(t);
     });
   }
   state.trash = state.trash.filter(t=>t.id!==trashId);
