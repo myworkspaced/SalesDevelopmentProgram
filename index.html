@@ -342,9 +342,12 @@
         <div class="card p-5" style="background:linear-gradient(135deg,#f0fdf6,#ffffff)">
           <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
             <p class="text-sm font-bold"><i class="fa-solid fa-wand-magic-sparkles mr-1" style="color:var(--brand-600)"></i>AI Insight Dashboard</p>
-            <button id="ai-insight-btn" class="btn-ghost" onclick="generateDashboardInsight()"><i class="fa-solid fa-sparkles mr-1"></i>Buat Insight AI</button>
+            <div class="flex items-center gap-2">
+              <button id="ai-insight-expand-btn" class="btn-ghost hidden" onclick="openDashboardInsightModal()"><i class="fa-solid fa-expand mr-1"></i>Lihat Full Insight</button>
+              <button id="ai-insight-btn" class="btn-ghost" onclick="generateDashboardInsight()"><i class="fa-solid fa-sparkles mr-1"></i>Buat Insight AI</button>
+            </div>
           </div>
-          <div id="ai-insight-body" class="text-xs text-slate-600 leading-relaxed">Klik "Buat Insight AI" untuk mendapatkan ringkasan &amp; rekomendasi otomatis dari data dashboard saat ini.</div>
+          <div id="ai-insight-body" class="text-xs text-slate-600 leading-relaxed max-h-24 overflow-hidden cursor-pointer" onclick="openDashboardInsightModal()" title="Klik untuk lihat full insight">Klik "Buat Insight AI" untuk mendapatkan ringkasan &amp; rekomendasi otomatis dari data dashboard saat ini.</div>
         </div>
 
         <div class="card p-5">
@@ -1837,6 +1840,18 @@
     </div>
     <p id="agenda-wajib-detail-subtitle" class="text-xs text-slate-400 mb-4"></p>
     <div class="space-y-2" id="agenda-wajib-detail-body"></div>
+  </div>
+</div>
+
+<!-- AI Insight Dashboard Detail Modal -->
+<div id="ai-insight-modal" class="modal-overlay hidden">
+  <div class="card p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-1">
+      <p class="text-sm font-extrabold"><i class="fa-solid fa-wand-magic-sparkles mr-1" style="color:var(--brand-600)"></i>AI Insight Dashboard</p>
+      <button onclick="closeDashboardInsightModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <p class="text-xs text-slate-400 mb-4">Ringkasan &amp; rekomendasi lengkap dari data dashboard saat ini.</p>
+    <div id="ai-insight-modal-body" class="text-sm text-slate-700 leading-relaxed"></div>
   </div>
 </div>
 
@@ -7156,7 +7171,9 @@ function clearAIChat(){
 async function generateDashboardInsight(){
   const box = document.getElementById('ai-insight-body');
   const btn = document.getElementById('ai-insight-btn');
+  const expandBtn = document.getElementById('ai-insight-expand-btn');
   if(btn) btn.disabled = true;
+  if(expandBtn) expandBtn.classList.add('hidden');
   box.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1"></i>AI sedang menganalisis data dashboard...';
   try{
     const scoped = getFilteredParticipants();
@@ -7168,13 +7185,26 @@ async function generateDashboardInsight(){
     const dataSummary = `Total peserta: ${scoped.length}. Rata-rata progres: ${avgPct}%. Rata-rata skor kuis: ${avgScoreEl?avgScoreEl.innerText:'-'}. Sudah lulus/bersertifikat: ${certs}. Target training belum mulai: ${belum} dari ${targets.length}.`;
     const sys = 'Kamu adalah analis training internal. Berdasarkan ringkasan data yang diberikan user, tulis insight singkat (maks 4 kalimat, boleh pakai poin) dalam Bahasa Indonesia: 1 kalimat kondisi umum, lalu 1-2 rekomendasi tindakan konkret untuk tim HR Training & Development. Jangan mengarang angka yang tidak diberikan.';
     const reply = await callAI([{role:'user', content: dataSummary}], sys);
-    box.innerHTML = escapeHtml(reply).replace(/\n/g,'<br>');
+    const html = escapeHtml(reply).replace(/\n/g,'<br>');
+    box.innerHTML = html;
+    box.dataset.full = html;
+    if(expandBtn) expandBtn.classList.remove('hidden');
   }catch(e){
     box.innerHTML = '<span class="text-red-600">⚠️ ' + escapeHtml(e.friendly || e.message) + '</span>';
+    delete box.dataset.full;
   }finally{
     if(btn) btn.disabled = false;
   }
 }
+
+function openDashboardInsightModal(){
+  const box = document.getElementById('ai-insight-body');
+  const modalBody = document.getElementById('ai-insight-modal-body');
+  if(!box.dataset.full) return; // belum ada insight yang di-generate
+  modalBody.innerHTML = box.dataset.full;
+  document.getElementById('ai-insight-modal').classList.remove('hidden');
+}
+function closeDashboardInsightModal(){ document.getElementById('ai-insight-modal').classList.add('hidden'); }
 
 /* ===================== AI: AUTO-FEEDBACK (Tindak Lanjut Feedback) ===================== */
 async function generateAIFeedbackDetail(){
