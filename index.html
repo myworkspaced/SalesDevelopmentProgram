@@ -7028,6 +7028,53 @@ function buildAppContextSummary(){
   const belum = targets.filter(t=>trainingTargetStatus(t).key==='belum').length;
   return `Total peserta: ${scoped.length}. Rata-rata progres training: ${avgPct}%. Peserta sudah lulus/bersertifikat: ${certs}. Target training yang belum mulai training: ${belum} dari ${targets.length}. Jumlah modul training: ${MODULES.length}.`;
 }
+// Kirim SEMUA data (bukan cuma ringkasan agregat) supaya AI Assistant bisa
+// menjawab pertanyaan spesifik per peserta / per bulan / per modul.
+// Dibatasi CAP karakter supaya tidak melebihi kuota token model AI.
+function buildFullAppContext(){
+  const lines = [];
+  const all = state.participants || [];
+  const avgPct = all.length ? Math.round(all.map(overallProgressPct).reduce((a,b)=>a+b,0)/all.length) : 0;
+  const certs = all.filter(isCertified).length;
+  lines.push(`RINGKASAN: Total peserta ${all.length}, rata-rata progres ${avgPct}%, sudah lulus/bersertifikat ${certs}, jumlah modul training ${MODULES.length}.`);
+
+  lines.push(`\nDAFTAR SEMUA PESERTA (${all.length}) — format: nama | posisi | bulan/tahun join | batch | progres% | skor rata2 | status`);
+  all.forEach(p=>{
+    const pct = overallProgressPct(p);
+    const score = avgQuizScore(p);
+    const status = p.resignDate ? 'Mundur' : (pct===100 ? (isCertified(p)?'Lulus':'Selesai belum lulus') : (pct>0?'Berjalan':'Belum mulai'));
+    lines.push(`${p.name||'-'} | ${p.posisi||'-'} | ${p.bln||'-'}/${yearFromDate(p.joinDate)||'-'} | ${p.batch||'-'} | ${pct}% | ${score===null?'-':score} | ${status}`);
+  });
+
+  lines.push(`\nMODUL TRAINING (${MODULES.length}):`);
+  MODULES.forEach((m,i)=> lines.push(`${i+1}. ${m.title}${m.day?' ('+m.day+')':''} - ${m.lessons.length} materi${m.quiz.length?', '+m.quiz.length+' soal kuis':''}`));
+
+  const targets = state.trainingTargets || [];
+  lines.push(`\nTARGET TRAINING (${targets.length}) — format: nama | company | status`);
+  targets.forEach(t=>{
+    const st = trainingTargetStatus(t).key;
+    lines.push(`${t.name||'-'} | ${t.company||'-'} | ${TT_STATUS_LABEL[st]||st}`);
+  });
+
+  const fltl = state.feedbackTL || [];
+  lines.push(`\nTINDAK LANJUT FEEDBACK (${fltl.length}) — format: bulan/tahun mingguX | point perbaikan | status`);
+  fltl.forEach(f=> lines.push(`${f.bln||'-'}/${f.tahun||'-'} W${f.week||'-'} | ${f.point||'-'} | ${f.status||'-'}`));
+
+  const sc = state.supportCoaching || [];
+  lines.push(`\nSUPPORT COACHING (${sc.length}) — format: bulan/tahun mingguX | trainer | target/actual | status`);
+  sc.forEach(f=> lines.push(`${f.bln||'-'}/${f.tahun||'-'} W${f.week||'-'} | ${f.trainer||'-'} | ${f.target||0}/${f.actual||0} | ${f.status||'-'}`));
+
+  const tmTasksList = (state.tasklistMarketing && state.tasklistMarketing.tasks) || [];
+  lines.push(`\nTASKLIST MARKETING (${tmTasksList.length}) — format: nama employee | deadline | %task selesai | SPV`);
+  tmTasksList.forEach(t=> lines.push(`${t.employeeName||'-'} | ${t.deadline||'-'} | ${t.pctTask||0}% | ${t.spv||'-'}`));
+
+  let text = lines.join('\n');
+  const CAP = 180000; // batas aman biar tidak melebihi kuota token AI
+  if(text.length > CAP){
+    text = text.slice(0, CAP) + '\n\n...(sebagian data dipotong karena terlalu besar — tanya lebih spesifik per bulan/nama biar AI bisa fokus)';
+  }
+  return text;
+}
 function openAIChat(){
   const panel = document.getElementById('ai-chat-panel');
   panel.classList.remove('hidden');
@@ -7085,7 +7132,7 @@ async function sendAIChatMessage(){
   box.insertAdjacentHTML('beforeend', '<div id="ai-chat-typing" class="text-[11px] text-slate-400 mb-2"><i class="fa-solid fa-circle-notch fa-spin mr-1"></i>AI sedang mengetik...</div>');
   box.scrollTop = box.scrollHeight;
   try{
-    const sys = `Kamu adalah AI Assistant di aplikasi SalesPro Academy, aplikasi resume & training untuk tim sales. Jawab dalam Bahasa Indonesia, singkat, praktis, dan ramah. Kamu bisa membantu: menjawab pertanyaan materi sales/closing, membuatkan simulasi role-play, memberi saran coaching, dan meringkas data peserta berikut ini:\n${buildAppContextSummary()}`;
+    const sys = `Kamu adalah AI Assistant di aplikasi SalesPro Academy, aplikasi resume & training untuk tim sales. Jawab dalam Bahasa Indonesia, singkat, praktis, dan ramah. Kamu bisa membantu: menjawab pertanyaan materi sales/closing, membuatkan simulasi role-play, memberi saran coaching, dan menjawab pertanyaan spesifik berdasarkan DATA LENGKAP aplikasi berikut ini (kalau user tanya soal peserta/bulan/target tertentu, cari di data ini dulu sebelum bilang tidak tahu):\n\n${buildFullAppContext()}`;
     const reply = await callAI(aiChatHistory.slice(-12), sys);
     aiChatHistory.push({role:'assistant', content:reply});
   }catch(e){
