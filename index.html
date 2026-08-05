@@ -4171,10 +4171,11 @@ function ensureKpiConfig(){
   KPI_INDICATORS.forEach(ind=>{
     const cur = state.kpiConfig.indicators[ind.key];
     if(!cur || typeof cur!=='object'){
-      state.kpiConfig.indicators[ind.key] = { target:100, weight:defaultWeight, tiers: defaultKpiTiers().map(t=>({...t})) };
+      state.kpiConfig.indicators[ind.key] = { target:100, weight:defaultWeight, maxScore:4, tiers: defaultKpiTiers().map(t=>({...t})) };
     } else {
       if(typeof cur.target!=='number') cur.target = 100;
       if(typeof cur.weight!=='number') cur.weight = defaultWeight;
+      if(typeof cur.maxScore!=='number') cur.maxScore = 4;
       if(!Array.isArray(cur.tiers) || !cur.tiers.length) cur.tiers = defaultKpiTiers().map(t=>({...t}));
     }
   });
@@ -4197,7 +4198,9 @@ function kpiScoreForAchv(key, achv){
 }
 function kpiMaxScoreFor(key){
   ensureKpiConfig();
-  return Math.max(0, ...state.kpiConfig.indicators[key].tiers.map(t=>t.score));
+  const cfg = state.kpiConfig.indicators[key];
+  if(state.kpiConfig.method === 'proportional') return cfg.maxScore;
+  return Math.max(0, ...cfg.tiers.map(t=>t.score));
 }
 // Hitung baris Target/Actual/Achv/Skor/Bobot/Hasil untuk semua indikator, persis
 // seperti pola kolom di spreadsheet KPI HR (Target, Weight, Actual, Achv, Score, Result).
@@ -4305,7 +4308,13 @@ function renderKpiConfigModal(){
           <input type="number" min="0" value="${r.weight}" class="field !py-1 !text-xs" onchange="updateKpiIndicatorField('${r.key}','weight',this.value)">
         </div>
       </div>
-      ${isTiered ? tieredHtml : `<p class="text-[10px] text-slate-400">Skor maksimal: ${trimNum(r.maxScore)} (dari tingkat tertinggi). Klik "Atur Tingkat Manual" di atas kalau mau ganti skala/skor maksimalnya.</p>`}
+      ${isTiered ? tieredHtml : `
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="text-[10px] font-bold text-slate-500">Skor Maksimal (saat Achv 100%+)</label>
+          <input type="number" step="0.1" min="0" value="${r.maxScore}" class="field !py-1 !text-xs" onchange="updateKpiIndicatorField('${r.key}','maxScore',this.value)">
+        </div>
+      </div>`}
       <div class="mt-2 pt-2 border-t flex justify-between text-[11px] font-bold" style="border-color:var(--line)">
         <span>Achv: ${trimNum(r.achv)}%</span><span>Skor: ${trimNum(r.score)}</span><span>Hasil: ${trimNum(r.result)}</span>
       </div>
@@ -4314,12 +4323,12 @@ function renderKpiConfigModal(){
 }
 function updateKpiIndicatorField(key, field, val){
   ensureKpiConfig();
-  state.kpiConfig.indicators[key][field] = Number(val)||0;
+  state.kpiConfig.indicators[key][field] = Math.max(0, Number(val)||0);
   renderKpiConfigModal();
 }
 function updateKpiTier(key, idx, field, val){
   ensureKpiConfig();
-  state.kpiConfig.indicators[key].tiers[idx][field] = field==='minAchv' ? Number(val) : parseFloat(val);
+  state.kpiConfig.indicators[key].tiers[idx][field] = Math.max(0, field==='minAchv' ? Number(val) : parseFloat(val));
   renderKpiConfigModal();
 }
 function addKpiTier(key){
@@ -4337,7 +4346,7 @@ function resetKpiConfigDefault(){
   if(!confirm('Kembalikan semua pengaturan skor KPI (target, bobot, skor) ke default?')) return;
   const defaultWeight = Math.round((100/KPI_INDICATORS.length)*100)/100;
   state.kpiConfig.method = 'proportional';
-  KPI_INDICATORS.forEach(ind=>{ state.kpiConfig.indicators[ind.key] = { target:100, weight:defaultWeight, tiers: defaultKpiTiers().map(t=>({...t})) }; });
+  KPI_INDICATORS.forEach(ind=>{ state.kpiConfig.indicators[ind.key] = { target:100, weight:defaultWeight, maxScore:4, tiers: defaultKpiTiers().map(t=>({...t})) }; });
   renderKpiConfigModal();
 }
 function saveKpiConfig(){
