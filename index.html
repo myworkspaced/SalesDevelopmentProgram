@@ -1877,21 +1877,24 @@
 </button>
 
 <!-- AI Chat Assistant: panel -->
-<div id="ai-chat-panel" class="hidden no-print" style="position:fixed;bottom:22px;right:22px;z-index:75;width:340px;max-width:92vw;height:460px;max-height:78vh;display:flex;flex-direction:column;background:#fff;border-radius:16px;box-shadow:0 20px 50px -14px rgba(12,18,32,.35);border:1px solid var(--line);overflow:hidden">
-  <div style="background:linear-gradient(135deg,var(--brand-500),var(--brand-700))" class="p-3 flex items-center justify-between text-white">
+<div id="ai-chat-panel" class="hidden no-print" style="position:fixed;bottom:22px;right:22px;z-index:75;width:340px;max-width:92vw;height:460px;max-height:78vh;flex-direction:column;background:#fff;border-radius:16px;box-shadow:0 20px 50px -14px rgba(12,18,32,.35);border:1px solid var(--line);overflow:hidden">
+  <div style="background:linear-gradient(135deg,var(--brand-500),var(--brand-700));cursor:pointer" class="p-3 flex items-center justify-between text-white" onclick="toggleMinimizeAIChat()">
     <div class="flex items-center gap-2">
       <i class="fa-solid fa-wand-magic-sparkles"></i>
       <p class="text-xs font-extrabold">AI Assistant · SalesPro</p>
     </div>
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-3" onclick="event.stopPropagation()">
       <button onclick="clearAIChat()" title="Hapus riwayat" class="text-white/80 hover:text-white"><i class="fa-solid fa-broom"></i></button>
+      <button id="ai-chat-minimize-btn" onclick="toggleMinimizeAIChat()" title="Minimize" class="text-white/80 hover:text-white"><i class="fa-solid fa-minus"></i></button>
       <button onclick="closeAIChat()" title="Tutup" class="text-white/80 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
     </div>
   </div>
-  <div id="ai-chat-messages" class="flex-1 overflow-y-auto p-3"></div>
-  <div class="p-2 border-t flex items-center gap-2" style="border-color:var(--line)">
-    <textarea id="ai-chat-input" rows="1" onkeydown="handleAIChatKeydown(event)" placeholder="Tanya sesuatu..." class="field !mt-0 flex-1 resize-none" style="max-height:80px"></textarea>
-    <button onclick="sendAIChatMessage()" class="btn-primary !px-3"><i class="fa-solid fa-paper-plane"></i></button>
+  <div id="ai-chat-body-wrap" style="display:flex;flex-direction:column;flex:1;min-height:0">
+    <div id="ai-chat-messages" class="flex-1 overflow-y-auto p-3"></div>
+    <div class="p-2 border-t flex items-center gap-2" style="border-color:var(--line)">
+      <textarea id="ai-chat-input" rows="1" onkeydown="handleAIChatKeydown(event)" placeholder="Tanya sesuatu..." class="field !mt-0 flex-1 resize-none" style="max-height:80px"></textarea>
+      <button onclick="sendAIChatMessage()" class="btn-primary !px-3"><i class="fa-solid fa-paper-plane"></i></button>
+    </div>
   </div>
 </div>
 
@@ -7007,9 +7010,9 @@ function renderAIChatButtonVisibility(){
 }
 function hideAIChatUI(){
   const btn = document.getElementById('ai-chat-fab');
-  if(btn) btn.classList.add('hidden');
+  if(btn){ btn.classList.add('hidden'); btn.style.display = 'none'; }
   const panel = document.getElementById('ai-chat-panel');
-  if(panel) panel.classList.add('hidden');
+  if(panel){ panel.classList.add('hidden'); panel.style.display = 'none'; }
 }
 
 /* ===================== AI: CHAT ASSISTANT ===================== */
@@ -7026,11 +7029,38 @@ function buildAppContextSummary(){
   return `Total peserta: ${scoped.length}. Rata-rata progres training: ${avgPct}%. Peserta sudah lulus/bersertifikat: ${certs}. Target training yang belum mulai training: ${belum} dari ${targets.length}. Jumlah modul training: ${MODULES.length}.`;
 }
 function openAIChat(){
-  document.getElementById('ai-chat-panel').classList.remove('hidden');
+  const panel = document.getElementById('ai-chat-panel');
+  panel.classList.remove('hidden');
+  panel.style.display = 'flex';
+  setAIChatMinimized(false);
   if(!aiChatHistory.length) renderAIChatMessages();
   setTimeout(()=>document.getElementById('ai-chat-input')?.focus(), 50);
 }
-function closeAIChat(){ document.getElementById('ai-chat-panel').classList.add('hidden'); }
+function closeAIChat(){
+  const panel = document.getElementById('ai-chat-panel');
+  panel.classList.add('hidden');
+  panel.style.display = 'none';
+}
+function setAIChatMinimized(minimized){
+  const panel = document.getElementById('ai-chat-panel');
+  const wrap = document.getElementById('ai-chat-body-wrap');
+  const btn = document.getElementById('ai-chat-minimize-btn');
+  if(!panel || !wrap) return;
+  if(minimized){
+    wrap.style.display = 'none';
+    panel.style.height = 'auto';
+    if(btn) btn.innerHTML = '<i class="fa-solid fa-window-maximize"></i>';
+  }else{
+    wrap.style.display = 'flex';
+    panel.style.height = '460px';
+    if(btn) btn.innerHTML = '<i class="fa-solid fa-minus"></i>';
+  }
+}
+function toggleMinimizeAIChat(){
+  const wrap = document.getElementById('ai-chat-body-wrap');
+  const isMinimized = wrap && wrap.style.display === 'none';
+  setAIChatMinimized(!isMinimized);
+}
 function renderAIChatMessages(){
   const box = document.getElementById('ai-chat-messages');
   if(!aiChatHistory.length){
