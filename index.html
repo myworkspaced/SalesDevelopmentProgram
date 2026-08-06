@@ -42,45 +42,91 @@
   // kamu deploy sendiri dan yang menyimpan API key dengan aman di server.
   // URL proxy diisi lewat menu Pengaturan > AI Assistant, disimpan di
   // localStorage per-browser (bukan di kode, bukan di Firestore).
-  const AI_PROXY_KEY = 'salespro_ai_proxy_url';
-  function getAIProxyUrl(){ return (localStorage.getItem(AI_PROXY_KEY) || '').trim(); }
-  function setAIProxyUrl(url){ localStorage.setItem(AI_PROXY_KEY, (url||'').trim()); }
+  // URL proxy TIDAK disimpan di localStorage lagi (supaya tidak "nyangkut" di
+  // satu browser/device saja dan tidak bisa dibaca orang lain yang pinjam
+  // device tsb). Sekarang disimpan di dokumen workspace Firestore yang sama
+  // dengan data lain, jadi otomatis sama di semua device tempat admin login,
+  // dan aksesnya diatur oleh Firestore Security Rules (hanya user yang login).
+  const AI_PROXY_LEGACY_KEY = 'salespro_ai_proxy_url'; // dipakai hanya utk migrasi 1x dari versi lama
+  let cachedAIProxyUrl = '';
+  function getAIProxyUrl(){ return cachedAIProxyUrl; }
+  function setAIProxyUrl(url, opts){
+    cachedAIProxyUrl = (url||'').trim();
+    if(!opts || opts.skipCloudSave !== true){
+      cloudSave({ aiProxyUrl: cachedAIProxyUrl });
+    }
+  }
 
   // Memanggil proxy AI. `messages` = [{role:'user'|'assistant', content:'...'}]
   // Mengembalikan teks balasan (string) atau melempar error dengan pesan yang
   // sudah ramah untuk ditampilkan ke user lewat toast().
+  //
+  // Kenapa sering muncul error 429 (rate limit)? Ini bukan bug di aplikasi —
+  // akun Anthropic yang baru/masih kecil pemakaiannya otomatis dibatasi jumlah
+  // request per menit oleh Anthropic sendiri (namanya "usage tier"), supaya
+  // adil untuk semua orang. Batasnya naik otomatis kalau pemakaian & top-up
+  // saldo makin sering. Yang bisa kita lakukan di sisi aplikasi: retry
+  // otomatis dengan jeda (di bawah ini) + antrian supaya beberapa tombol AI
+  // yang diklik cepat-cepat tidak saling tabrakan jadi banyak request sekaligus.
+  let __aiCallQueue = Promise.resolve();
+  function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
   async function callAI(messages, systemPrompt){
+    // Antre: request AI baru menunggu request AI sebelumnya selesai dulu,
+    // supaya klik beberapa tombol AI hampir bersamaan tidak memicu banyak
+    // request paralel yang gampang kena rate limit.
+    const myTurn = __aiCallQueue.then(()=> callAIOnce(messages, systemPrompt));
+    __aiCallQueue = myTurn.catch(()=>{}); // jangan biarkan 1 error menyumbat antrian berikutnya
+    return myTurn;
+  }
+  async function callAIOnce(messages, systemPrompt){
     const proxyUrl = getAIProxyUrl();
     if(!proxyUrl){
       const err = new Error('AI_NOT_CONFIGURED');
       err.friendly = 'AI belum diatur. Buka menu Pengaturan → AI Assistant, lalu isi URL Proxy AI.';
       throw err;
     }
-    let res;
-    try{
-      res = await fetch(proxyUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ system: systemPrompt || '', messages })
-      });
-    }catch(e){
-      const err = new Error('AI_NETWORK_ERROR');
-      err.friendly = 'Gagal menghubungi server AI. Cek koneksi internet atau URL Proxy AI di Pengaturan.';
-      throw err;
+    const maxRetries = 3;
+    for(let attempt=0; attempt<=maxRetries; attempt++){
+      let res;
+      try{
+        res = await fetch(proxyUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ system: systemPrompt || '', messages })
+        });
+      }catch(e){
+        const err = new Error('AI_NETWORK_ERROR');
+        err.friendly = 'Gagal menghubungi server AI. Cek koneksi internet atau URL Proxy AI di Pengaturan.';
+        throw err;
+      }
+      if(res.status===429 || res.status===529){
+        if(attempt < maxRetries){
+          // Hormati header Retry-After kalau ada, kalau tidak pakai backoff (1.5s, 3s, 6s)
+          const retryAfterHeader = parseFloat(res.headers.get('retry-after'));
+          const waitMs = !isNaN(retryAfterHeader) ? retryAfterHeader*1000 : 1500 * Math.pow(2, attempt);
+          await sleep(waitMs);
+          continue; // coba lagi
+        }
+        const err = new Error('AI_RATE_LIMITED');
+        err.friendly = res.status===429
+          ? 'Server AI sedang dibatasi (rate limit) karena kebanyakan request dalam waktu singkat. Sudah dicoba ulang beberapa kali, tapi masih penuh — tunggu sebentar (±1 menit) lalu coba lagi.'
+          : 'Server AI (Anthropic) sedang sibuk/overload. Sudah dicoba ulang beberapa kali — tunggu sebentar lalu coba lagi.';
+        throw err;
+      }
+      if(!res.ok){
+        const err = new Error('AI_BAD_RESPONSE');
+        err.friendly = `Server AI menolak permintaan (kode ${res.status}). Cek konfigurasi proxy/API key.`;
+        throw err;
+      }
+      const data = await res.json();
+      const text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim();
+      if(!text){
+        const err = new Error('AI_EMPTY_RESPONSE');
+        err.friendly = 'AI tidak mengembalikan jawaban. Coba lagi.';
+        throw err;
+      }
+      return text;
     }
-    if(!res.ok){
-      const err = new Error('AI_BAD_RESPONSE');
-      err.friendly = `Server AI menolak permintaan (kode ${res.status}). Cek konfigurasi proxy/API key.`;
-      throw err;
-    }
-    const data = await res.json();
-    const text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim();
-    if(!text){
-      const err = new Error('AI_EMPTY_RESPONSE');
-      err.friendly = 'AI tidak mengembalikan jawaban. Coba lagi.';
-      throw err;
-    }
-    return text;
   }
 </script>
 <style>
@@ -264,15 +310,21 @@
 
   <!-- MAIN -->
   <div id="main-content" class="flex-1 flex flex-col h-full overflow-hidden">
-    <header class="flex items-center justify-between h-14 px-6" style="border-bottom:1px solid var(--line);background:#fff">
-      <div class="flex items-center gap-4">
+    <header class="flex items-center gap-4 h-14 px-6" style="border-bottom:1px solid var(--line);background:#fff">
+      <div class="flex items-center gap-4 flex-shrink-0">
         <button id="sidebar-toggle-btn" onclick="toggleSidebar()" title="Buka/kunci sidebar" class="w-8 h-8 rounded-lg text-slate-500 hover:bg-slate-100 flex items-center justify-center"><i class="fa-solid fa-bars"></i></button>
         <div>
           <div id="page-eyebrow" class="text-[11px] font-bold uppercase tracking-wide" style="color:var(--brand-600)">Training</div>
           <h1 id="page-title" class="text-sm sm:text-base font-extrabold tracking-tight">Dashboard</h1>
         </div>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex-1 max-w-md relative hidden sm:block" id="global-search-wrap">
+        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 text-xs pointer-events-none"></i>
+        <input id="global-search-input" type="text" placeholder="Cari peserta, modul, target training, task, agenda..." class="field !pl-8 !py-2 !mt-0 text-xs" oninput="renderGlobalSearch()" onfocus="renderGlobalSearch()">
+        <kbd class="hidden md:inline-block absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-300 border border-slate-200 rounded px-1.5 py-0.5 pointer-events-none">Ctrl+K</kbd>
+        <div id="global-search-results" class="hidden absolute left-0 right-0 mt-1 card p-2 max-h-[70vh] overflow-y-auto z-50 shadow-lg"></div>
+      </div>
+      <div class="flex items-center gap-2 flex-shrink-0">
         <button onclick="window.print()" title="Cetak" class="w-8 h-8 rounded-lg text-slate-500 hover:bg-slate-100 flex items-center justify-center"><i class="fa-solid fa-print text-sm"></i></button>
         <button onclick="logoutAdmin()" title="Keluar" class="w-8 h-8 rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 flex items-center justify-center"><i class="fa-solid fa-right-from-bracket text-sm"></i></button>
       </div>
@@ -353,7 +405,10 @@
         <div class="card p-5">
           <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
             <p class="text-sm font-bold"><i class="fa-solid fa-bullseye mr-1" style="color:var(--brand-600)"></i>Target Training (dari Data Onboarding)</p>
-            <button class="btn-ghost" onclick="switchTab('targettraining')"><i class="fa-solid fa-arrow-right mr-1"></i>Lihat Menu Target Training</button>
+            <div class="flex items-center gap-2">
+              <button class="btn-ghost" onclick="openReminderModal()" title="Kirim reminder WA ke yang belum mulai / stuck lama"><i class="fa-solid fa-bell mr-1"></i>Reminder Training</button>
+              <button class="btn-ghost" onclick="switchTab('targettraining')"><i class="fa-solid fa-arrow-right mr-1"></i>Lihat Menu Target Training</button>
+            </div>
           </div>
           <p class="text-xs text-slate-400 mb-4">Karyawan baru yang diimpor dari data onboarding, dicocokkan dengan data Peserta untuk memantau siapa yang belum mengikuti training.</p>
           <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -451,6 +506,7 @@
           <div class="flex items-center justify-between mb-4">
             <p class="text-sm font-bold">Resume Hasil Training Sales</p>
             <div class="flex items-center gap-2">
+              <button class="btn-ghost" style="background:var(--brand-600);color:#fff;border-color:var(--brand-600)" onclick="openMonthlyReportModal()"><i class="fa-solid fa-file-lines mr-1"></i>Laporan Bulanan</button>
               <button class="btn-ghost" onclick="exportDashboardExcel()"><i class="fa-solid fa-file-excel mr-1"></i>Export Excel</button>
               <button class="btn-ghost" onclick="window.print()"><i class="fa-solid fa-print mr-1"></i>Cetak Resume</button>
             </div>
@@ -1133,6 +1189,7 @@
           <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
             <p class="text-sm font-bold">Target Training (Data Onboarding Employee)</p>
             <div class="flex items-center gap-2">
+              <button class="btn-ghost" onclick="openReminderModal()" title="Kirim reminder WA ke yang belum mulai / stuck lama"><i class="fa-solid fa-bell mr-1"></i>Reminder Training</button>
               <label class="btn-ghost cursor-pointer">
                 <i class="fa-solid fa-file-arrow-up mr-1"></i>Impor dari Excel
                 <input type="file" accept=".xlsx,.xls" class="hidden" onchange="importTrainingTargetsExcel(event)">
@@ -1357,7 +1414,7 @@
         </div>
         <div class="card p-5 max-w-lg">
           <p class="text-sm font-bold mb-1"><i class="fa-solid fa-robot mr-1" style="color:var(--brand-600)"></i>AI Assistant</p>
-          <p class="text-xs text-slate-400 mb-4">Aktifkan fitur AI (Chat Assistant, AI Insight Dashboard, AI Auto-Feedback) dengan mengisi URL server proxy AI. API key Claude tidak pernah disimpan di sini — hanya di server proxy kamu. <a href="#" onclick="showAISetupGuide();return false" class="underline font-bold" style="color:var(--brand-600)">Lihat cara setup</a>.</p>
+          <p class="text-xs text-slate-400 mb-4">Aktifkan fitur AI (Chat Assistant, AI Insight Dashboard, AI Auto-Feedback) dengan mengisi URL server proxy AI. URL ini tersimpan di cloud (Firestore, sama seperti data lain) — bukan di browser — sehingga otomatis sama di semua device tempat kamu login, dan tidak "nyangkut" atau bisa terlihat orang lain yang cuma pinjam device kamu. API key Claude sendiri tidak pernah disimpan di sini — hanya di server proxy kamu. <a href="#" onclick="showAISetupGuide();return false" class="underline font-bold" style="color:var(--brand-600)">Lihat cara setup</a>.</p>
           <label class="text-[11px] font-bold text-slate-500">URL Proxy AI</label>
           <input id="ai-proxy-url" type="url" class="field" placeholder="https://nama-worker-kamu.workers.dev">
           <div class="flex items-center gap-2 mt-3">
@@ -1840,6 +1897,48 @@
     </div>
     <p id="agenda-wajib-detail-subtitle" class="text-xs text-slate-400 mb-4"></p>
     <div class="space-y-2" id="agenda-wajib-detail-body"></div>
+  </div>
+</div>
+
+<!-- Laporan Bulanan Modal -->
+<div id="monthly-report-modal" class="modal-overlay hidden">
+  <div class="card p-6 w-full max-w-md">
+    <div class="flex items-center justify-between mb-1">
+      <p class="text-sm font-extrabold"><i class="fa-solid fa-file-lines mr-1" style="color:var(--brand-600)"></i>Laporan Bulanan</p>
+      <button onclick="closeMonthlyReportModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <p class="text-xs text-slate-400 mb-4">Laporan siap-kirim berisi ringkasan KPI, Insight AI, dan daftar peserta yang perlu perhatian (belum mulai / stuck) — mengikuti filter Dashboard yang sedang aktif (<b id="mr-period-label">Semua Periode</b>). Insight AI akan dibuat otomatis kalau belum pernah di-generate.</p>
+    <div id="mr-status" class="text-xs text-slate-500 mb-3 hidden"><i class="fa-solid fa-circle-notch fa-spin mr-1"></i><span id="mr-status-text">Menyiapkan laporan...</span></div>
+    <div class="space-y-2">
+      <button id="mr-btn-pdf" class="btn-primary w-full" onclick="exportMonthlyReportPDF()"><i class="fa-solid fa-file-pdf mr-1.5"></i>Download PDF</button>
+      <button id="mr-btn-excel" class="btn-ghost w-full" onclick="exportMonthlyReportExcel()"><i class="fa-solid fa-file-excel mr-1.5"></i>Download Excel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Reminder Training Modal (WA reminder utk belum mulai / stuck lama) -->
+<div id="reminder-modal" class="modal-overlay hidden">
+  <div class="card p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-1">
+      <p class="text-sm font-extrabold"><i class="fa-solid fa-bell mr-1" style="color:var(--brand-600)"></i>Reminder Training</p>
+      <button onclick="closeReminderModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <p class="text-xs text-slate-400 mb-3">Daftar orang yang belum mulai training atau progressnya stuck lama, berdasarkan Target Training. Klik "Kirim WA" untuk buka WhatsApp dengan pesan reminder siap-kirim (kamu tetap perlu menekan tombol Kirim di WhatsApp-nya).</p>
+    <div class="flex flex-wrap items-end gap-2 mb-3">
+      <div>
+        <label class="text-[10px] font-bold text-slate-400 uppercase">Filter Status</label>
+        <select id="rm-filter-status" class="field !mt-0 !py-1.5" onchange="renderReminderModalList()">
+          <option value="">Semua (Belum Mulai + Stuck)</option>
+          <option value="belum">Belum Mulai Saja</option>
+          <option value="berjalan">Stuck Saja</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-[10px] font-bold text-slate-400 uppercase">Minimal hari sejak join</label>
+        <input id="rm-filter-days" type="number" min="0" value="3" class="field !mt-0 !py-1.5 !w-24" onchange="renderReminderModalList()">
+      </div>
+    </div>
+    <div id="reminder-modal-body" class="space-y-2"></div>
   </div>
 </div>
 
@@ -2755,6 +2854,7 @@ function defaultState(){
     agendaRecurringSeeded:true,
     agendaStatus:{},
     agendaColorNames:{},
+    aiInsightCache:{ dashboard:null, peserta:{} },
     feedbackTL:[],
     supportCoaching:[],
     tasklistMarketing:{ tasks:[] },
@@ -2778,6 +2878,8 @@ function normalizeState(parsed){
   if(!Array.isArray(parsed.agendaRecurringSkips)) parsed.agendaRecurringSkips = [];
   if(!parsed.agendaStatus || typeof parsed.agendaStatus!=='object') parsed.agendaStatus = {};
   if(!parsed.agendaColorNames || typeof parsed.agendaColorNames!=='object') parsed.agendaColorNames = {};
+  if(!parsed.aiInsightCache || typeof parsed.aiInsightCache!=='object') parsed.aiInsightCache = { dashboard:null, peserta:{} };
+  if(!parsed.aiInsightCache.peserta || typeof parsed.aiInsightCache.peserta!=='object') parsed.aiInsightCache.peserta = {};
   if(!Array.isArray(parsed.feedbackTL)) parsed.feedbackTL = [];
   if(!Array.isArray(parsed.supportCoaching)) parsed.supportCoaching = [];
   if(!parsed.tasklistMarketing || typeof parsed.tasklistMarketing!=='object' || Array.isArray(parsed.tasklistMarketing)) parsed.tasklistMarketing = { tasks:[] };
@@ -2844,15 +2946,30 @@ async function loadAllCloudData(){
       if(data.state){ state = normalizeState(data.state); localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
       if(Array.isArray(data.gciData)){ gciData = data.gciData; localStorage.setItem(GCI_STORAGE_KEY, JSON.stringify(gciData)); }
       if(Array.isArray(data.posisiScope)){ savedPosisiScope = data.posisiScope.slice(); localStorage.setItem(POSISI_SCOPE_KEY, JSON.stringify(savedPosisiScope)); }
+      if(typeof data.aiProxyUrl === 'string'){
+        cachedAIProxyUrl = data.aiProxyUrl.trim();
+      } else {
+        // Migrasi 1x: kalau workspace cloud belum pernah simpan URL proxy tapi
+        // browser ini masih punya versi lama di localStorage, angkat ke cloud
+        // lalu hapus salinan lokalnya supaya ke depannya cuma ada satu sumber data.
+        const legacy = (localStorage.getItem(AI_PROXY_LEGACY_KEY) || '').trim();
+        if(legacy){ setAIProxyUrl(legacy); }
+      }
+      localStorage.removeItem(AI_PROXY_LEGACY_KEY);
     } else {
       // First time this workspace is used in the cloud: seed it from local/default data.
-      await FB_DOC.set({ state: state, gciData: gciData, posisiScope: savedPosisiScope }, { merge: true });
+      const legacy = (localStorage.getItem(AI_PROXY_LEGACY_KEY) || '').trim();
+      if(legacy) cachedAIProxyUrl = legacy;
+      localStorage.removeItem(AI_PROXY_LEGACY_KEY);
+      await FB_DOC.set({ state: state, gciData: gciData, posisiScope: savedPosisiScope, aiProxyUrl: cachedAIProxyUrl }, { merge: true });
     }
   }catch(e){
     console.error('Gagal memuat data cloud, menggunakan data lokal:', e);
     toast('Gagal memuat data cloud, menampilkan data lokal');
   }
   rebuildModules();
+  loadAIProxyUrlIntoSettings();
+  renderAIChatButtonVisibility();
 }
 function getLessonLink(moduleId, idx){
   return (state.lessonLinks[moduleId] && state.lessonLinks[moduleId][idx]) || '';
@@ -3956,6 +4073,145 @@ function switchTab(tab){
     loadAIProxyUrlIntoSettings();
   }
 }
+/* ===================== GLOBAL SEARCH (header) ===================== */
+function highlightMatch(text, q){
+  const s = String(text||'');
+  if(!q) return escapeHtml(s);
+  const idx = s.toLowerCase().indexOf(q.toLowerCase());
+  if(idx===-1) return escapeHtml(s);
+  return escapeHtml(s.slice(0,idx)) + '<mark style="background:#d1fae5;color:inherit;border-radius:2px">' + escapeHtml(s.slice(idx,idx+q.length)) + '</mark>' + escapeHtml(s.slice(idx+q.length));
+}
+function buildGlobalSearchGroups(q){
+  const query = q.trim().toLowerCase();
+  if(!query) return [];
+  const groups = [];
+
+  const pesertaHits = state.participants.filter(p=>
+    [p.name,p.posisi,p.mentor,p.lokasi,p.username].some(v=>String(v||'').toLowerCase().includes(query))
+  ).slice(0,6).map(p=>({
+    label: p.name || '(tanpa nama)',
+    sub: `${p.posisi||'-'} &middot; Progress ${overallProgressPct(p)}%`,
+    icon: 'fa-user', action: `openPesertaDetail('${p.id}')`
+  }));
+  if(pesertaHits.length) groups.push({title:'Peserta', items:pesertaHits});
+
+  const targetHits = state.trainingTargets.filter(t=>
+    [t.name,t.company,t.department,t.location].some(v=>String(v||'').toLowerCase().includes(query))
+  ).slice(0,6).map(t=>{
+    const st = trainingTargetStatus(t);
+    return { label: t.name || '(tanpa nama)', sub: `${t.company||'-'} &middot; ${TT_STATUS_LABEL[st.key]||st.key}`,
+      icon:'fa-bullseye', action:`goToTrainingTargetSearch('${(t.name||'').replace(/'/g,"\\'")}')` };
+  });
+  if(targetHits.length) groups.push({title:'Target Training', items:targetHits});
+
+  const moduleHits = [];
+  MODULES.forEach(m=>{
+    if(String(m.title||'').toLowerCase().includes(query) || String(m.desc||'').toLowerCase().includes(query)){
+      moduleHits.push({ label:m.title, sub:'Modul Training', icon:'fa-book', action:`goToModule('${m.id}')` });
+    }
+    m.lessons.forEach((l,idx)=>{
+      if(String(l.title||'').toLowerCase().includes(query)){
+        moduleHits.push({ label:l.title, sub:`Materi &middot; ${m.title}`, icon:'fa-play', action:`openLesson('${m.id}',${idx})` });
+      }
+    });
+  });
+  if(moduleHits.length) groups.push({title:'Modul & Materi', items:moduleHits.slice(0,6)});
+
+  const taskHits = (state.tasklistMarketing.tasks||[]).filter(t=>
+    [t.idTask,t.employeeName,t.spv,t.mm].some(v=>String(v||'').toLowerCase().includes(query))
+  ).slice(0,6).map(t=>({
+    label: t.employeeName || t.idTask || '(tanpa nama)',
+    sub: `Tasklist Marketing &middot; ${tmStatusOf(t)==='selesai'?'Selesai':tmStatusOf(t)==='terlambat'?'Terlambat':'Proses'}`,
+    icon:'fa-list-check', action:`goToTasklistMarketingSearch('${String(t.employeeName||t.idTask||'').replace(/'/g,"\\'")}')`
+  }));
+  if(taskHits.length) groups.push({title:'Tasklist Marketing', items:taskHits});
+
+  const agendaHits = (state.agenda||[]).filter(e=>
+    String(e.title||'').toLowerCase().includes(query)
+  ).slice(0,6).map(e=>({
+    label: e.title, sub: `Agenda &middot; ${fmtDate(e.date)}`,
+    icon:'fa-calendar-day', action:`goToAgendaEvent('${e.id}')`
+  }));
+  if(agendaHits.length) groups.push({title:'Agenda Kegiatan', items:agendaHits});
+
+  return groups;
+}
+function renderGlobalSearch(){
+  const input = document.getElementById('global-search-input');
+  const box = document.getElementById('global-search-results');
+  const q = input.value;
+  if(!q.trim()){ box.classList.add('hidden'); box.innerHTML=''; return; }
+  const groups = buildGlobalSearchGroups(q);
+  if(!groups.length){
+    box.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">Tidak ada hasil untuk "'+escapeHtml(q)+'"</p>';
+    box.classList.remove('hidden');
+    return;
+  }
+  box.innerHTML = groups.map(g=>`
+    <div class="mb-1">
+      <p class="text-[10px] font-bold uppercase tracking-wide text-slate-400 px-2 pt-2 pb-1">${g.title}</p>
+      ${g.items.map(it=>`
+        <div class="flex items-center gap-2.5 px-2 py-2 rounded-lg cursor-pointer hover:bg-slate-50" onmousedown="event.preventDefault();${it.action};closeGlobalSearch();">
+          <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style="background:#f0fdf6;color:var(--brand-600)"><i class="fa-solid ${it.icon} text-[11px]"></i></div>
+          <div class="min-w-0">
+            <p class="text-xs font-semibold truncate">${highlightMatch(it.label, q)}</p>
+            <p class="text-[10px] text-slate-400 truncate">${it.sub}</p>
+          </div>
+        </div>`).join('')}
+    </div>`).join('');
+  box.classList.remove('hidden');
+}
+function closeGlobalSearch(){
+  const box = document.getElementById('global-search-results');
+  const input = document.getElementById('global-search-input');
+  if(box) box.classList.add('hidden');
+  if(input) input.value = '';
+}
+function goToModule(moduleId){
+  switchTab('modules');
+  setTimeout(()=>{
+    const el = document.querySelector(`[data-module-id="${moduleId}"]`);
+    if(el){ el.scrollIntoView({behavior:'smooth', block:'center'}); el.style.transition='box-shadow .3s'; el.style.boxShadow='0 0 0 3px var(--brand-600)'; setTimeout(()=>{ el.style.boxShadow=''; }, 1600); }
+  }, 60);
+}
+function goToTrainingTargetSearch(name){
+  switchTab('targettraining');
+  setTimeout(()=>{
+    const el = document.getElementById('tt-search');
+    if(el){ el.value = name; renderTrainingTargets(); }
+  }, 60);
+}
+function goToTasklistMarketingSearch(name){
+  switchTab('tasklistmarketing');
+  setTimeout(()=>{
+    const el = document.getElementById('tm-filter-search');
+    if(el){ el.value = name; tmFilterSearch = name; renderTasklistMarketing(); }
+  }, 60);
+}
+function goToAgendaEvent(eventId){
+  const e = (state.agenda||[]).find(x=>x.id===eventId);
+  if(!e) return;
+  const d = new Date(e.date+'T00:00:00');
+  agendaViewDate = new Date(d.getFullYear(), d.getMonth(), 1);
+  agendaSelectedDate = e.date;
+  switchTab('agenda');
+}
+document.addEventListener('keydown', function(ev){
+  if((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase()==='k'){
+    ev.preventDefault();
+    const input = document.getElementById('global-search-input');
+    if(input){ input.focus(); input.select(); }
+  } else if(ev.key==='Escape'){
+    closeGlobalSearch();
+  }
+});
+document.addEventListener('click', function(ev){
+  const wrap = document.getElementById('global-search-wrap');
+  if(wrap && !wrap.contains(ev.target)){
+    const box = document.getElementById('global-search-results');
+    if(box) box.classList.add('hidden');
+  }
+});
 /* ===================== SIDEBAR: AUTO-HIDE / HOVER-OPEN / PIN ===================== */
 let sidebarPinned = false;
 let sidebarHoverTimer = null;
@@ -4157,6 +4413,24 @@ function renderDashboard(){
   log.innerHTML = state.activityLog.length ? state.activityLog.map(a=>`
     <div class="flex items-center gap-2 text-slate-600"><i class="fa-solid fa-circle text-[6px]" style="color:var(--brand-500)"></i><span>${escapeHtml(a.text)}</span></div>
   `).join('') : '<p class="text-slate-400">Belum ada aktivitas.</p>';
+
+  loadCachedDashboardInsightIfAny();
+}
+function loadCachedDashboardInsightIfAny(){
+  // Kalau insight dashboard hari ini sudah pernah di-generate (tersimpan di
+  // cloud), langsung tampilkan tanpa perlu klik tombol & tanpa request AI baru.
+  const box = document.getElementById('ai-insight-body');
+  const expandBtn = document.getElementById('ai-insight-expand-btn');
+  if(!box || box.dataset.rawText) return; // sudah ada isinya di sesi ini, jangan ditimpa
+  const cache = state.aiInsightCache && state.aiInsightCache.dashboard;
+  const today = toYMD(new Date());
+  if(cache && cache.date===today && cache.text){
+    const html = escapeHtml(cache.text).replace(/\n/g,'<br>');
+    box.innerHTML = html + '<p class="mt-2 text-[10px] text-slate-400"><i class="fa-solid fa-clock-rotate-left mr-1"></i>Dari cache hari ini. <a href="#" onclick="event.preventDefault();generateDashboardInsight(true)" class="underline font-bold" style="color:var(--brand-600)">Buat ulang</a></p>';
+    box.dataset.full = html;
+    box.dataset.rawText = cache.text;
+    if(expandBtn) expandBtn.classList.remove('hidden');
+  }
 }
 
 /* ===================== RENDER: RESUME ===================== */
@@ -4809,7 +5083,21 @@ function renderPesertaDetail(id){
 
     <p class="text-xs font-bold mb-2">Progress &amp; Skor per Modul</p>
     <div>${moduleRows}</div>
+
+    <div class="card p-4 mt-4" style="background:linear-gradient(135deg,#f0fdf6,#ffffff)">
+      <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
+        <p class="text-xs font-bold"><i class="fa-solid fa-wand-magic-sparkles mr-1" style="color:var(--brand-600)"></i>AI Insight Peserta</p>
+        <button id="pd-ai-insight-btn" class="btn-ghost !py-1 !px-2 !text-[11px]" onclick="generatePesertaInsight('${p.id}')"><i class="fa-solid fa-sparkles mr-1"></i>Buat Insight AI</button>
+      </div>
+      <div id="pd-ai-insight-body" class="text-[11px] text-slate-600 leading-relaxed">Klik "Buat Insight AI" untuk ringkasan performa &amp; rekomendasi khusus peserta ini.</div>
+    </div>
   `;
+  // Kalau insight peserta ini sudah pernah di-generate hari ini (cache
+  // cloud), langsung tampilkan tanpa request AI baru.
+  const cache = state.aiInsightCache && state.aiInsightCache.peserta && state.aiInsightCache.peserta[p.id];
+  if(cache && cache.date===toYMD(new Date()) && cache.text){
+    generatePesertaInsight(p.id); // non-force: fungsi ini otomatis pakai cache kalau masih berlaku hari ini
+  }
 }
 function toggleManualLulus(id){
   const p = getParticipant(id);
@@ -4910,6 +5198,92 @@ function sendWaMateriReminder(id){
 
   const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
   window.open(url, '_blank');
+}
+
+/* ===================== REMINDER TRAINING (belum mulai / stuck lama) ===================== */
+const REMINDER_DEFAULT_MIN_DAYS = 3;
+function daysSinceTs(ts){
+  if(!ts) return null;
+  return Math.floor((Date.now() - ts) / (1000*60*60*24));
+}
+function getReminderCandidates(minDays, statusFilter){
+  return state.trainingTargets.map(t=>{
+    const st = trainingTargetStatus(t); // {key, matched}
+    if(st.key!=='belum' && st.key!=='berjalan') return null;
+    if(statusFilter && st.key!==statusFilter) return null;
+    const days = usiaJoinHari(t.joinDate, null);
+    if(days===null || days < minDays) return null;
+    const phone = (st.matched && st.matched.noHp) ? st.matched.noHp : t.contact;
+    return {
+      targetId: t.id,
+      participantId: st.matched ? st.matched.id : null,
+      name: t.name || '(tanpa nama)',
+      phone: phone || '',
+      hasPhone: !!normalizePhoneForWa(phone),
+      statusKey: st.key,
+      pct: st.matched ? overallProgressPct(st.matched) : 0,
+      days,
+      lastReminderSentAt: t.lastReminderSentAt || null
+    };
+  }).filter(Boolean).sort((a,b)=> b.days - a.days);
+}
+function buildReminderMessage(c){
+  if(c.statusKey==='belum'){
+    return `Halo ${c.name}, kami lihat kamu sudah bergabung sejak ${c.days} hari lalu namun belum mulai mengerjakan training Sales Development Program. Yuk segera mulai ya, supaya progressmu tidak ketinggalan. Kalau ada kendala akses materi, kabari tim HR Training & Development. Terima kasih! 🙏`;
+  }
+  return `Halo ${c.name}, progress training kamu saat ini baru ${c.pct}% (sudah ${c.days} hari sejak bergabung). Yuk semangat lagi diselesaikan modulnya ya, tim HR Training & Development siap bantu kalau ada kendala. Terima kasih! 🙏`;
+}
+function reminderCandidateCount(){
+  return getReminderCandidates(REMINDER_DEFAULT_MIN_DAYS, '').length;
+}
+function openReminderModal(){
+  document.getElementById('rm-filter-status').value = '';
+  document.getElementById('rm-filter-days').value = REMINDER_DEFAULT_MIN_DAYS;
+  renderReminderModalList();
+  document.getElementById('reminder-modal').classList.remove('hidden');
+}
+function closeReminderModal(){ document.getElementById('reminder-modal').classList.add('hidden'); }
+function renderReminderModalList(){
+  const minDays = parseInt(document.getElementById('rm-filter-days').value, 10) || 0;
+  const statusFilter = document.getElementById('rm-filter-status').value;
+  const candidates = getReminderCandidates(minDays, statusFilter);
+  window.__reminderCandidates = candidates; // simpan di memori, dipakai oleh sendReminderWa(idx) lewat index (aman dari karakter kutip di nama)
+  const body = document.getElementById('reminder-modal-body');
+  if(!candidates.length){
+    body.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">Tidak ada yang cocok dengan filter ini. 🎉</p>';
+    return;
+  }
+  body.innerHTML = candidates.map((c,idx)=>{
+    const statusBadge = c.statusKey==='belum'
+      ? `<span class="badge" style="${TT_STATUS_CLASS.belum}">Belum Mulai</span>`
+      : `<span class="badge" style="${TT_STATUS_CLASS.berjalan}">Stuck ${c.pct}%</span>`;
+    const lastSent = c.lastReminderSentAt
+      ? `<span class="text-[10px] text-slate-400">Terakhir diingatkan: ${daysSinceTs(c.lastReminderSentAt)} hari lalu</span>`
+      : `<span class="text-[10px] text-slate-300">Belum pernah diingatkan</span>`;
+    return `<div class="flex items-center justify-between gap-3 p-3 rounded-xl" style="background:#f8fafc;border:1px solid var(--line)">
+      <div class="min-w-0">
+        <p class="text-xs font-bold truncate">${escapeHtml(c.name)}</p>
+        <div class="flex items-center gap-2 flex-wrap mt-0.5">${statusBadge}<span class="text-[10px] text-slate-400">Gabung ${c.days} hari lalu</span></div>
+        <div class="mt-0.5">${lastSent}</div>
+      </div>
+      <button class="btn-ghost !py-1.5 !px-3 flex-shrink-0 ${c.hasPhone?'':'opacity-40 cursor-not-allowed'}" ${c.hasPhone?`onclick="sendReminderWa(${idx})"`:'disabled'} title="${c.hasPhone?'Kirim WA reminder':'No HP tidak tersedia'}">
+        <i class="fa-brands fa-whatsapp mr-1" style="color:#25D366"></i>Kirim WA
+      </button>
+    </div>`;
+  }).join('');
+}
+function sendReminderWa(idx){
+  const c = (window.__reminderCandidates || [])[idx];
+  if(!c) return;
+  const phone = normalizePhoneForWa(c.phone);
+  if(!phone){ toast('No HP tidak tersedia untuk orang ini'); return; }
+  const msg = buildReminderMessage(c);
+  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+  const t = state.trainingTargets.find(tt=>tt.id===c.targetId);
+  if(t){ t.lastReminderSentAt = Date.now(); }
+  saveState();
+  logActivity(`Reminder training dikirim (WA) ke ${c.name}`);
+  renderReminderModalList();
 }
 
 /* ===================== RENDER: MODULES ===================== */
@@ -6944,6 +7318,200 @@ function exportDashboardExcel(){
   toast('Dashboard berhasil diekspor ke Excel');
 }
 
+/* ===================== LAPORAN BULANAN (PDF & Excel siap-kirim) ===================== */
+function getMonthlyReportKPIs(){
+  const scoped = getFilteredParticipants();
+  const allScores = scoped.map(p=>avgQuizScore(p)).filter(s=>s!==null);
+  const avgScoreAll = allScores.length ? Math.round(allScores.reduce((a,b)=>a+b,0)/allScores.length) : null;
+  let cLulus=0, cTidakLulus=0, cBerjalan=0, cBelumMulai=0, cMundur=0;
+  scoped.forEach(p=>{
+    if(p.resignDate){ cMundur++; return; }
+    const pct = overallProgressPct(p);
+    if(pct===100){ isCertified(p) ? cLulus++ : cTidakLulus++; }
+    else if(pct>0){ cBerjalan++; }
+    else { cBelumMulai++; }
+  });
+  return { scoped, total: scoped.length, avgScoreAll, cLulus, cTidakLulus, cBerjalan, cBelumMulai, cMundur,
+    sertifikat: scoped.filter(isCertified).length, modulAktif: MODULES.length };
+}
+function monthlyReportPeriodLabel(){
+  const parts = [];
+  if(dashboardFilterBln) parts.push(dashboardFilterBln);
+  if(dashboardFilterTahun) parts.push(dashboardFilterTahun);
+  if(dashboardFilterBatch) parts.push('Batch '+dashboardFilterBatch);
+  if(dashboardFilterPosisi) parts.push(dashboardFilterPosisi);
+  return parts.length ? parts.join(' ') : 'Semua Periode';
+}
+function openMonthlyReportModal(){
+  document.getElementById('mr-period-label').innerText = monthlyReportPeriodLabel();
+  setMonthlyReportBusy(false);
+  document.getElementById('monthly-report-modal').classList.remove('hidden');
+}
+function closeMonthlyReportModal(){ document.getElementById('monthly-report-modal').classList.add('hidden'); }
+function setMonthlyReportBusy(busy, text){
+  const status = document.getElementById('mr-status');
+  const pdfBtn = document.getElementById('mr-btn-pdf');
+  const excelBtn = document.getElementById('mr-btn-excel');
+  if(!status || !pdfBtn || !excelBtn) return;
+  status.classList.toggle('hidden', !busy);
+  if(text) document.getElementById('mr-status-text').innerText = text;
+  pdfBtn.disabled = busy; excelBtn.disabled = busy;
+}
+// Insight AI dashboard dipakai ulang kalau sudah pernah di-generate (cache di
+// dataset elemen ai-insight-body); kalau belum pernah, laporan otomatis
+// men-generate-nya dulu supaya laporan selalu "siap kirim" tanpa langkah manual.
+async function ensureDashboardInsightRawText(){
+  const box = document.getElementById('ai-insight-body');
+  if(box.dataset.rawText) return box.dataset.rawText;
+  setMonthlyReportBusy(true, 'Membuat Insight AI...');
+  await generateDashboardInsight();
+  return box.dataset.rawText || '';
+}
+async function exportMonthlyReportExcel(){
+  const kpi = getMonthlyReportKPIs();
+  if(!kpi.total){ toast('Tidak ada data peserta untuk periode ini'); return; }
+  let insightText;
+  try{ insightText = await ensureDashboardInsightRawText(); }
+  catch(e){ insightText = '(Gagal membuat Insight AI: '+(e.friendly||e.message)+')'; }
+  setMonthlyReportBusy(true, 'Menyusun file Excel...');
+
+  const periode = monthlyReportPeriodLabel();
+  const ringkasanRows = [
+    ['Laporan Bulanan Training - SalesPro Academy'],
+    ['Periode', periode],
+    ['Diekspor pada', new Date().toLocaleString('id-ID')],
+    [],
+    ['Metrik', 'Nilai'],
+    ['Total Peserta', kpi.total],
+    ['Modul Aktif', kpi.modulAktif],
+    ['Rata-rata Skor Kuis', kpi.avgScoreAll===null?'—':kpi.avgScoreAll],
+    ['Sertifikat Terbit', kpi.sertifikat],
+    ['Lulus', kpi.cLulus],
+    ['Tidak Lulus', kpi.cTidakLulus],
+    ['Sedang Berjalan', kpi.cBerjalan],
+    ['Belum Mulai', kpi.cBelumMulai],
+    ['Mundur', kpi.cMundur]
+  ];
+  const insightRows = [['Insight AI Dashboard'], [], ...String(insightText||'(tidak ada)').split('\n').map(line=>[line])];
+
+  const candidates = getReminderCandidates(3, '');
+  const perhatianRows = [['Nama','Status','Progress (%)','Hari Sejak Join','Terakhir Diingatkan']];
+  if(candidates.length){
+    candidates.forEach(c=>{
+      perhatianRows.push([
+        c.name, c.statusKey==='belum' ? 'Belum Mulai' : 'Stuck', c.pct, c.days,
+        c.lastReminderSentAt ? daysSinceTs(c.lastReminderSentAt)+' hari lalu' : 'Belum pernah'
+      ]);
+    });
+  } else {
+    perhatianRows.push(['Tidak ada peserta yang perlu perhatian saat ini.','','','','']);
+  }
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ringkasanRows), 'Ringkasan');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(insightRows), 'Insight AI');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(perhatianRows), 'Perlu Perhatian');
+
+  const dateStr = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `laporan-bulanan-salespro-${dateStr}.xlsx`);
+  setMonthlyReportBusy(false);
+  toast('Laporan bulanan berhasil diunduh (Excel)');
+  closeMonthlyReportModal();
+}
+async function exportMonthlyReportPDF(){
+  const kpi = getMonthlyReportKPIs();
+  if(!kpi.total){ toast('Tidak ada data peserta untuk periode ini'); return; }
+  let insightText;
+  try{ insightText = await ensureDashboardInsightRawText(); }
+  catch(e){ insightText = '(Gagal membuat Insight AI: '+(e.friendly||e.message)+')'; }
+  setMonthlyReportBusy(true, 'Menyusun PDF...');
+
+  const periode = monthlyReportPeriodLabel();
+  const allCandidates = getReminderCandidates(3, '');
+  const candidates = allCandidates.slice(0,20);
+  const extraCount = allCandidates.length - candidates.length;
+
+  const kpiBox = (label,val)=>`<div style="flex:1;min-width:150px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px">
+    <p style="font-size:10px;color:#94a3b8;font-weight:700;text-transform:uppercase;margin:0 0 4px">${escapeHtml(label)}</p>
+    <p style="font-size:22px;font-weight:800;color:#1e293b;margin:0">${val}</p>
+  </div>`;
+  const stuckRows = candidates.length ? candidates.map(c=>`
+    <tr>
+      <td style="padding:6px 8px;border-bottom:1px solid #f1f5f9">${escapeHtml(c.name)}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #f1f5f9">${c.statusKey==='belum'?'Belum Mulai':'Stuck '+c.pct+'%'}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #f1f5f9">${c.days} hari</td>
+    </tr>`).join('') : `<tr><td colspan="3" style="padding:14px;text-align:center;color:#94a3b8">Tidak ada peserta yang perlu perhatian saat ini.</td></tr>`;
+
+  const container = document.createElement('div');
+  container.id = 'monthly-report-print-area';
+  container.style.cssText = 'position:fixed;left:-9999px;top:0;width:800px;background:#ffffff;padding:36px;font-family:Inter,Arial,sans-serif;color:#1e293b';
+  container.innerHTML = `
+    <div style="border-bottom:3px solid #0e7c63;padding-bottom:14px;margin-bottom:20px">
+      <p style="font-size:11px;font-weight:700;color:#0e7c63;text-transform:uppercase;letter-spacing:1px;margin:0">SalesPro Academy</p>
+      <p style="font-size:20px;font-weight:800;margin:2px 0 0">Laporan Bulanan Training</p>
+      <p style="font-size:11px;color:#94a3b8;margin:2px 0 0">Periode: ${escapeHtml(periode)} &middot; Diekspor ${new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'})}</p>
+    </div>
+
+    <p style="font-size:12px;font-weight:700;text-transform:uppercase;color:#64748b;margin:0 0 10px">Ringkasan KPI</p>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:24px">
+      ${kpiBox('Total Peserta', kpi.total)}
+      ${kpiBox('Rata-rata Skor Kuis', kpi.avgScoreAll===null?'—':kpi.avgScoreAll)}
+      ${kpiBox('Sertifikat Terbit', kpi.sertifikat)}
+      ${kpiBox('Lulus', kpi.cLulus)}
+      ${kpiBox('Sedang Berjalan', kpi.cBerjalan)}
+      ${kpiBox('Belum Mulai', kpi.cBelumMulai)}
+      ${kpiBox('Tidak Lulus', kpi.cTidakLulus)}
+      ${kpiBox('Mundur', kpi.cMundur)}
+    </div>
+
+    <p style="font-size:12px;font-weight:700;text-transform:uppercase;color:#64748b;margin:0 0 10px">AI Insight Dashboard</p>
+    <div style="background:#f0fdf6;border:1px solid #bbf7d0;border-radius:10px;padding:16px;font-size:12px;line-height:1.7;margin-bottom:24px;white-space:pre-wrap">${escapeHtml(insightText || '(Insight AI tidak tersedia)')}</div>
+
+    <p style="font-size:12px;font-weight:700;text-transform:uppercase;color:#64748b;margin:0 0 10px">Peserta Perlu Perhatian (Belum Mulai / Stuck &ge;3 hari)</p>
+    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:8px">
+      <thead><tr style="background:#f8fafc">
+        <th style="text-align:left;padding:6px 8px;border-bottom:2px solid #e2e8f0">Nama</th>
+        <th style="text-align:left;padding:6px 8px;border-bottom:2px solid #e2e8f0">Status</th>
+        <th style="text-align:left;padding:6px 8px;border-bottom:2px solid #e2e8f0">Sejak Join</th>
+      </tr></thead>
+      <tbody>${stuckRows}</tbody>
+    </table>
+    ${extraCount>0 ? `<p style="font-size:10px;color:#94a3b8">+${extraCount} peserta lainnya (lihat lengkap di menu Reminder Training)</p>` : ''}
+  `;
+  document.body.appendChild(container);
+
+  try{
+    await document.fonts.ready;
+    const canvas = await html2canvas(container, {scale:2, useCORS:true, backgroundColor:'#ffffff'});
+    const pdf = new jspdf.jsPDF({orientation:'portrait', unit:'px', format:'a4'});
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pageWidth;
+    const imgHeight = canvas.height * imgWidth / canvas.width;
+    const imgData = canvas.toDataURL('image/png');
+    let heightLeft = imgHeight;
+    let position = 0;
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+    while(heightLeft > 0){
+      position -= pageHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+    const dateStr = new Date().toISOString().slice(0,10);
+    pdf.save(`laporan-bulanan-salespro-${dateStr}.pdf`);
+    toast('Laporan bulanan berhasil diunduh (PDF)');
+    closeMonthlyReportModal();
+  }catch(err){
+    console.error(err);
+    toast('Gagal membuat PDF laporan');
+  }finally{
+    container.remove();
+    setMonthlyReportBusy(false);
+  }
+}
+
 /* ===================== SETTINGS: BACKUP ===================== */
 function exportBackup(){
   const blob = new Blob([JSON.stringify({app:'salespro_academy', exportedAt:new Date().toISOString(), data:state}, null, 2)], {type:'application/json'});
@@ -6998,8 +7566,8 @@ function loadAIProxyUrlIntoSettings(){
 }
 function saveAIProxyUrl(){
   const url = document.getElementById('ai-proxy-url').value.trim();
-  setAIProxyUrl(url);
-  toast(url ? 'URL Proxy AI disimpan' : 'URL Proxy AI dikosongkan');
+  setAIProxyUrl(url); // otomatis tersimpan ke cloud (Firestore), bukan localStorage
+  toast(url ? 'URL Proxy AI disimpan ke cloud — otomatis aktif di semua device tempat kamu login' : 'URL Proxy AI dikosongkan');
   document.getElementById('ai-proxy-status').innerText = '';
   renderAIChatButtonVisibility();
 }
@@ -7168,10 +7736,25 @@ function clearAIChat(){
 }
 
 /* ===================== AI: DASHBOARD INSIGHT ===================== */
-async function generateDashboardInsight(){
+async function generateDashboardInsight(force){
   const box = document.getElementById('ai-insight-body');
   const btn = document.getElementById('ai-insight-btn');
   const expandBtn = document.getElementById('ai-insight-expand-btn');
+  const today = toYMD(new Date());
+
+  // Hemat kuota API: kalau hari ini sudah pernah generate insight dashboard
+  // dan datanya tersimpan di cache cloud, pakai itu lagi (instan, tanpa
+  // request AI baru) — kecuali dipaksa (force=true) lewat tombol "Buat Ulang".
+  const cache = state.aiInsightCache && state.aiInsightCache.dashboard;
+  if(!force && cache && cache.date===today && cache.text){
+    const html = escapeHtml(cache.text).replace(/\n/g,'<br>');
+    box.innerHTML = html + '<p class="mt-2 text-[10px] text-slate-400"><i class="fa-solid fa-clock-rotate-left mr-1"></i>Dari cache hari ini. <a href="#" onclick="event.preventDefault();generateDashboardInsight(true)" class="underline font-bold" style="color:var(--brand-600)">Buat ulang</a></p>';
+    box.dataset.full = html;
+    box.dataset.rawText = cache.text;
+    if(expandBtn) expandBtn.classList.remove('hidden');
+    return;
+  }
+
   if(btn) btn.disabled = true;
   if(expandBtn) expandBtn.classList.add('hidden');
   box.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1"></i>AI sedang menganalisis data dashboard...';
@@ -7188,10 +7771,15 @@ async function generateDashboardInsight(){
     const html = escapeHtml(reply).replace(/\n/g,'<br>');
     box.innerHTML = html;
     box.dataset.full = html;
+    box.dataset.rawText = reply;
     if(expandBtn) expandBtn.classList.remove('hidden');
+    if(!state.aiInsightCache) state.aiInsightCache = { dashboard:null, peserta:{} };
+    state.aiInsightCache.dashboard = { date: today, text: reply };
+    saveState();
   }catch(e){
     box.innerHTML = '<span class="text-red-600">⚠️ ' + escapeHtml(e.friendly || e.message) + '</span>';
     delete box.dataset.full;
+    delete box.dataset.rawText;
   }finally{
     if(btn) btn.disabled = false;
   }
@@ -7205,6 +7793,60 @@ function openDashboardInsightModal(){
   document.getElementById('ai-insight-modal').classList.remove('hidden');
 }
 function closeDashboardInsightModal(){ document.getElementById('ai-insight-modal').classList.add('hidden'); }
+
+/* ===================== AI: INSIGHT PER-PESERTA ===================== */
+async function generatePesertaInsight(id, force){
+  const box = document.getElementById('pd-ai-insight-body');
+  const btn = document.getElementById('pd-ai-insight-btn');
+  if(!box) return;
+  const p = getParticipant(id);
+  if(!p){ box.innerHTML = '<span class="text-red-600">Peserta tidak ditemukan.</span>'; return; }
+
+  const today = toYMD(new Date());
+  const cache = state.aiInsightCache && state.aiInsightCache.peserta && state.aiInsightCache.peserta[id];
+  if(!force && cache && cache.date===today && cache.text){
+    box.innerHTML = escapeHtml(cache.text).replace(/\n/g,'<br>')
+      + '<p class="mt-1.5 text-[10px] text-slate-400"><i class="fa-solid fa-clock-rotate-left mr-1"></i>Dari cache hari ini. <a href="#" onclick="event.preventDefault();generatePesertaInsight(\''+id+'\',true)" class="underline font-bold" style="color:var(--brand-600)">Buat ulang</a></p>';
+    return;
+  }
+
+  if(btn) btn.disabled = true;
+  box.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1"></i>AI sedang menganalisis performa peserta...';
+  try{
+    const done = modulesFullyCompleted(p);
+    const totalWajib = wajibModules().length;
+    const pct = overallProgressPct(p);
+    const score = avgQuizScore(p);
+    const statusLulus = p.manualLulus ? 'Lulus (ditandai manual)' : (isCertified(p) ? 'Lulus otomatis' : 'Belum lulus');
+    const moduleDetail = MODULES.map(m=>{
+      const c = moduleCompletionPct(p, m);
+      const post = p.progress[m.id]?.posttestScore;
+      return `${m.title}: ${c}%${(post!==null && post!==undefined) ? ' (skor post-test '+post+')' : ''}`;
+    }).join('; ');
+    let gciLine = '';
+    if(p.username){
+      const months = getGciMonths();
+      const monthKey = (pesertaDetailMonthA && months.includes(pesertaDetailMonthA)) ? pesertaDetailMonthA : (months.length ? months[months.length-1] : null);
+      if(monthKey){
+        const stats = gciStatsForParticipant(p, monthKey);
+        const conv = stats.total ? Math.round((stats.booking/stats.total)*1000)/10 : 0;
+        gciLine = ` Pencapaian ${gciMonthLabel(monthKey)}: ${stats.leads} leads, ${stats.booking} booking, konversi ${conv}%, nominal booking ${formatRupiah(stats.nominalBooking)}.`;
+      }
+    }
+    const dataSummary = `Nama: ${p.name || '(tanpa nama)'}. Posisi: ${p.posisi || '-'}. Status kelulusan training: ${statusLulus}. Modul wajib selesai: ${done}/${totalWajib} (progress keseluruhan ${pct}%). Rata-rata skor kuis: ${score===null?'belum ada':score}. Detail per modul: ${moduleDetail}.${p.resignDate ? ' Catatan: peserta ini sudah mundur sejak '+fmtDate(p.resignDate)+'.' : ''}${gciLine}`;
+    const sys = 'Kamu adalah coach performa sales internal. Berdasarkan data SATU peserta training berikut, tulis insight singkat (maks 4 kalimat, boleh pakai poin) dalam Bahasa Indonesia: 1 kalimat kondisi performa peserta ini (training & pencapaian kerja kalau datanya ada), lalu 1-2 rekomendasi tindak lanjut yang konkret dan personal untuk peserta ini (misal modul yang perlu diulang, jenis coaching yang cocok, atau langkah berikutnya). Jangan mengarang angka yang tidak diberikan.';
+    const reply = await callAI([{role:'user', content: dataSummary}], sys);
+    box.innerHTML = escapeHtml(reply).replace(/\n/g,'<br>');
+    if(!state.aiInsightCache) state.aiInsightCache = { dashboard:null, peserta:{} };
+    if(!state.aiInsightCache.peserta) state.aiInsightCache.peserta = {};
+    state.aiInsightCache.peserta[id] = { date: today, text: reply };
+    saveState();
+  }catch(e){
+    box.innerHTML = '<span class="text-red-600">⚠️ ' + escapeHtml(e.friendly || e.message) + '</span>';
+  }finally{
+    if(btn) btn.disabled = false;
+  }
+}
 
 /* ===================== AI: AUTO-FEEDBACK (Tindak Lanjut Feedback) ===================== */
 async function generateAIFeedbackDetail(){
