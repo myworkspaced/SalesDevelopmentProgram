@@ -172,6 +172,18 @@
   .btn-primary:hover{background:var(--brand-700)}
   .btn-ghost{background:#f1f5f9;color:#334155;font-weight:600;font-size:.8125rem;padding:9px 16px;border-radius:10px}
   .btn-ghost:hover{background:#e2e8f0}
+  .btn-danger{background:#dc2626;color:#fff;font-weight:700;font-size:.8125rem;padding:9px 16px;border-radius:10px;transition:.15s}
+  .btn-danger:hover{background:#b91c1c}
+
+  .dialog-overlay{position:fixed;inset:0;background:rgba(12,18,32,.5);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px}
+  .dialog-box{background:#fff;border-radius:16px;box-shadow:0 24px 60px -14px rgba(12,18,32,.4);width:100%;max-width:400px;padding:22px}
+  .dialog-icon{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0}
+  .dialog-icon.warn{background:#fee2e2;color:#dc2626}
+  .dialog-icon.info{background:#dcfce7;color:var(--brand-600)}
+  .dialog-message{font-size:.8125rem;color:#334155;white-space:pre-line;line-height:1.5}
+  .dialog-btn-row{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;flex-wrap:wrap}
+  .dialog-btn-row.stacked{flex-direction:column}
+  .dialog-btn-row.stacked>button{width:100%}
 
   .progress-track{background:#eef2ee;border-radius:999px;height:8px;overflow:hidden}
   .progress-fill{background:linear-gradient(90deg,var(--brand-400),var(--brand-600));height:100%;border-radius:999px;transition:width .4s ease}
@@ -1102,7 +1114,7 @@
                 <input type="file" accept=".xlsx,.xls" class="hidden" onchange="importParticipantsExcel(event)">
               </label>
               <button class="btn-primary" onclick="openAddParticipant()"><i class="fa-solid fa-plus mr-1"></i>Tambah Peserta</button>
-              <button class="btn-ghost" onclick="mergeAllDuplicateParticipants(false)" title="Cek &amp; gabungkan peserta dengan nama yang sama"><i class="fa-solid fa-code-merge mr-1"></i>Gabungkan Duplikat</button>
+              <button class="btn-ghost" onclick="mergeAllDuplicateParticipantsInteractive()" title="Cek &amp; gabungkan peserta dengan nama yang sama"><i class="fa-solid fa-code-merge mr-1"></i>Gabungkan Duplikat</button>
               <button class="btn-ghost !text-red-600" onclick="clearParticipantsData()"><i class="fa-solid fa-broom mr-1"></i>Bersihkan Peserta &amp; Progress</button>
             </div>
           </div>
@@ -1194,7 +1206,7 @@
                 <i class="fa-solid fa-file-arrow-up mr-1"></i>Impor dari Excel
                 <input type="file" accept=".xlsx,.xls" class="hidden" onchange="importTrainingTargetsExcel(event)">
               </label>
-              <button class="btn-ghost" onclick="mergeAllDuplicateTrainingTargets(false)" title="Cek &amp; gabungkan target training dengan nama yang sama"><i class="fa-solid fa-code-merge mr-1"></i>Gabungkan Duplikat</button>
+              <button class="btn-ghost" onclick="mergeAllDuplicateTrainingTargetsInteractive()" title="Cek &amp; gabungkan target training dengan nama yang sama"><i class="fa-solid fa-code-merge mr-1"></i>Gabungkan Duplikat</button>
               <button class="btn-ghost !text-red-600" onclick="clearTrainingTargets()"><i class="fa-solid fa-broom mr-1"></i>Bersihkan Data Target</button>
             </div>
           </div>
@@ -1985,6 +1997,20 @@
 
 <div id="toast"></div>
 
+<!-- Generic custom confirm/alert dialog (replaces native confirm()/alert()) -->
+<div id="app-dialog-overlay" class="dialog-overlay hidden" onmousedown="if(event.target===this) window.__appDialogCancel && window.__appDialogCancel()">
+  <div class="dialog-box" role="alertdialog" aria-modal="true">
+    <div class="flex items-start gap-3">
+      <div id="app-dialog-icon" class="dialog-icon warn"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div class="flex-1 min-w-0">
+        <p id="app-dialog-title" class="text-sm font-extrabold mb-1"></p>
+        <p id="app-dialog-message" class="dialog-message"></p>
+      </div>
+    </div>
+    <div id="app-dialog-buttons" class="dialog-btn-row"></div>
+  </div>
+</div>
+
 <!-- AI Chat Assistant: floating button -->
 <button id="ai-chat-fab" onclick="openAIChat()" class="hidden no-print" style="position:fixed;bottom:22px;right:22px;z-index:70;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--brand-500),var(--brand-700));color:#fff;box-shadow:0 10px 24px -6px rgba(16,163,122,.5);align-items:center;justify-content:center;font-size:1.15rem;border:none;cursor:pointer">
   <i class="fa-solid fa-wand-magic-sparkles"></i>
@@ -2721,8 +2747,8 @@ function importGciExcel(event){
   };
   reader.readAsArrayBuffer(file);
 }
-function clearGciData(){
-  if(!confirm('Hapus seluruh data pencapaian GCI yang tersimpan di perangkat ini? Tindakan ini tidak bisa dibatalkan.')) return;
+async function clearGciData(){
+  if(!await customConfirm('Hapus seluruh data pencapaian GCI yang tersimpan di perangkat ini? Tindakan ini tidak bisa dibatalkan.')) return;
   gciData = [];
   saveGciData(gciData);
   renderPencapaian();
@@ -3062,11 +3088,6 @@ function mergeAllDuplicateParticipants(silent){
     if(!silent) toast('Tidak ada nama peserta duplikat ditemukan ✅');
     return 0;
   }
-  if(!silent){
-    const preview = dups.map(g=>`- ${g[0].name} (${g.length}x)`).join('\n');
-    const ok = confirm(`Ditemukan ${dups.length} nama peserta duplikat:\n${preview}\n\nGabungkan sekarang menjadi satu data per nama? Data yang tergabung akan dipindahkan ke Sampah (bisa dipulihkan jika keliru).`);
-    if(!ok) return 0;
-  }
   let mergedCount = 0;
   const mergedNames = [];
   dups.forEach(group=>{
@@ -3095,6 +3116,17 @@ function mergeAllDuplicateParticipants(silent){
     if(!silent) toast(`✅ ${mergedCount} peserta duplikat berhasil digabungkan`);
   }
   return mergedCount;
+}
+// Interactive entry point for the "Gabungkan Duplikat" button: previews + confirms
+// via the custom dialog, then delegates the actual merge to mergeAllDuplicateParticipants(true).
+async function mergeAllDuplicateParticipantsInteractive(){
+  const dups = scanDuplicateParticipantNames(true);
+  if(!dups.length){ toast('Tidak ada nama peserta duplikat ditemukan ✅'); return; }
+  const preview = dups.map(g=>`- ${g[0].name} (${g.length}x)`).join('\n');
+  const ok = await customConfirm(`Ditemukan ${dups.length} nama peserta duplikat:\n${preview}\n\nGabungkan sekarang menjadi satu data per nama? Data yang tergabung akan dipindahkan ke Sampah (bisa dipulihkan jika keliru).`);
+  if(!ok) return;
+  const mergedCount = mergeAllDuplicateParticipants(true);
+  if(mergedCount) toast(`✅ ${mergedCount} peserta duplikat berhasil digabungkan`);
 }
 
 /* ===================== TRAINING TARGET DUPLICATE MERGE ===================== */
@@ -3127,11 +3159,6 @@ function mergeAllDuplicateTrainingTargets(silent){
     if(!silent) toast('Tidak ada nama target training duplikat ditemukan ✅');
     return 0;
   }
-  if(!silent){
-    const preview = dups.map(g=>`- ${g[0].name} (${g.length}x)`).join('\n');
-    const ok = confirm(`Ditemukan ${dups.length} nama target training duplikat:\n${preview}\n\nGabungkan sekarang menjadi satu data per nama? (nomor kontak, company, dll saling dilengkapi)`);
-    if(!ok) return 0;
-  }
   let mergedCount = 0;
   const mergedNames = [];
   dups.forEach(group=>{
@@ -3155,6 +3182,22 @@ function mergeAllDuplicateTrainingTargets(silent){
     if(!silent) toast(`✅ ${mergedCount} target training duplikat berhasil digabungkan`);
   }
   return mergedCount;
+}
+// Interactive entry point for the "Gabungkan Duplikat" button (Target Training).
+async function mergeAllDuplicateTrainingTargetsInteractive(){
+  const groups = {};
+  (state.trainingTargets||[]).forEach(t=>{
+    const key = normNameKey(t.name);
+    if(!key) return;
+    (groups[key] = groups[key]||[]).push(t);
+  });
+  const dups = Object.values(groups).filter(g=>g.length>1);
+  if(!dups.length){ toast('Tidak ada nama target training duplikat ditemukan ✅'); return; }
+  const preview = dups.map(g=>`- ${g[0].name} (${g.length}x)`).join('\n');
+  const ok = await customConfirm(`Ditemukan ${dups.length} nama target training duplikat:\n${preview}\n\nGabungkan sekarang menjadi satu data per nama? (nomor kontak, company, dll saling dilengkapi)`);
+  if(!ok) return;
+  const mergedCount = mergeAllDuplicateTrainingTargets(true);
+  if(mergedCount) toast(`✅ ${mergedCount} target training duplikat berhasil digabungkan`);
 }
 
 /* ===================== COMPUTATION HELPERS ===================== */
@@ -3482,8 +3525,8 @@ function updateFeedbackTLStatusInline(id, value){
   renderFeedbackTL();
   renderResumeKpi();
 }
-function quickDeleteFeedbackTL(id){
-  if(!confirm('Hapus point tindak lanjut ini?')) return;
+async function quickDeleteFeedbackTL(id){
+  if(!await customConfirm('Hapus point tindak lanjut ini?')) return;
   state.feedbackTL = state.feedbackTL.filter(f=>f.id!==id);
   saveState();
   renderFeedbackTL();
@@ -3549,9 +3592,9 @@ function saveFeedbackTLItem(){
   renderResumeKpi();
   toast('Point tindak lanjut tersimpan');
 }
-function deleteFeedbackTLItem(){
+async function deleteFeedbackTLItem(){
   if(!fltlEditingId) return;
-  if(!confirm('Hapus point tindak lanjut ini?')) return;
+  if(!await customConfirm('Hapus point tindak lanjut ini?')) return;
   state.feedbackTL = state.feedbackTL.filter(f=>f.id!==fltlEditingId);
   saveState();
   closeFeedbackTLModal();
@@ -3651,8 +3694,8 @@ function updateSupportCoachingStatusInline(id, value){
   renderSupportCoaching();
   renderResumeKpi();
 }
-function quickDeleteSupportCoaching(id){
-  if(!confirm('Hapus jadwal support coaching ini?')) return;
+async function quickDeleteSupportCoaching(id){
+  if(!await customConfirm('Hapus jadwal support coaching ini?')) return;
   state.supportCoaching = state.supportCoaching.filter(f=>f.id!==id);
   saveState();
   renderSupportCoaching();
@@ -3721,9 +3764,9 @@ function saveSupportCoachingItem(){
   renderResumeKpi();
   toast('Support coaching tersimpan');
 }
-function deleteSupportCoachingItem(){
+async function deleteSupportCoachingItem(){
   if(!scEditingId) return;
-  if(!confirm('Hapus jadwal support coaching ini?')) return;
+  if(!await customConfirm('Hapus jadwal support coaching ini?')) return;
   state.supportCoaching = state.supportCoaching.filter(f=>f.id!==scEditingId);
   saveState();
   closeSupportCoachingModal();
@@ -3844,19 +3887,19 @@ function markTasklistMarketingDone(id){
   renderTasklistMarketing();
   toast('Task ditandai selesai');
 }
-function deleteTasklistMarketingTask(id){
+async function deleteTasklistMarketingTask(id){
   const t = tmTasks().find(x=>x.id===id);
   if(!t) return;
-  if(!confirm(`Hapus task "${t.idTask||t.employeeName}"?`)) return;
+  if(!await customConfirm(`Hapus task "${t.idTask||t.employeeName}"?`)) return;
   addToTrash('tmtask', `${t.idTask||'Task'} - ${t.employeeName||'-'}`, { task: t });
   state.tasklistMarketing.tasks = tmTasks().filter(x=>x.id!==id);
   saveState();
   renderTasklistMarketing();
   toast('Task dipindahkan ke sampah');
 }
-function clearTasklistMarketingData(){
+async function clearTasklistMarketingData(){
   if(!tmTasks().length){ toast('Belum ada data untuk dibersihkan'); return; }
-  if(!confirm('Bersihkan semua data Tasklist Marketing? Data akan dipindahkan ke sampah.')) return;
+  if(!await customConfirm('Bersihkan semua data Tasklist Marketing? Data akan dipindahkan ke sampah.')) return;
   addToTrash('tmtask_bulk', `${tmTasks().length} task marketing`, { tasks: tmTasks() });
   state.tasklistMarketing.tasks = [];
   saveState();
@@ -4276,6 +4319,67 @@ function toast(msg){
   el.innerHTML = `<i class="fa-solid fa-circle-check"></i><span>${escapeHtml(msg)}</span>`;
   document.getElementById('toast').appendChild(el);
   setTimeout(()=>el.remove(),3000);
+}
+
+/* ===================== CUSTOM DIALOG (replaces native confirm()/alert()) =====================
+   showAppDialog() is the low-level engine: renders the shared #app-dialog-overlay with a
+   title/message and an arbitrary set of buttons, and resolves a Promise with whichever
+   button's `value` was clicked (or the `cancelValue` if dismissed via backdrop/Escape).
+   customConfirm/customAlert/customChoice are thin wrappers used at each former confirm()/alert() call site. */
+let __appDialogResolve = null;
+function showAppDialog({title='Konfirmasi', message='', icon='warn', buttons, cancelValue=false}={}){
+  return new Promise(resolve=>{
+    const overlay = document.getElementById('app-dialog-overlay');
+    document.getElementById('app-dialog-title').textContent = title;
+    document.getElementById('app-dialog-message').textContent = message;
+    const iconEl = document.getElementById('app-dialog-icon');
+    iconEl.className = 'dialog-icon ' + (icon==='info' ? 'info' : 'warn');
+    iconEl.innerHTML = icon==='info' ? '<i class="fa-solid fa-circle-info"></i>' : '<i class="fa-solid fa-triangle-exclamation"></i>';
+    const row = document.getElementById('app-dialog-buttons');
+    row.className = 'dialog-btn-row' + (buttons.length>2 ? ' stacked' : '');
+    row.innerHTML = '';
+    const finish = (val)=>{
+      overlay.classList.add('hidden');
+      document.removeEventListener('keydown', onKey);
+      __appDialogResolve = null;
+      resolve(val);
+    };
+    const onKey = (e)=>{ if(e.key==='Escape') finish(cancelValue); };
+    window.__appDialogCancel = ()=>finish(cancelValue);
+    buttons.forEach(btn=>{
+      const b = document.createElement('button');
+      b.className = btn.style || 'btn-ghost';
+      b.textContent = btn.label;
+      b.onclick = ()=>finish(btn.value);
+      row.appendChild(b);
+    });
+    document.addEventListener('keydown', onKey);
+    overlay.classList.remove('hidden');
+    __appDialogResolve = resolve;
+  });
+}
+// Drop-in async replacement for confirm(). Resolves true/false.
+function customConfirm(message, {title='Konfirmasi', okText='OK', cancelText='Batal', danger=true}={}){
+  return showAppDialog({
+    title, message, icon: danger ? 'warn' : 'info', cancelValue:false,
+    buttons:[
+      {label:cancelText, value:false, style:'btn-ghost'},
+      {label:okText, value:true, style: danger ? 'btn-danger' : 'btn-primary'}
+    ]
+  });
+}
+// Drop-in async replacement for alert(). Resolves once dismissed.
+function customAlert(message, {title='Info', okText='OK'}={}){
+  return showAppDialog({
+    title, message, icon:'info', cancelValue:true,
+    buttons:[{label:okText, value:true, style:'btn-primary'}]
+  });
+}
+// For 3+ way choices (was previously two chained confirm() calls). `buttons` is
+// [{label, value, style}], evaluated top-to-bottom; resolves with the clicked value
+// or `cancelValue` (default null) if dismissed via backdrop/Escape.
+function customChoice(message, buttons, {title='Konfirmasi', icon='warn', cancelValue=null}={}){
+  return showAppDialog({title, message, icon, cancelValue, buttons});
 }
 
 /* ===================== RENDER: DASHBOARD ===================== */
@@ -4804,8 +4908,8 @@ function removeKpiTier(key, idx){
   state.kpiConfig.indicators[key].tiers.splice(idx,1);
   renderKpiConfigModal();
 }
-function resetKpiConfigDefault(){
-  if(!confirm('Kembalikan semua pengaturan skor KPI (target, bobot, skor) ke default?')) return;
+async function resetKpiConfigDefault(){
+  if(!await customConfirm('Kembalikan semua pengaturan skor KPI (target, bobot, skor) ke default?')) return;
   const defaultWeight = Math.round((100/KPI_INDICATORS.length)*100)/100;
   state.kpiConfig.method = 'proportional';
   KPI_INDICATORS.forEach(ind=>{ state.kpiConfig.indicators[ind.key] = { target:100, weight:defaultWeight, maxScore:4, tiers: defaultKpiTiers().map(t=>({...t})) }; });
@@ -5099,16 +5203,16 @@ function renderPesertaDetail(id){
     generatePesertaInsight(p.id); // non-force: fungsi ini otomatis pakai cache kalau masih berlaku hari ini
   }
 }
-function toggleManualLulus(id){
+async function toggleManualLulus(id){
   const p = getParticipant(id);
   if(!p) return;
   if(p.manualLulus){
-    if(!confirm(`Batalkan status Lulus manual untuk ${p.name}? Status akan kembali dihitung otomatis berdasarkan progress modul & skor kuis.`)) return;
+    if(!await customConfirm(`Batalkan status Lulus manual untuk ${p.name}? Status akan kembali dihitung otomatis berdasarkan progress modul & skor kuis.`)) return;
     p.manualLulus = false;
     logActivity(`Status lulus manual dibatalkan untuk ${p.name}`);
     toast('Status lulus manual dibatalkan');
   } else {
-    if(!confirm(`Tandai ${p.name} sebagai Lulus meskipun progress modul belum 100%? Progress dan status akan langsung ditampilkan sebagai Lulus 100%.`)) return;
+    if(!await customConfirm(`Tandai ${p.name} sebagai Lulus meskipun progress modul belum 100%? Progress dan status akan langsung ditampilkan sebagai Lulus 100%.`)) return;
     p.manualLulus = true;
     logActivity(`${p.name} ditandai Lulus secara manual`);
     toast(`${p.name} ditandai Lulus`);
@@ -5121,16 +5225,16 @@ function toggleManualLulus(id){
   renderParticipants();
   renderCertificates();
 }
-function toggleMundur(id){
+async function toggleMundur(id){
   const p = getParticipant(id);
   if(!p) return;
   if(p.resignDate){
-    if(!confirm(`Batalkan status Mundur untuk ${p.name}? Tanggal resign akan dikosongkan kembali.`)) return;
+    if(!await customConfirm(`Batalkan status Mundur untuk ${p.name}? Tanggal resign akan dikosongkan kembali.`)) return;
     p.resignDate = '';
     logActivity(`Status mundur dibatalkan untuk ${p.name}`);
     toast('Status mundur dibatalkan');
   } else {
-    if(!confirm(`Tandai ${p.name} sebagai Mundur hari ini? Tanggal resign akan diisi otomatis dengan tanggal hari ini.`)) return;
+    if(!await customConfirm(`Tandai ${p.name} sebagai Mundur hari ini? Tanggal resign akan diisi otomatis dengan tanggal hari ini.`)) return;
     p.resignDate = new Date().toISOString().slice(0,10);
     logActivity(`${p.name} ditandai Mundur`);
     toast(`${p.name} ditandai Mundur`);
@@ -5467,18 +5571,18 @@ function restoreTrashItem(trashId){
   logActivity(`Dipulihkan dari sampah: ${item.label}`);
   toast(`${trashTypeLabel(item.type)} "${item.label}" berhasil dipulihkan`);
 }
-function deleteTrashItemForever(trashId){
+async function deleteTrashItemForever(trashId){
   const item = state.trash.find(t=>t.id===trashId);
   if(!item) return;
-  if(!confirm(`Hapus permanen "${item.label}"? Tindakan ini tidak bisa dibatalkan.`)) return;
+  if(!await customConfirm(`Hapus permanen "${item.label}"? Tindakan ini tidak bisa dibatalkan.`)) return;
   state.trash = state.trash.filter(t=>t.id!==trashId);
   saveState();
   renderTrash();
   toast('Item dihapus permanen');
 }
-function emptyTrash(){
+async function emptyTrash(){
   if(!state.trash.length){ toast('Sampah sudah kosong'); return; }
-  if(!confirm(`Kosongkan sampah? ${state.trash.length} item akan dihapus permanen dan tidak bisa dipulihkan lagi.`)) return;
+  if(!await customConfirm(`Kosongkan sampah? ${state.trash.length} item akan dihapus permanen dan tidak bisa dipulihkan lagi.`)) return;
   state.trash = [];
   saveState();
   renderTrash();
@@ -5523,10 +5627,10 @@ function renderTrash(){
   }).join('');
 }
 
-function deleteModule(id){
+async function deleteModule(id){
   const mod = MODULES.find(m=>m.id===id);
   if(!mod) return;
-  if(!confirm(`Hapus modul "${mod.title}"? Progress peserta pada modul ini juga tidak akan dihitung lagi. (Bisa dipulihkan lewat Sampah)`)) return;
+  if(!await customConfirm(`Hapus modul "${mod.title}"? Progress peserta pada modul ini juga tidak akan dihitung lagi. (Bisa dipulihkan lewat Sampah)`)) return;
   const isCustom = state.customModules.some(m=>m.id===id);
   if(!isCustom){
     // it's a base module, mark as deleted
@@ -5691,12 +5795,12 @@ function saveNewLesson(){
   toast('Materi ditambahkan');
 }
 
-function deleteLesson(moduleId, idx){
+async function deleteLesson(moduleId, idx){
   const mod = MODULES.find(m=>m.id===moduleId);
   if(!mod) return;
   const lesson = mod.lessons[idx];
   if(!lesson) return;
-  if(!confirm(`Hapus materi "${lesson.title}"? Progress peserta pada materi ini akan hilang. (Bisa dipulihkan lewat Sampah)`)) return;
+  if(!await customConfirm(`Hapus materi "${lesson.title}"? Progress peserta pada materi ini akan hilang. (Bisa dipulihkan lewat Sampah)`)) return;
 
   const baseMod = BASE_MODULES.find(m=>m.id===moduleId);
   if(!state.deletedLessonIdx[moduleId]) state.deletedLessonIdx[moduleId] = [];
@@ -6125,7 +6229,7 @@ function importParticipantsExcel(event){
   showImportLoading('Sedang mengimpor data peserta...');
   const reader = new FileReader();
   reader.onerror = ()=>{ hideImportLoading(); toast('Gagal membaca file'); event.target.value=''; };
-  reader.onload = e=>{
+  reader.onload = async e=>{
     try{
       const data = new Uint8Array(e.target.result);
       const wb = XLSX.read(data, {type:'array', cellDates:true});
@@ -6234,7 +6338,7 @@ function importParticipantsExcel(event){
         }
       }
       if(warnParts.length){
-        alert('Impor selesai.\n\n' + warnParts.join('\n\n'));
+        await customAlert('Impor selesai.\n\n' + warnParts.join('\n\n'), {title:'Impor Selesai'});
       }
     }catch(err){
       console.error(err);
@@ -6247,7 +6351,7 @@ function importParticipantsExcel(event){
 }
 
 function closeAddParticipant(){ document.getElementById('participant-modal').classList.add('hidden'); editingParticipantId = null; }
-function saveParticipant(){
+async function saveParticipant(){
   const name = document.getElementById('np-name').value.trim();
   if(!name){ toast('Nama peserta wajib diisi'); return; }
   const joinDate = document.getElementById('np-joindate').value;
@@ -6279,8 +6383,17 @@ function saveParticipant(){
     const nameKey = normNameKey(name);
     const dup = nameKey ? state.participants.find(pp=>normNameKey(pp.name)===nameKey) : null;
     if(dup){
-      const doMerge = confirm(`⚠️ Nama "${name}" sudah terdaftar sebagai peserta (username: ${dup.username||'-'}).\n\nKlik OK untuk MENGGABUNGKAN data ini ke peserta yang sudah ada (mencegah duplikat).\nKlik Cancel untuk memilih tindakan lain.`);
-      if(doMerge){
+      const choice = await customChoice(
+        `Nama "${name}" sudah terdaftar sebagai peserta (username: ${dup.username||'-'}).\n\nPilih tindakan:`,
+        [
+          {label:'Batal', value:'cancel', style:'btn-ghost'},
+          {label:'Simpan Terpisah', value:'separate', style:'btn-ghost !text-red-600'},
+          {label:'Gabungkan', value:'merge', style:'btn-primary'}
+        ],
+        {title:'Nama Duplikat Ditemukan', cancelValue:'cancel'}
+      );
+      if(choice==='cancel'){ toast('Penyimpanan dibatalkan'); return; }
+      if(choice==='merge'){
         mergeParticipantInto(dup, fields);
         logActivity(`Peserta "${name}" digabungkan otomatis ke data yang sudah ada (mencegah duplikat nama)`);
         toast('✅ Data digabungkan ke peserta yang sudah ada');
@@ -6290,8 +6403,6 @@ function saveParticipant(){
         renderParticipants(); renderDashboard(); renderModules(); renderQuizPicker(); renderTrainingTargets();
         return;
       }
-      const saveAnyway = confirm(`Simpan tetap sebagai peserta BARU yang terpisah meskipun nama sama dengan "${dup.name}"?\n\nKlik Cancel untuk membatalkan penyimpanan.`);
-      if(!saveAnyway){ toast('Penyimpanan dibatalkan'); return; }
       toast('⚠️ Peserta baru disimpan sebagai duplikat nama, harap periksa kembali');
     }
     const id = 'p'+Date.now();
@@ -6305,11 +6416,11 @@ function saveParticipant(){
   closeAddParticipant();
   renderParticipants(); renderDashboard(); renderModules(); renderQuizPicker(); renderTrainingTargets();
 }
-function removeParticipant(id){
+async function removeParticipant(id){
   if(state.participants.length<=1){ toast('Minimal harus ada 1 peserta'); return; }
   const p = state.participants.find(pp=>pp.id===id);
   if(!p) return;
-  if(!confirm(`Hapus peserta "${p.name}"? Data & progress-nya akan dipindahkan ke Sampah (bisa dipulihkan).`)) return;
+  if(!await customConfirm(`Hapus peserta "${p.name}"? Data & progress-nya akan dipindahkan ke Sampah (bisa dipulihkan).`)) return;
   const snapshot = JSON.parse(JSON.stringify(p));
   state.participants = state.participants.filter(pp=>pp.id!==id);
   addToTrash('participant', p.name || p.username || 'Peserta', {participant: snapshot});
@@ -6397,8 +6508,8 @@ function importTrainingTargetsExcel(event){
   };
   reader.readAsArrayBuffer(file);
 }
-function clearTrainingTargets(){
-  if(!confirm('Hapus semua data Target Training yang sudah diimpor?')) return;
+async function clearTrainingTargets(){
+  if(!await customConfirm('Hapus semua data Target Training yang sudah diimpor?')) return;
   state.trainingTargets = [];
   saveState();
   renderTrainingTargets();
@@ -6452,10 +6563,10 @@ function addTargetAsParticipant(id){
   renderQuizPicker();
   toast(`"${t.name}" ditambahkan sebagai peserta baru`);
 }
-function addAllFilteredTargetsAsParticipants(){
+async function addAllFilteredTargetsAsParticipants(){
   const ids = state._ttAddableIds || [];
   if(ids.length === 0){ toast('Tidak ada data untuk ditambahkan'); return; }
-  if(!confirm(`Tambahkan ${ids.length} nama pada hasil filter saat ini sebagai peserta baru?`)) return;
+  if(!await customConfirm(`Tambahkan ${ids.length} nama pada hasil filter saat ini sebagai peserta baru?`)) return;
 
   let added = 0, merged = 0;
   ids.forEach(id=>{
@@ -7036,15 +7147,21 @@ function renderAgenda(){
 }
 // Klik kegiatan: kegiatan biasa langsung buka form edit. Kegiatan rutin
 // menawarkan kelola seluruh jadwal, atau lewati (skip) tanggal itu saja.
-function agendaItemClick(dateStr, concreteId, recurringId){
+async function agendaItemClick(dateStr, concreteId, recurringId){
   if(recurringId){
     const rule = (state.agendaRecurring||[]).find(r=>r.id===recurringId);
     const title = rule ? rule.title : 'Training rutin';
-    const manage = confirm(`"${title}" adalah jadwal training rutin mingguan (${rule?WEEKDAY_NAMES_ID[rule.weekday]:''}).\n\nKlik OK untuk buka Kelola Jadwal Rutin (edit/hapus seluruh jadwal ini, semua minggu).\nKlik Cancel untuk pilihan lain.`);
-    if(manage){ openRecurringManager(recurringId); return; }
-    if(confirm(`Lewati (skip) training ini HANYA untuk tanggal ${dateStr}? Jadwal minggu lain tidak berubah.`)){
-      skipRecurringOccurrence(recurringId, dateStr);
-    }
+    const choice = await customChoice(
+      `"${title}" adalah jadwal training rutin mingguan (${rule?WEEKDAY_NAMES_ID[rule.weekday]:''}).\n\nPilih tindakan:`,
+      [
+        {label:'Batal', value:'cancel', style:'btn-ghost'},
+        {label:`Skip Tanggal ${dateStr} Saja`, value:'skip', style:'btn-ghost !text-red-600'},
+        {label:'Kelola Jadwal Rutin', value:'manage', style:'btn-primary'}
+      ],
+      {title:'Jadwal Rutin', cancelValue:'cancel'}
+    );
+    if(choice==='manage'){ openRecurringManager(recurringId); return; }
+    if(choice==='skip'){ skipRecurringOccurrence(recurringId, dateStr); }
     return;
   }
   openAgendaModal(dateStr, concreteId);
@@ -7116,11 +7233,11 @@ function saveAgendaEvent(){
   closeAgendaModal();
   renderAgenda();
 }
-function deleteAgendaEvent(){
+async function deleteAgendaEvent(){
   if(!editingAgendaId) return;
   const e = (state.agenda||[]).find(x=>x.id===editingAgendaId);
   if(!e) return;
-  if(!confirm(`Hapus kegiatan "${e.title}"?`)) return;
+  if(!await customConfirm(`Hapus kegiatan "${e.title}"?`)) return;
   state.agenda = state.agenda.filter(x=>x.id!==editingAgendaId);
   logActivity(`Kegiatan agenda "${e.title}" dihapus`);
   saveState();
@@ -7234,10 +7351,10 @@ function saveRecurringRule(){
   renderRecurringManagerList();
   renderAgenda();
 }
-function deleteRecurringRule(id){
+async function deleteRecurringRule(id){
   const r = (state.agendaRecurring||[]).find(x=>x.id===id);
   if(!r) return;
-  if(!confirm(`Hapus jadwal rutin "${r.title}"? Ini akan menghapusnya dari SEMUA minggu ke depan.`)) return;
+  if(!await customConfirm(`Hapus jadwal rutin "${r.title}"? Ini akan menghapusnya dari SEMUA minggu ke depan.`)) return;
   state.agendaRecurring = state.agendaRecurring.filter(x=>x.id!==id);
   state.agendaRecurringSkips = (state.agendaRecurringSkips||[]).filter(s=>!s.startsWith(id+'|'));
   logActivity(`Jadwal rutin "${r.title}" dihapus`);
@@ -7541,15 +7658,15 @@ function importBackup(event){
   };
   reader.readAsText(file);
 }
-function resetAllData(){
-  if(!confirm('Reset seluruh progress training? Tindakan ini tidak bisa dibatalkan.')) return;
+async function resetAllData(){
+  if(!await customConfirm('Reset seluruh progress training? Tindakan ini tidak bisa dibatalkan.')) return;
   state = defaultState();
   saveState();
   renderAll();
   toast('Data berhasil direset');
 }
-function clearParticipantsData(){
-  if(!confirm('Bersihkan semua data peserta beserta progress-nya? Modul, kuis, dan pengaturan lain tidak akan terhapus. Tindakan ini tidak bisa dibatalkan.')) return;
+async function clearParticipantsData(){
+  if(!await customConfirm('Bersihkan semua data peserta beserta progress-nya? Modul, kuis, dan pengaturan lain tidak akan terhapus. Tindakan ini tidak bisa dibatalkan.')) return;
   state.participants = [];
   state.activityLog = [];
   saveState();
@@ -7584,8 +7701,8 @@ async function testAIProxyConnection(){
     st.className = 'text-[11px] mt-2 text-red-600 font-semibold';
   }
 }
-function showAISetupGuide(){
-  alert('Cara mengaktifkan fitur AI:\n\n1. Buat API key di console.anthropic.com\n2. Deploy proxy (Cloudflare Worker) yang menyimpan API key tsb dan meneruskan permintaan ke Claude API\n3. Salin URL Worker (mis. https://nama.workers.dev) ke kolom "URL Proxy AI" di atas, lalu Simpan\n\nKode proxy siap-pakai sudah disiapkan terpisah — lihat file ai-proxy-worker.js yang dibagikan bersama file ini.');
+async function showAISetupGuide(){
+  await customAlert('Cara mengaktifkan fitur AI:\n\n1. Buat API key di console.anthropic.com\n2. Deploy proxy (Cloudflare Worker) yang menyimpan API key tsb dan meneruskan permintaan ke Claude API\n3. Salin URL Worker (mis. https://nama.workers.dev) ke kolom "URL Proxy AI" di atas, lalu Simpan\n\nKode proxy siap-pakai sudah disiapkan terpisah — lihat file ai-proxy-worker.js yang dibagikan bersama file ini.', {title:'Setup Fitur AI'});
 }
 function renderAIChatButtonVisibility(){
   const btn = document.getElementById('ai-chat-fab');
@@ -7729,8 +7846,8 @@ async function sendAIChatMessage(){
 function handleAIChatKeydown(ev){
   if(ev.key==='Enter' && !ev.shiftKey){ ev.preventDefault(); sendAIChatMessage(); }
 }
-function clearAIChat(){
-  if(!confirm('Hapus riwayat obrolan AI ini?')) return;
+async function clearAIChat(){
+  if(!await customConfirm('Hapus riwayat obrolan AI ini?')) return;
   aiChatHistory = [];
   renderAIChatMessages();
 }
@@ -7942,8 +8059,8 @@ async function attemptLogin(){
     setLoginBusy(false);
   }
 }
-function logoutAdmin(){
-  if(!confirm('Keluar dari aplikasi?')) return;
+async function logoutAdmin(){
+  if(!await customConfirm('Keluar dari aplikasi?')) return;
   fbAuth.signOut();
 }
 async function saveAdminAccount(){
