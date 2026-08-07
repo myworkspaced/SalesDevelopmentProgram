@@ -5154,9 +5154,14 @@ function renderPesertaDetail(id){
         <p class="text-xs text-slate-400">${p.username?'@'+escapeHtml(p.username)+' · ':''}${escapeHtml(p.posisi) || '—'}</p>
         <p class="text-xs text-slate-400 mt-0.5"><i class="fa-solid fa-phone mr-1"></i>${escapeHtml(p.noHp) || 'No HP belum diisi'}</p>
       </div>
-      <button class="w-10 h-10 rounded-full flex items-center justify-center text-white text-lg flex-shrink-0 ${p.noHp?'':'opacity-40 cursor-not-allowed'}" style="background:#25D366" ${p.noHp?`onclick="sendWaMateriReminder('${p.id}')"`:'disabled'} title="${p.noHp ? 'Kirim materi via WhatsApp' : 'No HP belum diisi'}">
-        <i class="fa-brands fa-whatsapp"></i>
-      </button>
+      <div class="flex flex-col gap-1.5 flex-shrink-0">
+        <button class="h-9 px-3 rounded-full flex items-center justify-center gap-1.5 text-white text-xs font-bold ${p.noHp?'':'opacity-40 cursor-not-allowed'}" style="background:#25D366" ${p.noHp?`onclick="sendWaMateriReminder('${p.id}','wajib')"`:'disabled'} title="${p.noHp ? 'Kirim reminder Training Wajib via WhatsApp' : 'No HP belum diisi'}">
+          <i class="fa-brands fa-whatsapp"></i> Wajib
+        </button>
+        ${additionalModules().length ? `<button class="h-9 px-3 rounded-full flex items-center justify-center gap-1.5 text-white text-xs font-bold ${p.noHp?'':'opacity-40 cursor-not-allowed'}" style="background:#f59e0b" ${p.noHp?`onclick="sendWaMateriReminder('${p.id}','additional')"`:'disabled'} title="${p.noHp ? 'Kirim reminder Training Additional via WhatsApp' : 'No HP belum diisi'}">
+          <i class="fa-brands fa-whatsapp"></i> Additional
+        </button>` : ''}
+      </div>
     </div>
     <div class="grid grid-cols-3 gap-2 mb-4">
       <div class="kpi !p-3"><span class="text-[10px] font-bold text-slate-400 uppercase">Modul Selesai</span><p class="text-lg font-extrabold mono">${done}/${wajibModules().length}</p></div>
@@ -5260,15 +5265,22 @@ function normalizePhoneForWa(raw){
   else if(!digits.startsWith('62')) digits = '62' + digits;
   return digits;
 }
-function sendWaMateriReminder(id){
+// kategori: 'wajib' (default, kurikulum inti) atau 'additional' (training tambahan
+// hasil auto-tambah dari import yang judulnya tidak cocok modul — sengaja dipisah
+// dari blast wajib supaya tidak bercampur / tidak dianggap mengganggu kurikulum inti).
+function sendWaMateriReminder(id, kategori){
   const p = getParticipant(id);
   if(!p) return;
   const phone = normalizePhoneForWa(p.noHp);
   if(!phone){ toast('No HP peserta belum diisi'); return; }
 
+  const isAdditional = kategori==='additional';
+  const modules = isAdditional ? additionalModules() : wajibModules();
+  if(isAdditional && !modules.length){ toast('Belum ada modul Additional untuk peserta ini'); return; }
+
   const belumBlocks = [];
   const selesai = [];
-  wajibModules().forEach(m=>{
+  modules.forEach(m=>{
     const c = moduleCompletionPct(p, m);
     if(c===100){ selesai.push(m.title); return; }
 
@@ -5289,12 +5301,15 @@ function sendWaMateriReminder(id){
     belumBlocks.push(header);
   });
 
-  let msg = `Halo, selamat pagi ${p.name || ''}, mengingat kamu adalah sales baru PT Raja Sukses Propertindo, diharapkan kamu mengerjakan materi ini.\n\n`;
+  const jenisLabel = isAdditional ? 'training additional (tambahan)' : 'training wajib';
+  let msg = `Halo, selamat pagi ${p.name || ''}, mengingat kamu adalah sales baru PT Raja Sukses Propertindo, diharapkan kamu mengerjakan materi ${jenisLabel} ini.\n\n`;
   if(belumBlocks.length){
-    msg += `Materi yang *belum diselesaikan* (${belumBlocks.length} modul):\n` + belumBlocks.map((t,i)=>`${i+1}. ${t}`).join('\n\n') + '\n\n';
+    msg += `Materi ${jenisLabel} yang *belum diselesaikan* (${belumBlocks.length} modul):\n` + belumBlocks.map((t,i)=>`${i+1}. ${t}`).join('\n\n') + '\n\n';
     msg += 'Mohon segera diselesaikan ya, terima kasih! 🙏';
+  } else if(modules.length){
+    msg += `Semua modul ${jenisLabel} sudah kamu selesaikan.${isAdditional ? '' : ' Tinggal menunggu penilaian akhir dari tim training.'} Terima kasih atas kerja kerasnya! 🎉`;
   } else {
-    msg += 'Semua modul wajib sudah kamu selesaikan. Tinggal menunggu penilaian akhir dari tim training. Terima kasih atas kerja kerasnya! 🎉';
+    msg += `Belum ada modul ${jenisLabel} yang tercatat untuk kamu saat ini.`;
   }
   if(selesai.length){
     msg += `\n\n(Materi yang sudah selesai: ${selesai.join(', ')})`;
@@ -6250,6 +6265,10 @@ function importParticipantsExcel(event){
       let participantsCreated = 0, participantsUpdated = 0, moduleRowsMatched = 0, participantsAutoMerged = 0;
       const unmatchedTrainings = new Set();
       const duplicateNamesFound = [];
+      // Baris-baris yang judul Training-nya tidak cocok modul apa pun, disimpan
+      // dulu di sini supaya bisa diproses ulang kalau admin memilih untuk
+      // otomatis membuatkan modul Additional untuk judul-judul tersebut.
+      const unmatchedRows = [];
 
       for(let i=headerRowIdx+1; i<rows.length; i++){
         const row = rows[i];
@@ -6310,20 +6329,58 @@ function importParticipantsExcel(event){
           if(scoreVal!==null) prog.quizScore = Math.round(scoreVal);
           moduleRowsMatched++;
         } else if(idx.training>-1 && row[idx.training]){
-          unmatchedTrainings.add(String(row[idx.training]).trim());
+          const trainingTitle = String(row[idx.training]).trim();
+          unmatchedTrainings.add(trainingTitle);
+          unmatchedRows.push({
+            p, trainingTitle,
+            pretest: idx.pretest>-1 ? row[idx.pretest] : null,
+            posttest: idx.posttest>-1 ? row[idx.posttest] : null
+          });
+        }
+      }
+
+      // Kalau ada judul Training yang tidak cocok modul manapun, tawarkan untuk
+      // otomatis membuatkannya sebagai modul TRAINING ADDITIONAL (bukan wajib).
+      // Dibuat sebagai Additional supaya tidak ikut dihitung ke progress/kelulusan
+      // kurikulum wajib, dan supaya nanti bisa di-blast WA terpisah dari training
+      // wajib (lihat tombol "Additional" di detail peserta).
+      let additionalModulesCreated = 0;
+      if(unmatchedTrainings.size){
+        hideImportLoading();
+        const list = Array.from(unmatchedTrainings);
+        const ok = await customConfirm(`Ditemukan ${list.length} judul Training pada file yang tidak cocok dengan modul manapun:\n- ${list.join('\n- ')}\n\nTambahkan otomatis sebagai modul TRAINING ADDITIONAL (bukan wajib)? Progress peserta untuk training ini akan tercatat, tapi tidak akan mengganggu perhitungan kurikulum wajib maupun status kelulusan.`);
+        showImportLoading('Sedang mengimpor data peserta...');
+        if(ok){
+          list.forEach((title, i)=>{
+            const newMod = { id:'custom-'+Date.now()+'-'+i, kategori:'additional', title, day:'', icon:'fa-book', desc:'Otomatis ditambahkan dari import Excel (training additional, di luar kurikulum wajib).', lessons:[], quiz:[] };
+            state.customModules.push(newMod);
+            additionalModulesCreated++;
+          });
+          rebuildModules();
+          unmatchedRows.forEach(r=>{
+            const mod = findModuleByTraining(r.trainingTitle);
+            if(!mod) return;
+            const prog = ensureProgress(r.p, mod.id);
+            if(typeof r.pretest==='number') prog.pretestScore = Math.round(r.pretest);
+            if(typeof r.posttest==='number') prog.posttestScore = Math.round(r.posttest);
+            const scoreVal = typeof r.posttest==='number' ? r.posttest : (typeof r.pretest==='number' ? r.pretest : null);
+            if(scoreVal!==null) prog.quizScore = Math.round(scoreVal);
+            moduleRowsMatched++;
+            unmatchedTrainings.delete(r.trainingTitle);
+          });
         }
       }
 
       saveState();
-      logActivity(`Impor Excel: ${participantsCreated} peserta baru, ${participantsUpdated} peserta diperbarui${participantsAutoMerged?`, ${participantsAutoMerged} digabung otomatis (nama sama)`:''}, ${moduleRowsMatched} baris modul tercatat`);
+      logActivity(`Impor Excel: ${participantsCreated} peserta baru, ${participantsUpdated} peserta diperbarui${participantsAutoMerged?`, ${participantsAutoMerged} digabung otomatis (nama sama)`:''}, ${moduleRowsMatched} baris modul tercatat${additionalModulesCreated?`, ${additionalModulesCreated} modul Additional baru dibuat`:''}`);
       renderAll();
 
-      let msg = `Impor selesai: ${participantsCreated} peserta baru, ${participantsUpdated} diperbarui${participantsAutoMerged?`, ${participantsAutoMerged} digabung otomatis`:''}, ${moduleRowsMatched} progress modul tercatat.`;
+      let msg = `Impor selesai: ${participantsCreated} peserta baru, ${participantsUpdated} diperbarui${participantsAutoMerged?`, ${participantsAutoMerged} digabung otomatis`:''}, ${moduleRowsMatched} progress modul tercatat${additionalModulesCreated?`, ${additionalModulesCreated} modul Additional baru dibuat`:''}.`;
       toast(msg);
 
       const warnParts = [];
       if(unmatchedTrainings.size){
-        warnParts.push('Beberapa nama Training pada file tidak cocok dengan judul modul yang ada, sehingga progress modulnya tidak tercatat:\n- ' + Array.from(unmatchedTrainings).join('\n- ') + '\n\nData peserta (nama, lokasi, SPV, dll) tetap diperbarui.');
+        warnParts.push('Beberapa nama Training pada file tidak cocok dengan judul modul yang ada, sehingga progress modulnya tidak tercatat:\n- ' + Array.from(unmatchedTrainings).join('\n- ') + '\n\nData peserta (nama, lokasi, SPV, dll) tetap diperbarui. Kamu bisa tambahkan modul ini secara manual lewat menu Modul Training (pilih kategori Additional) kalau diperlukan.');
       }
       if(duplicateNamesFound.length){
         warnParts.push('⚠️ NAMA DUPLIKAT TERDETEKSI: beberapa baris di file memiliki nama yang sama dengan peserta yang sudah ada, tapi dengan Username berbeda. Data ini OTOMATIS DIGABUNGKAN ke peserta yang sudah ada agar tidak menjadi duplikat:\n- ' + duplicateNamesFound.map(d=>`${d.name} (username baru "${d.importedUsername}" digabung ke akun "${d.existingUsername}")`).join('\n- ') + '\n\nMohon periksa kembali apakah penggabungan ini sudah benar.');
