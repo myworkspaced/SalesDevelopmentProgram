@@ -34,6 +34,9 @@
   const fbStorage = firebase.storage();
   // Single shared workspace document for all app data (state, GCI data, posisi scope).
   const FB_DOC = fbDb.collection('salespro_academy').doc('workspace');
+  // Peserta disimpan terpisah, 1 dokumen per peserta, supaya dokumen utama
+  // di atas gak pernah mentok limit 1MB Firestore walau peserta terus nambah.
+  const FB_PARTICIPANTS = FB_DOC.collection('participants');
 </script>
 <script>
   /* ===================== AI (CLAUDE) INTEGRATION ===================== */
@@ -3138,19 +3141,90 @@ function saveState(){
 /* ===================== FIREBASE CLOUD SYNC ===================== */
 // All app data (state, gciData, posisiScope) lives in one shared Firestore
 // document so it's the same on every device the admin logs into.
+//
+// EXCEPTION: state.participants is synced separately, 1 Firestore document
+// per peserta (di subcollection FB_PARTICIPANTS), bukan ikut nempel di
+// dokumen utama. Ini supaya dokumen utama gak pernah mentok limit 1MB
+// Firestore biarpun jumlah peserta/training terus nambah. Lihat
+// syncParticipantsToCloud() & loadAllCloudData() di bawah.
 let cloudSaveTimer = null;
 let cloudPendingPatch = {};
+// Snapshot JSON per-id peserta yang terakhir berhasil disinkron, dipakai
+// untuk nge-diff supaya cuma peserta yang berubah/baru/dihapus aja yang
+// ditulis ulang ke Firestore (bukan nulis ulang semua peserta tiap kali).
+let lastSyncedParticipants = null; // null = belum siap (belum selesai load awal)
+function chunkArray(arr, size){
+  const out = [];
+  for(let i=0;i<arr.length;i+=size) out.push(arr.slice(i,i+size));
+  return out;
+}
+async function syncParticipantsToCloud(participants){
+  if(!Array.isArray(participants)) return;
+  // Belum selesai load awal dari cloud: jangan diff dulu (bisa salah hapus
+  // dokumen peserta yang sebenarnya belum sempat ke-load ke `state`).
+  if(lastSyncedParticipants === null) return;
+  const currentIds = new Set();
+  const toWrite = [];
+  for(const p of participants){
+    if(!p || !p.id) continue;
+    currentIds.add(p.id);
+    const json = JSON.stringify(p);
+    if(lastSyncedParticipants.get(p.id) !== json){
+      toWrite.push({ id: p.id, data: p, json });
+    }
+  }
+  const toDelete = [];
+  for(const id of lastSyncedParticipants.keys()){
+    if(!currentIds.has(id)) toDelete.push(id);
+  }
+  if(toWrite.length === 0 && toDelete.length === 0) return;
+  try{
+    // Firestore batch max 500 operasi, jadi dipecah per 400 biar aman.
+    const ops = [
+      ...toWrite.map(w=>({ type:'set', id:w.id, data:w.data })),
+      ...toDelete.map(id=>({ type:'delete', id }))
+    ];
+    for(const group of chunkArray(ops, 400)){
+      const batch = fbDb.batch();
+      for(const op of group){
+        const ref = FB_PARTICIPANTS.doc(op.id);
+        if(op.type === 'set') batch.set(ref, op.data);
+        else batch.delete(ref);
+      }
+      await batch.commit();
+    }
+    for(const w of toWrite) lastSyncedParticipants.set(w.id, w.json);
+    for(const id of toDelete) lastSyncedParticipants.delete(id);
+  }catch(e){
+    console.error('Gagal menyimpan peserta ke cloud:', e);
+    toast('Gagal sinkron peserta ke cloud, perubahan tersimpan lokal');
+  }
+}
 function cloudSave(patch){
   Object.assign(cloudPendingPatch, patch);
   clearTimeout(cloudSaveTimer);
   cloudSaveTimer = setTimeout(async ()=>{
     const toSend = cloudPendingPatch;
     cloudPendingPatch = {};
+    // Pisahkan participants dari `state` sebelum dikirim ke dokumen utama;
+    // peserta disinkron sendiri ke subcollection lewat syncParticipantsToCloud().
+    let participantsToSync = null;
+    if(toSend.state){
+      const stateClone = { ...toSend.state };
+      participantsToSync = stateClone.participants || [];
+      delete stateClone.participants;
+      toSend.state = stateClone;
+    }
     try{
-      await FB_DOC.set(toSend, { merge: true });
+      if(Object.keys(toSend).length > 0){
+        await FB_DOC.set(toSend, { merge: true });
+      }
     }catch(e){
       console.error('Gagal menyimpan ke cloud:', e);
       toast('Gagal sinkron ke cloud, perubahan tersimpan lokal');
+    }
+    if(participantsToSync !== null){
+      await syncParticipantsToCloud(participantsToSync);
     }
   }, 400);
 }
@@ -3160,7 +3234,30 @@ async function loadAllCloudData(){
     if(snap.exists){
       const data = snap.data();
       if(data.state){
+        // Dokumen utama sekarang disimpan TANPA field participants (peserta
+        // ada di subcollection sendiri), tapi normalizeState() mengharuskan
+        // participants ada supaya gak dianggap data kosong/rusak. Kasih
+        // placeholder dulu di sini, nanti ditimpa data asli dari subcollection.
+        if(!data.state.participants) data.state.participants = [];
         state = normalizeState(data.state);
+      }
+      // Ambil semua peserta dari subcollection terpisah.
+      const partSnap = await FB_PARTICIPANTS.get();
+      if(!partSnap.empty){
+        state.participants = partSnap.docs.map(d=>d.data());
+        lastSyncedParticipants = new Map(partSnap.docs.map(d=>[d.id, JSON.stringify(d.data())]));
+      } else if(Array.isArray(data.state && data.state.participants) && data.state.participants.length){
+        // Migrasi 1x: dokumen lama (sebelum refactor ini) masih nyimpen
+        // peserta nempel di field state.participants. Pindahkan ke
+        // subcollection supaya dokumen utama gak lagi kelebihan beban.
+        state.participants = data.state.participants;
+        lastSyncedParticipants = new Map();
+        await syncParticipantsToCloud(state.participants);
+        cloudSave({ state: state }); // simpan ulang dokumen utama tanpa field participants
+      } else {
+        lastSyncedParticipants = new Map();
+      }
+      if(data.state){
         const masterListMigrated = applyMasterTrainingList();
         rebuildModules();
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -3183,7 +3280,10 @@ async function loadAllCloudData(){
       const legacy = (localStorage.getItem(AI_PROXY_LEGACY_KEY) || '').trim();
       if(legacy) cachedAIProxyUrl = legacy;
       localStorage.removeItem(AI_PROXY_LEGACY_KEY);
-      await FB_DOC.set({ state: state, gciData: gciData, posisiScope: savedPosisiScope, aiProxyUrl: cachedAIProxyUrl }, { merge: true });
+      lastSyncedParticipants = new Map();
+      await syncParticipantsToCloud(state.participants);
+      const { participants, ...stateWithoutParticipants } = state;
+      await FB_DOC.set({ state: stateWithoutParticipants, gciData: gciData, posisiScope: savedPosisiScope, aiProxyUrl: cachedAIProxyUrl }, { merge: true });
     }
   }catch(e){
     console.error('Gagal memuat data cloud, menggunakan data lokal:', e);
