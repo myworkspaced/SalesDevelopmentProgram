@@ -2689,7 +2689,7 @@ function importGciExcel(event){
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
       const headerRowIdx = findExcelHeaderRow(rows, ['Id GCI', 'Tanggal GCI']);
-      if(headerRowIdx===-1){ toast('Format Excel tidak dikenali (kolom Id GCI / Tanggal GCI tidak ditemukan)'); event.target.value=''; return; }
+      if(headerRowIdx===-1){ toast('Format Excel tidak dikenali (kolom Id GCI / Tanggal GCI tidak ditemukan)'); hideImportLoading(); event.target.value=''; return; }
       const headers = rows[headerRowIdx];
       const col = name => excelCol(headers, name);
       const idx = {
