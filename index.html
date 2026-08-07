@@ -6338,6 +6338,7 @@ function importParticipantsExcel(event){
         }
       }
       if(warnParts.length){
+        hideImportLoading();
         await customAlert('Impor selesai.\n\n' + warnParts.join('\n\n'), {title:'Impor Selesai'});
       }
     }catch(err){
