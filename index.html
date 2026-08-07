@@ -167,6 +167,8 @@
   .badge-amber{background:#fef3c7;color:#92400e}
   .badge-slate{background:#f1f5f9;color:#475569}
   .badge-red{background:#fee2e2;color:#b91c1c}
+  .badge-blue{background:#dbeafe;color:#1d4ed8}
+  .badge-purple{background:#f3e8ff;color:#7e22ce}
 
   .btn-primary{background:var(--brand-600);color:#fff;font-weight:700;font-size:.8125rem;padding:9px 16px;border-radius:10px;transition:.15s}
   .btn-primary:hover{background:var(--brand-700)}
@@ -176,11 +178,11 @@
   .btn-danger:hover{background:#b91c1c}
 
   .dialog-overlay{position:fixed;inset:0;background:rgba(12,18,32,.5);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px}
-  .dialog-box{background:#fff;border-radius:16px;box-shadow:0 24px 60px -14px rgba(12,18,32,.4);width:100%;max-width:400px;padding:22px}
+  .dialog-box{background:#fff;border-radius:16px;box-shadow:0 24px 60px -14px rgba(12,18,32,.4);width:100%;max-width:400px;padding:22px;max-height:calc(100vh - 40px);display:flex;flex-direction:column;overflow:hidden}
   .dialog-icon{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0}
   .dialog-icon.warn{background:#fee2e2;color:#dc2626}
   .dialog-icon.info{background:#dcfce7;color:var(--brand-600)}
-  .dialog-message{font-size:.8125rem;color:#334155;white-space:pre-line;line-height:1.5}
+  .dialog-message{font-size:.8125rem;color:#334155;white-space:pre-line;line-height:1.5;overflow-y:auto;max-height:52vh;padding-right:4px}
   .dialog-btn-row{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;flex-wrap:wrap}
   .dialog-btn-row.stacked{flex-direction:column}
   .dialog-btn-row.stacked>button{width:100%}
@@ -195,6 +197,7 @@
   .module-card.module-drag-ghost{opacity:.4;background:#f0fdf6;border:1px dashed var(--brand-400)}
   .module-card.module-drag-chosen{box-shadow:0 14px 28px -10px rgba(12,18,32,.22)}
   .module-card{transition:box-shadow .15s}
+  .module-card.module-selected{border-color:var(--brand-400);box-shadow:0 0 0 2px var(--brand-400) inset}
   .import-spinner{width:44px;height:44px;border:4px solid rgba(15,23,42,.10);border-top-color:var(--brand-600);border-radius:50%;animation:import-spin .8s linear infinite}
   @keyframes import-spin{to{transform:rotate(360deg)}}
   .quiz-option{border:1px solid var(--line);border-radius:10px;padding:10px 14px;cursor:pointer;transition:.15s;font-size:.8125rem}
@@ -861,7 +864,18 @@
         <div class="card p-4 flex items-center gap-3 flex-wrap">
           <i class="fa-solid fa-circle-info text-slate-300"></i>
           <p class="text-xs text-slate-500 flex-1 min-w-[240px]">Menampilkan rata-rata progress materi seluruh peserta per modul. <b>Modul Wajib</b> menentukan progress & syarat kelulusan sertifikat, sedangkan <b>Modul Additional</b> bersifat pelengkap dan tidak memengaruhi kelulusan. Progress peserta diperbarui otomatis melalui impor data Excel di tab Peserta.</p>
+          <button class="btn-ghost" onclick="openGroupImportModal()"><i class="fa-solid fa-tags mr-1"></i>Kelompokkan Modul</button>
           <button class="btn-primary" onclick="openAddModule()"><i class="fa-solid fa-plus mr-1"></i>Tambah Modul</button>
+        </div>
+        <div class="card p-4 flex items-center gap-3 flex-wrap">
+          <div class="relative flex-1 min-w-[200px]">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
+            <input id="modul-search" type="text" placeholder="Cari judul modul..." class="field !pl-8" oninput="renderModules()">
+          </div>
+          <select id="modul-filter-grup" class="field !w-auto" onchange="renderModules()"><option value="">Semua Grup</option></select>
+          <select id="modul-filter-divisi" class="field !w-auto" onchange="renderModules()"><option value="">Semua Divisi</option></select>
+          <button id="modul-select-toggle-btn" class="btn-ghost" onclick="toggleModuleSelectMode()"><i class="fa-solid fa-check-double mr-1"></i>Pilih Massal</button>
+          <button id="modul-bulk-delete-btn" class="btn-ghost hidden" style="color:#dc2626;border-color:#fecaca" onclick="bulkDeleteModules()"><i class="fa-solid fa-trash-can mr-1"></i>Hapus Terpilih (<span id="modul-selected-count">0</span>)</button>
         </div>
         <div id="modules-list" class="grid grid-cols-1 md:grid-cols-2 gap-5"></div>
       </div>
@@ -1606,10 +1620,10 @@
 <div id="module-modal" class="modal-overlay hidden">
   <div class="card p-6 w-full max-w-lg max-h-[88vh] overflow-y-auto">
     <div class="flex items-center justify-between mb-4">
-      <p class="text-sm font-extrabold">Tambah Modul</p>
+      <p id="module-modal-title" class="text-sm font-extrabold">Tambah Modul</p>
       <button onclick="closeAddModule()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
     </div>
-    <p class="text-xs text-slate-400 mb-4">Buat kerangka modul baru. Materi &amp; kuis dapat dilengkapi kemudian.</p>
+    <p id="module-modal-subtitle" class="text-xs text-slate-400 mb-4">Buat kerangka modul baru. Materi &amp; kuis dapat dilengkapi kemudian.</p>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
       <div class="sm:col-span-2">
         <label class="text-[11px] font-bold text-slate-500">Judul Modul</label>
@@ -1631,12 +1645,35 @@
         </select>
         <p class="text-[10px] text-slate-400 mt-1">Modul Wajib dihitung untuk progress & syarat kelulusan sertifikat. Modul Additional bersifat pelengkap dan tidak memengaruhi kelulusan.</p>
       </div>
+      <div>
+        <label class="text-[11px] font-bold text-slate-500">Grup (opsional)</label>
+        <input id="nm-grup" type="text" list="nm-grup-list" placeholder="mis. Samba (Basic Training)" class="field">
+        <datalist id="nm-grup-list"></datalist>
+      </div>
+      <div>
+        <label class="text-[11px] font-bold text-slate-500">Divisi (opsional)</label>
+        <input id="nm-divisi" type="text" list="nm-divisi-list" placeholder="mis. Sales & Marketing" class="field">
+        <datalist id="nm-divisi-list"></datalist>
+      </div>
       <div class="sm:col-span-2">
         <label class="text-[11px] font-bold text-slate-500">Deskripsi</label>
         <textarea id="nm-desc" rows="3" placeholder="Ringkasan singkat isi modul ini" class="field"></textarea>
       </div>
     </div>
-    <button class="btn-primary w-full mt-5" onclick="saveModule()">Simpan Modul</button>
+    <button id="module-modal-save-btn" class="btn-primary w-full mt-5" onclick="saveModule()">Simpan Modul</button>
+  </div>
+</div>
+
+<!-- Module Grouping Import Modal -->
+<div id="group-import-modal" class="modal-overlay hidden">
+  <div class="card p-6 w-full max-w-2xl max-h-[88vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-3">
+      <p class="text-sm font-extrabold">Kelompokkan Modul (Grup &amp; Divisi)</p>
+      <button onclick="closeGroupImportModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <p class="text-xs text-slate-400 mb-3">Tempel data 3 kolom (Grup, Divisi, Judul Training) dipisah <b>Tab</b> — hasil copy-paste langsung dari Excel/Sheets. Judul yang cocok dengan modul yang sudah ada akan otomatis ditandai Grup &amp; Divisi-nya (jadi tag/filter di halaman ini). Judul yang belum ada modulnya akan dilewati dulu dan dilaporkan di akhir.</p>
+    <textarea id="gi-textarea" rows="10" class="field font-mono text-[11px]" placeholder="Panji (Induction Training)&#9;All&#9;Company Profile RSP"></textarea>
+    <button class="btn-primary w-full mt-4" onclick="applyGroupImport()"><i class="fa-solid fa-tags mr-1"></i>Terapkan Pengelompokan</button>
   </div>
 </div>
 
@@ -1900,6 +1937,17 @@
   </div>
 </div>
 
+<!-- Additional Materi List Modal (dipicu dari tombol "Additional" di detail peserta) -->
+<div id="additional-materi-modal" class="modal-overlay hidden">
+  <div class="card p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-1">
+      <p class="text-sm font-extrabold"><i class="fa-solid fa-list-check mr-1" style="color:#f59e0b"></i>Materi Additional</p>
+      <button onclick="closeAdditionalMateriModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="additional-materi-body"></div>
+  </div>
+</div>
+
 <!-- Agenda Wajib Detail Modal (from Resume Ringkasan) -->
 <div id="agenda-wajib-detail-modal" class="modal-overlay hidden">
   <div class="card p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto">
@@ -2055,7 +2103,7 @@ function escapeHtml(str){
 }
 /* ===================== DATA KURIKULUM ===================== */
 const BASE_MODULES = [
-  { id:'m3', kategori:'wajib', title:'Be A Great Employee PT Raja Sukses Propertindo', day:'Day 1', icon:'fa-star', aliases:['Be A Great Employee'],
+  { id:'m3', kategori:'wajib', title:'Be A Great Employee PT Raja Sukses Propertindo', day:'Day 1', icon:'fa-star', aliases:['Be A Great Employee'], grup:'Panji (Induction Training)', divisi:'All',
     desc:'Membangun sikap kerja profesional dan karakter karyawan unggul sejak hari pertama.',
     lessons:[
       {title:'Mindset Karyawan Unggul', dur:15, content:'Bangun pola pikir proaktif, mau belajar, dan bertanggung jawab penuh atas hasil kerja sebagai ciri karyawan unggul.'},
@@ -2070,7 +2118,7 @@ const BASE_MODULES = [
       {q:'Modul Be A Great Employee ditempatkan di Day 1 karena...', options:['Sikap kerja profesional perlu dibangun sejak awal','Tidak berkaitan dengan pekerjaan','Hanya relevan untuk manajer','Menggantikan pelatihan produk'], a:0}
     ]
   },
-  { id:'m1', kategori:'wajib', title:'Company Profile RSP', day:'Day 1', icon:'fa-building',
+  { id:'m1', kategori:'wajib', title:'Company Profile RSP', day:'Day 1', icon:'fa-building', grup:'Panji (Induction Training)', divisi:'All',
     desc:'Mengenal sejarah, visi-misi, struktur organisasi, dan lini bisnis perusahaan RSP.',
     lessons:[
       {title:'Sejarah & Visi Misi RSP', dur:15, content:'Pelajari perjalanan berdirinya RSP, visi dan misi perusahaan, serta nilai-nilai inti yang menjadi pedoman kerja seluruh karyawan.'},
@@ -2085,7 +2133,7 @@ const BASE_MODULES = [
       {q:'Lini bisnis RSP paling tepat dipahami melalui materi...', options:['Struktur Organisasi & Lini Bisnis','Kode Etik & Tata Tertib','Teknik Closing','Product Knowledge'], a:0}
     ]
   },
-  { id:'m2', kategori:'wajib', title:'Peraturan Perusahaan RSP', day:'Day 1', icon:'fa-scale-balanced', aliases:['Peraturan Perusahaan'],
+  { id:'m2', kategori:'wajib', title:'Peraturan Perusahaan RSP', day:'Day 1', icon:'fa-scale-balanced', aliases:['Peraturan Perusahaan'], grup:'Panji (Induction Training)', divisi:'All',
     desc:'Memahami aturan kerja, kode etik, dan kebijakan administratif karyawan.',
     lessons:[
       {title:'Jam Kerja & Kehadiran', dur:10, content:'Ketahui ketentuan jam kerja, sistem absensi, serta toleransi keterlambatan yang berlaku di RSP.'},
@@ -2100,7 +2148,7 @@ const BASE_MODULES = [
       {q:'Tujuan utama mempelajari Peraturan Perusahaan di Day 1 adalah...', options:['Karyawan baru memahami aturan sejak awal bekerja','Mengganti pelatihan produk','Menunda orientasi kerja','Menggantikan kontrak kerja'], a:0}
     ]
   },
-  { id:'m4', kategori:'wajib', title:'Marketing Rumah Ningrat', day:'Day 1', icon:'fa-bullhorn', aliases:['Marketing RN'],
+  { id:'m4', kategori:'wajib', title:'Marketing Rumah Ningrat', day:'Day 1', icon:'fa-bullhorn', aliases:['Marketing RN'], grup:'Samba (Basic Training)', divisi:'Sales & Marketing',
     desc:'Pengenalan strategi dan materi marketing untuk lini produk Rumah Ningrat.',
     lessons:[
       {title:'Pengenalan Lini Produk Rumah Ningrat', dur:15, content:'Kenali gambaran umum lini produk Rumah Ningrat, posisinya dalam portofolio perusahaan, dan segmen pasar yang dituju.'},
@@ -2115,7 +2163,7 @@ const BASE_MODULES = [
       {q:'Pemahaman lini produk Rumah Ningrat akan membantu sales dalam...', options:['Menjelaskan produk secara akurat ke calon konsumen','Mengabaikan kebutuhan konsumen','Menunda proses penawaran','Mengganti harga sepihak'], a:0}
     ]
   },
-  { id:'m5', kategori:'wajib', title:'Product Knowledge RSP', day:'Day 2', icon:'fa-house',
+  { id:'m5', kategori:'wajib', title:'Product Knowledge RSP', day:'Day 2', icon:'fa-house', grup:'Samba (Basic Training)', divisi:'Sales & Marketing',
     desc:'Detail spesifikasi, tipe unit, dan keunggulan produk properti RSP.',
     lessons:[
       {title:'Tipe & Spesifikasi Unit', dur:20, content:'Pelajari berbagai tipe unit properti yang dipasarkan RSP beserta spesifikasi teknis dan luas bangunannya.'},
@@ -2130,7 +2178,7 @@ const BASE_MODULES = [
       {q:'Materi Product Knowledge ditempatkan di Day 2 karena...', options:['Menjadi dasar sebelum mempelajari teknik penawaran','Tidak berkaitan dengan penjualan','Menggantikan pelatihan closing','Hanya relevan untuk tim dokumen'], a:0}
     ]
   },
-  { id:'m6', kategori:'wajib', title:'Marketing Application System', day:'Day 2', icon:'fa-mobile-screen', aliases:['Marketing App System'],
+  { id:'m6', kategori:'wajib', title:'Marketing Application System', day:'Day 2', icon:'fa-mobile-screen', aliases:['Marketing App System'], grup:'Samba (Basic Training)', divisi:'Sales & Marketing',
     desc:'Cara menggunakan aplikasi dan sistem marketing internal untuk input data & leads.',
     lessons:[
       {title:'Instalasi & Login Aplikasi', dur:10, content:'Pelajari langkah instalasi aplikasi marketing internal, cara login, dan pengaturan akun awal.'},
@@ -2145,7 +2193,7 @@ const BASE_MODULES = [
       {q:'Manfaat sistem marketing app bagi tim adalah...', options:['Visibilitas data prospek yang lebih akurat dan terpusat','Menambah pekerjaan tanpa hasil','Mengurangi koordinasi tim','Menghilangkan kebutuhan follow up'], a:0}
     ]
   },
-  { id:'m7', kategori:'wajib', title:'Teknik Penawaran Online dan Offline', day:'Day 2', icon:'fa-comments-dollar', aliases:['Teknik Penawaran'],
+  { id:'m7', kategori:'wajib', title:'Teknik Penawaran Online dan Offline', day:'Day 2', icon:'fa-comments-dollar', aliases:['Teknik Penawaran'], grup:'Samba (Basic Training)', divisi:'Sales & Marketing',
     desc:'Cara mempresentasikan dan menawarkan produk properti secara meyakinkan, baik online maupun offline.',
     lessons:[
       {title:'Menyiapkan Materi Penawaran', dur:15, content:'Pelajari cara menyiapkan materi presentasi yang relevan dengan kebutuhan calon konsumen sebelum melakukan penawaran, baik untuk sesi online maupun tatap muka langsung.'},
@@ -2161,7 +2209,7 @@ const BASE_MODULES = [
       {q:'Teknik Penawaran ditempatkan setelah Product Knowledge karena...', options:['Sales perlu menguasai produk sebelum menawarkannya','Tidak ada keterkaitan antar materi','Product Knowledge tidak penting','Penawaran tidak memerlukan pengetahuan produk'], a:0}
     ]
   },
-  { id:'m8', kategori:'wajib', title:'Teknik Follow Up', day:'Day 4', icon:'fa-phone',
+  { id:'m8', kategori:'wajib', title:'Teknik Follow Up', day:'Day 4', icon:'fa-phone', grup:'Rumyang (Advance Training)', divisi:'Sales & Marketing',
     desc:'Strategi follow up calon konsumen agar tetap tertarik hingga siap closing.',
     lessons:[
       {title:'Kapan & Bagaimana Follow Up', dur:15, content:'Pelajari waktu yang tepat untuk follow up serta cara menghubungi calon konsumen tanpa terkesan memaksa.'},
@@ -2176,7 +2224,7 @@ const BASE_MODULES = [
       {q:'Follow up pada prospek hangat sebaiknya lebih fokus pada...', options:['Mendorong ke tahap keputusan/closing','Mengulang perkenalan produk dari awal','Menunda proses lebih lama','Mengabaikan minat yang sudah ada'], a:0}
     ]
   },
-  { id:'m9', kategori:'wajib', title:'Teknik Closing', day:'Day 4', icon:'fa-handshake',
+  { id:'m9', kategori:'wajib', title:'Teknik Closing', day:'Day 4', icon:'fa-handshake', grup:'Rumyang (Advance Training)', divisi:'Sales & Marketing',
     desc:'Teknik mengarahkan calon konsumen menuju keputusan pembelian.',
     lessons:[
       {title:'Mengenali Sinyal Closing', dur:15, content:'Pelajari tanda-tanda calon konsumen siap membeli, seperti pertanyaan detail pembayaran atau jadwal serah terima unit.'},
@@ -2191,7 +2239,7 @@ const BASE_MODULES = [
       {q:'Modul Teknik Closing ditempatkan setelah Teknik Follow Up karena...', options:['Closing merupakan kelanjutan dari proses follow up yang berhasil','Tidak ada hubungan antar keduanya','Follow up tidak memengaruhi closing','Closing selalu dilakukan sebelum follow up'], a:0}
     ]
   },
-  { id:'m10', kategori:'wajib', title:'Wake The Giant', day:'Day 4', icon:'fa-fire',
+  { id:'m10', kategori:'wajib', title:'Wake The Giant', day:'Day 4', icon:'fa-fire', grup:'Rumyang (Advance Training)', divisi:'Sales & Marketing',
     desc:'Sesi motivasi untuk membangkitkan semangat juang dan mental sales yang tangguh.',
     lessons:[
       {title:'Mengenali Potensi Diri sebagai Sales', dur:15, content:'Gali potensi dan kekuatan diri yang dapat dikembangkan untuk menjadi sales properti yang berprestasi.'},
@@ -2797,14 +2845,26 @@ function rebuildModules(){
   const overrides = state.lessonOverrides || {};
   const deletedLessons = state.deletedLessonIdx || {};
   const customLessons = state.customLessons || {};
+  const groupOverrides = state.moduleGroupOverrides || {};
+  const moduleFieldOverrides = state.moduleOverrides || {};
   MODULES = BASE_MODULES.filter(m=>!deleted.includes(m.id)).concat(custom).map(m=>{
+    // Field-level edit (judul/hari/ikon/deskripsi/kategori) untuk modul bawaan,
+    // hasil dari "Edit Modul". Modul kustom sudah langsung menyimpan field-nya sendiri.
+    const modFieldOv = moduleFieldOverrides[m.id];
+    if(modFieldOv) m = { ...m, ...modFieldOv };
     const modOverrides = overrides[m.id] || {};
     const modDeleted = deletedLessons[m.id] || [];
     const modCustomLessons = customLessons[m.id] || [];
     const baseLessons = m.lessons
       .map((l,idx)=> modOverrides[idx] ? {...l, ...modOverrides[idx]} : l)
       .filter((l,idx)=> !modDeleted.includes(idx));
-    return { ...m, lessons: baseLessons.concat(modCustomLessons) };
+    // Grup (Panji/Samba/Rumyang) & Divisi: pengelompokan modul, hanya dipakai
+    // sebagai tag/label + filter di halaman Modul Training (tidak memengaruhi
+    // urutan/kelulusan). groupOverrides (hasil "Kelompokkan Modul") menang atas
+    // nilai bawaan modul kalau ada.
+    const go = groupOverrides[m.id];
+    return { ...m, lessons: baseLessons.concat(modCustomLessons),
+      grup: (go && go.grup) || m.grup || '', divisi: (go && go.divisi) || m.divisi || '' };
   });
   // Terapkan urutan modul kustom (drag/atur manual). ID modul baru yang belum
   // ada di daftar urutan otomatis ditambahkan di akhir, dan ID yang sudah
@@ -2817,6 +2877,132 @@ function rebuildModules(){
   MODULES.sort((a,b)=> orderIndex.indexOf(a.id) - orderIndex.indexOf(b.id));
 }
 rebuildModules();
+
+/* ===================== MASTER TRAINING LIST (Grup/Departemen/Judul) =====================
+   Daftar acuan resmi "Training Program" (Grup: Panji/Samba/Rumyang), Departemen, dan
+   Judul Materi Training. Dipakai sekali (one-time migration, ditandai lewat
+   state.masterTrainingListV1Applied) untuk:
+   1) Menyamakan tag Grup & Divisi modul yang judulnya sudah cocok dengan modul yang ada.
+   2) Membuat modul baru (kategori Additional) untuk judul yang belum ada modulnya sama sekali.
+   Aman dijalankan berkali-kali (idempotent) karena ditandai flag & id modul baru stabil. */
+const MASTER_TRAINING_LIST = [
+  {no:1, grup:'Panji (Induction Training)', divisi:'All', title:'Company Profile RSP'},
+  {no:2, grup:'Panji (Induction Training)', divisi:'All', title:'Peraturan Perusahaan RSP'},
+  {no:3, grup:'Panji (Induction Training)', divisi:'All', title:'Be A Great Employee PT Raja Sukses Propertindo'},
+  {no:4, grup:'Samba (Basic Training)', divisi:'All', title:'Flow Business RSP'},
+  {no:5, grup:'Samba (Basic Training)', divisi:'All', title:'IT Awareness'},
+  {no:6, grup:'Samba (Basic Training)', divisi:'Sales & Marketing', title:'Marketing Rumah Ningrat'},
+  {no:7, grup:'Samba (Basic Training)', divisi:'Sales & Marketing', title:'Product Knowledge RSP'},
+  {no:8, grup:'Samba (Basic Training)', divisi:'Sales & Marketing', title:'Marketing Application System'},
+  {no:9, grup:'Samba (Basic Training)', divisi:'Sales & Marketing', title:'Teknik Penawaran Online dan Offline'},
+  {no:10, grup:'Rumyang (Advance Training)', divisi:'Sales & Marketing', title:'Teknik Follow Up'},
+  {no:11, grup:'Rumyang (Advance Training)', divisi:'Sales & Marketing', title:'Teknik Closing'},
+  {no:12, grup:'Rumyang (Advance Training)', divisi:'Sales & Marketing', title:'Wake The Giant'},
+  {no:13, grup:'Rumyang (Advance Training)', divisi:'Sales & Marketing', title:'Document Control'},
+  {no:14, grup:'Rumyang (Advance Training)', divisi:'Sales & Marketing', title:'Standar Serah Terima Unit Rumah'},
+  {no:15, grup:'Rumyang (Advance Training)', divisi:'Sales & Marketing', title:'Magic Number'},
+  {no:16, grup:'Rumyang (Advance Training)', divisi:'Sales & Marketing', title:'Meta Ads sesi 1'},
+  {no:17, grup:'Rumyang (Advance Training)', divisi:'Sales & Marketing', title:'Meta Ads sesi 2'},
+  {no:18, grup:'Rumyang (Advance Training)', divisi:'Sales & Marketing', title:'Live Streaming Property'},
+  {no:19, grup:'Rumyang (Advance Training)', divisi:'Sales & Marketing', title:'Digital Estate Mastery : Cara Berkonten Social Media'},
+  {no:20, grup:'Rumyang (Advance Training)', divisi:'Sales & Marketing', title:'Hypno Selling'},
+  {no:21, grup:'Rumyang (Advance Training)', divisi:'Sales & Marketing', title:'Personal Branding Sales Property'},
+  {no:22, grup:'Rumyang (Advance Training)', divisi:'Sales & Marketing', title:'Networking Sales Property'},
+  {no:23, grup:'Rumyang (Advance Training)', divisi:'Sales & Marketing', title:'Referral Strategic'},
+  {no:24, grup:'Rumyang (Advance Training)', divisi:'Sales & Marketing', title:'Handling Complaint'},
+  {no:25, grup:'Rumyang (Advance Training)', divisi:'Sales & Marketing', title:'Closing Strategi B2B'},
+  {no:26, grup:'Rumyang (Advance Training)', divisi:'Sales & Marketing', title:'Growth Mindset'},
+  {no:27, grup:'Rumyang (Advance Training)', divisi:'Sales & Marketing', title:'Lead The Other By Example'},
+  {no:28, grup:'Samba (Basic Training)', divisi:'Sales & Marketing', title:'Sales Supervisor Mastery - Sesi 1 : Planning, Monitoring & Reporting'},
+  {no:29, grup:'Samba (Basic Training)', divisi:'Sales & Marketing', title:'Sales Supervisor Mastery - Sesi 2 : Decision Making & Developing'},
+  {no:30, grup:'Samba (Basic Training)', divisi:'Marketing Communication', title:'Job Profile Content Writer'},
+  {no:31, grup:'Samba (Basic Training)', divisi:'Marketing Communication', title:'Job Profile Grapic Design'},
+  {no:32, grup:'Samba (Basic Training)', divisi:'Marketing Communication', title:'Job Profile Administrasi Online'},
+  {no:33, grup:'Samba (Basic Training)', divisi:'Marketing Communication', title:'Job Profile Cinematographer'},
+  {no:34, grup:'Samba (Basic Training)', divisi:'Marketing Communication', title:'Job Profile Refferal & Community'},
+  {no:35, grup:'Samba (Basic Training)', divisi:'Marketing Communication', title:'Job Profile Host Live'},
+  {no:36, grup:'Samba (Basic Training)', divisi:'Human Resources', title:'Job Profile Organization Development'},
+  {no:37, grup:'Samba (Basic Training)', divisi:'Human Resources', title:'Job Profile Performance Management'},
+  {no:38, grup:'Samba (Basic Training)', divisi:'Human Resources', title:'Job Profile Talent Acquisition'},
+  {no:39, grup:'Samba (Basic Training)', divisi:'Human Resources', title:'Job Profile Training & Development'},
+  {no:40, grup:'Samba (Basic Training)', divisi:'PDCA', title:'Job Profile PDCA'},
+  {no:41, grup:'Samba (Basic Training)', divisi:'Legal', title:'Job Profile Admin Legal'},
+  {no:42, grup:'Samba (Basic Training)', divisi:'Legal', title:'Job Profile LA Surveyor'},
+  {no:43, grup:'Samba (Basic Training)', divisi:'Legal', title:'Job Profile Legal Certification (Tax)'},
+  {no:44, grup:'Samba (Basic Training)', divisi:'Business Operation & Adm', title:'Job Profile Admin Data Collect'},
+  {no:45, grup:'Samba (Basic Training)', divisi:'Business Operation & Adm', title:'Job Profile Bank Relation Staff'},
+  {no:46, grup:'Samba (Basic Training)', divisi:'Business Operation & Adm', title:'Job Profile LPA Staff'},
+  {no:47, grup:'Samba (Basic Training)', divisi:'Business Operation & Adm', title:'Job Profile DRBM Recovery'},
+  {no:48, grup:'Samba (Basic Training)', divisi:'Digital Marketing', title:'Job Profile Ads Specialist'},
+  {no:49, grup:'Samba (Basic Training)', divisi:'Digital Marketing', title:'Job Profile Admin B2B'},
+  {no:50, grup:'Samba (Basic Training)', divisi:'Digital Marketing', title:'Job Profile Admin Digital Marketing'},
+  {no:51, grup:'Samba (Basic Training)', divisi:'Digital Marketing', title:'Job Profile Content Creator'},
+  {no:52, grup:'Samba (Basic Training)', divisi:'Digital Marketing', title:'Job Profile PDCA Marketing Communication'},
+  {no:53, grup:'Samba (Basic Training)', divisi:'Digital Marketing', title:'Job Profile Leader Admin Digital Marketing'},
+  {no:54, grup:'Samba (Basic Training)', divisi:'Business Operation & Adm', title:'SOP Pemberkasan Dokumen Konsumen'},
+  {no:55, grup:'Samba (Basic Training)', divisi:'Business Operation & Adm', title:'SOP DRBM Recovery'},
+  {no:56, grup:'Samba (Basic Training)', divisi:'Legal', title:'Job Profile Legal Permission Staff'},
+  {no:57, grup:'Samba (Basic Training)', divisi:'Legal', title:'Job Profile Legal Permission Supervisor'},
+  {no:58, grup:'Samba (Basic Training)', divisi:'Legal', title:'Job Profile Legal Permission Officer'},
+  {no:59, grup:'Samba (Basic Training)', divisi:'Legal', title:'Job Profile Land Acquisition Manager'},
+  {no:60, grup:'Samba (Basic Training)', divisi:'Legal', title:'Job Profile Land Acquisition Supervisor'},
+  {no:61, grup:'Samba (Basic Training)', divisi:'Legal', title:'Job Profile Land Acquisition Staff'},
+  {no:62, grup:'Samba (Basic Training)', divisi:'Investor Relation', title:'SOP KYG KPL'},
+  {no:63, grup:'Samba (Basic Training)', divisi:'Investor Relation', title:'SOP Monitoring SLA & Realisasi'},
+  {no:64, grup:'Samba (Basic Training)', divisi:'Investor Relation', title:'SOP Pencairan Dajam'},
+  {no:65, grup:'Samba (Basic Training)', divisi:'Investor Relation', title:'SOP Pencairan KPR'},
+  {no:66, grup:'Samba (Basic Training)', divisi:'Business Operation & Adm', title:'Document Control'},
+  {no:67, grup:'Samba (Basic Training)', divisi:'IT', title:'Komunikasi Efektif Trusmi Group Panduan IT'},
+  {no:68, grup:'Samba (Basic Training)', divisi:'Legal', title:'Legal Risk Awareness'},
+  {no:69, grup:'Samba (Basic Training)', divisi:'Finance and Accounting', title:'Attention to Detail'},
+  {no:70, grup:'Samba (Basic Training)', divisi:'Data Collection', title:'Attention to Detail'},
+  {no:71, grup:'Rumyang (Advance Training)', divisi:'IT', title:'Business Model Canvas'},
+  {no:72, grup:'Rumyang (Advance Training)', divisi:'General Affair', title:'Time Management'},
+  {no:73, grup:'Rumyang (Advance Training)', divisi:'Marketing Communication', title:'Audience Insight & Content Research for High-Engagement Content'},
+  {no:74, grup:'Rumyang (Advance Training)', divisi:'Bank Relation', title:'Komunikasi Efektif Trusmi Group Panduan Bank Relation'},
+  {no:75, grup:'Rumyang (Advance Training)', divisi:'General Affair', title:'Skill Negosiasi'},
+  {no:76, grup:'Rumyang (Advance Training)', divisi:'Innovation System & Development', title:'Master Attention to Detail'},
+  {no:77, grup:'Rumyang (Advance Training)', divisi:'General Affair', title:'Take Forward'},
+  {no:78, grup:'Samba (Basic Training)', divisi:'All Produksi', title:'Product Knowledge Non Sales RSP'},
+  {no:79, grup:'Rumyang (Advance Training)', divisi:'Estate', title:'Service Excellence & Complaint Handling - Estate'}
+];
+// Menerapkan MASTER_TRAINING_LIST ke `state` yang sedang aktif. Mengembalikan
+// true kalau ada perubahan (supaya pemanggil tahu perlu rebuildModules()/simpan lagi).
+function applyMasterTrainingList(){
+  if(state.masterTrainingListV1Applied) return false;
+  if(!state.moduleGroupOverrides) state.moduleGroupOverrides = {};
+  if(!state.customModules) state.customModules = [];
+  // Snapshot modul custom yang SUDAH ada sebelum migrasi ini jalan, supaya judul yang
+  // kebetulan sama di dalam daftar master sendiri (mis. "Document Control" muncul untuk
+  // Sales & Marketing maupun Business Operation & Adm) tidak saling menimpa satu sama
+  // lain — masing-masing tetap jadi modul terpisah sesuai baris di daftar master.
+  const preExistingCustomModules = state.customModules.slice();
+  MASTER_TRAINING_LIST.forEach(row=>{
+    const normTitle = row.title.trim().toLowerCase();
+    const baseMatch = BASE_MODULES.find(m=>m.title.trim().toLowerCase()===normTitle);
+    const customMatch = preExistingCustomModules.find(m=>(m.title||'').trim().toLowerCase()===normTitle);
+    const existing = baseMatch || customMatch;
+    if(existing){
+      state.moduleGroupOverrides[existing.id] = { grup: row.grup, divisi: row.divisi };
+    } else {
+      const id = 'ml-' + row.no;
+      if(!state.customModules.some(m=>m.id===id)){
+        state.customModules.push({
+          id, kategori:'additional', title: row.title, day:'', icon:'fa-book',
+          desc:'Ditambahkan otomatis dari daftar master training program (materi & kuis dapat dilengkapi kemudian).',
+          grup: row.grup, divisi: row.divisi, lessons:[], quiz:[]
+        });
+      }
+    }
+  });
+  state.masterTrainingListV1Applied = true;
+  return true;
+}
+if(applyMasterTrainingList()){
+  rebuildModules();
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+}
+
 let pendingLesson = null;
 let dashboardFilterBln = '';
 let dashboardFilterTahun = '';
@@ -2867,6 +3053,8 @@ function defaultState(){
     activityLog:[],
     customModules:[],
     deletedModuleIds:[],
+    moduleGroupOverrides:{},
+    moduleOverrides:{},
     lessonLinks:{},
     lessonOverrides:{},
     customLessons:{},
@@ -2891,6 +3079,8 @@ function normalizeState(parsed){
   if(!parsed || !parsed.participants) return defaultState();
   if(!parsed.customModules) parsed.customModules = [];
   if(!parsed.deletedModuleIds) parsed.deletedModuleIds = [];
+  if(!parsed.moduleGroupOverrides) parsed.moduleGroupOverrides = {};
+  if(!parsed.moduleOverrides) parsed.moduleOverrides = {};
   if(!parsed.lessonLinks) parsed.lessonLinks = {};
   if(!parsed.lessonOverrides) parsed.lessonOverrides = {};
   if(!parsed.customLessons) parsed.customLessons = {};
@@ -2969,7 +3159,13 @@ async function loadAllCloudData(){
     const snap = await FB_DOC.get();
     if(snap.exists){
       const data = snap.data();
-      if(data.state){ state = normalizeState(data.state); localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+      if(data.state){
+        state = normalizeState(data.state);
+        const masterListMigrated = applyMasterTrainingList();
+        rebuildModules();
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        if(masterListMigrated) cloudSave({ state: state });
+      }
       if(Array.isArray(data.gciData)){ gciData = data.gciData; localStorage.setItem(GCI_STORAGE_KEY, JSON.stringify(gciData)); }
       if(Array.isArray(data.posisiScope)){ savedPosisiScope = data.posisiScope.slice(); localStorage.setItem(POSISI_SCOPE_KEY, JSON.stringify(savedPosisiScope)); }
       if(typeof data.aiProxyUrl === 'string'){
@@ -5158,8 +5354,8 @@ function renderPesertaDetail(id){
         <button class="h-9 px-3 rounded-full flex items-center justify-center gap-1.5 text-white text-xs font-bold ${p.noHp?'':'opacity-40 cursor-not-allowed'}" style="background:#25D366" ${p.noHp?`onclick="sendWaMateriReminder('${p.id}','wajib')"`:'disabled'} title="${p.noHp ? 'Kirim reminder Training Wajib via WhatsApp' : 'No HP belum diisi'}">
           <i class="fa-brands fa-whatsapp"></i> Wajib
         </button>
-        ${additionalModules().length ? `<button class="h-9 px-3 rounded-full flex items-center justify-center gap-1.5 text-white text-xs font-bold ${p.noHp?'':'opacity-40 cursor-not-allowed'}" style="background:#f59e0b" ${p.noHp?`onclick="sendWaMateriReminder('${p.id}','additional')"`:'disabled'} title="${p.noHp ? 'Kirim reminder Training Additional via WhatsApp' : 'No HP belum diisi'}">
-          <i class="fa-brands fa-whatsapp"></i> Additional
+        ${additionalModules().length ? `<button class="h-9 px-3 rounded-full flex items-center justify-center gap-1.5 text-white text-xs font-bold" style="background:#f59e0b" onclick="openAdditionalMateriModal('${p.id}')" title="Lihat & kirim materi Additional yang relevan buat peserta ini">
+          <i class="fa-solid fa-list-check"></i> Additional
         </button>` : ''}
       </div>
     </div>
@@ -5265,19 +5461,53 @@ function normalizePhoneForWa(raw){
   else if(!digits.startsWith('62')) digits = '62' + digits;
   return digits;
 }
-// kategori: 'wajib' (default, kurikulum inti) atau 'additional' (training tambahan
-// hasil auto-tambah dari import yang judulnya tidak cocok modul — sengaja dipisah
-// dari blast wajib supaya tidak bercampur / tidak dianggap mengganggu kurikulum inti).
-function sendWaMateriReminder(id, kategori){
-  const p = getParticipant(id);
-  if(!p) return;
-  const phone = normalizePhoneForWa(p.noHp);
-  if(!phone){ toast('No HP peserta belum diisi'); return; }
-
-  const isAdditional = kategori==='additional';
-  const modules = isAdditional ? additionalModules() : wajibModules();
-  if(isAdditional && !modules.length){ toast('Belum ada modul Additional untuk peserta ini'); return; }
-
+// Heuristik sederhana: tebak "divisi" peserta dari teks kolom Posisi yang sudah ada
+// (belum ada field Divisi terpisah di data peserta), supaya materi Additional yang
+// ditampilkan/dikirim cuma yang relevan sama divisinya — bukan seluruh training
+// additional lintas departemen. Urutan aturan penting: yang lebih spesifik dicek
+// duluan supaya tidak "kesamber" aturan yang lebih umum (mis. "Bank Relation Staff"
+// harus kena aturan Business Operation & Adm, bukan aturan Bank Relation).
+const POSISI_DIVISI_RULES = [
+  { divisi:'Business Operation & Adm', keywords:['bank relation staff','lpa staff','drbm','admin data collect','business operation'] },
+  { divisi:'Marketing Communication', keywords:['marketing communication','marcomm','content writer','graphic design','grapic design','cinematographer','host live','community'] },
+  { divisi:'Digital Marketing', keywords:['digital marketing','ads specialist','admin b2b','content creator'] },
+  { divisi:'Sales & Marketing', keywords:['sales','marketing rumah','team leader'] },
+  { divisi:'Human Resources', keywords:['human resources','hrd','hr staff','hr generalist','recruitment','talent acquisition','organization development','performance management','training & development','training and development'] },
+  { divisi:'Investor Relation', keywords:['investor relation'] },
+  { divisi:'Bank Relation', keywords:['bank relation'] },
+  { divisi:'Legal', keywords:['legal'] },
+  { divisi:'IT', keywords:['information technology','it support','it staff','programmer'] },
+  { divisi:'Finance and Accounting', keywords:['finance','accounting'] },
+  { divisi:'Data Collection', keywords:['data collection','data collect'] },
+  { divisi:'General Affair', keywords:['general affair'] },
+  { divisi:'Innovation System & Development', keywords:['innovation system','system development'] },
+  { divisi:'Estate', keywords:['estate'] },
+  { divisi:'PDCA', keywords:['pdca'] },
+  { divisi:'All Produksi', keywords:['produksi'] },
+];
+function detectDivisiFromPosisi(posisi){
+  const norm = String(posisi||'').trim().toLowerCase();
+  if(!norm) return null;
+  for(const rule of POSISI_DIVISI_RULES){
+    if(rule.keywords.some(k=>norm.includes(k))) return rule.divisi;
+  }
+  return null;
+}
+// Modul Additional yang relevan buat peserta ini: yang tag Divisi-nya "All"/kosong
+// (berlaku untuk semua) DITAMBAH yang tag Divisi-nya cocok dengan hasil deteksi dari
+// posisi peserta. Kalau divisi tidak kedeteksi, cuma modul "All" yang ditampilkan
+// (safe default, daripada nampilin training departemen lain yang tidak relevan).
+function additionalModulesForParticipant(p){
+  const all = additionalModules();
+  const divisi = detectDivisiFromPosisi(p.posisi);
+  return all.filter(m=>{
+    const md = (m.divisi||'').trim().toLowerCase();
+    if(!md || md==='all') return true;
+    if(!divisi) return false;
+    return md===divisi.toLowerCase();
+  });
+}
+function buildMateriWaMessage(p, modules, jenisLabel){
   const belumBlocks = [];
   const selesai = [];
   modules.forEach(m=>{
@@ -5301,7 +5531,7 @@ function sendWaMateriReminder(id, kategori){
     belumBlocks.push(header);
   });
 
-  const jenisLabel = isAdditional ? 'training additional (tambahan)' : 'training wajib';
+  const isAdditional = jenisLabel.includes('additional');
   let msg = `Halo, selamat pagi ${p.name || ''}, mengingat kamu adalah sales baru PT Raja Sukses Propertindo, diharapkan kamu mengerjakan materi ${jenisLabel} ini.\n\n`;
   if(belumBlocks.length){
     msg += `Materi ${jenisLabel} yang *belum diselesaikan* (${belumBlocks.length} modul):\n` + belumBlocks.map((t,i)=>`${i+1}. ${t}`).join('\n\n') + '\n\n';
@@ -5314,7 +5544,84 @@ function sendWaMateriReminder(id, kategori){
   if(selesai.length){
     msg += `\n\n(Materi yang sudah selesai: ${selesai.join(', ')})`;
   }
+  return msg;
+}
+// kategori: 'wajib' (default, kurikulum inti) atau 'additional' (training tambahan
+// hasil auto-tambah dari import yang judulnya tidak cocok modul — sengaja dipisah
+// dari blast wajib supaya tidak bercampur / tidak dianggap mengganggu kurikulum inti).
+// Untuk 'additional' modulnya sudah difilter sesuai divisi peserta lewat
+// additionalModulesForParticipant() (lihat juga modal "Materi Additional").
+function sendWaMateriReminder(id, kategori){
+  const p = getParticipant(id);
+  if(!p) return;
+  const phone = normalizePhoneForWa(p.noHp);
+  if(!phone){ toast('No HP peserta belum diisi'); return; }
 
+  const isAdditional = kategori==='additional';
+  const modules = isAdditional ? additionalModulesForParticipant(p) : wajibModules();
+  if(isAdditional && !modules.length){ toast('Belum ada modul Additional yang relevan untuk peserta ini'); return; }
+
+  const jenisLabel = isAdditional ? 'training additional (tambahan)' : 'training wajib';
+  const msg = buildMateriWaMessage(p, modules, jenisLabel);
+  const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+  window.open(url, '_blank');
+}
+// ===== Modal "Materi Additional" (list dulu sebelum kirim WA, sudah difilter divisi) =====
+let additionalMateriParticipantId = null;
+function openAdditionalMateriModal(id){
+  const p = getParticipant(id);
+  if(!p) return;
+  additionalMateriParticipantId = id;
+  renderAdditionalMateriModal();
+  document.getElementById('additional-materi-modal').classList.remove('hidden');
+}
+function closeAdditionalMateriModal(){
+  document.getElementById('additional-materi-modal').classList.add('hidden');
+  additionalMateriParticipantId = null;
+}
+function renderAdditionalMateriModal(){
+  const p = getParticipant(additionalMateriParticipantId);
+  const body = document.getElementById('additional-materi-body');
+  if(!p || !body) return;
+  const divisi = detectDivisiFromPosisi(p.posisi);
+  const modules = additionalModulesForParticipant(p);
+  const divisiNote = divisi
+    ? `Divisi terdeteksi dari posisi <b>${escapeHtml(p.posisi||'-')}</b>: <b>${escapeHtml(divisi)}</b>. Menampilkan materi Additional untuk divisi ini, ditambah yang berlaku untuk semua divisi.`
+    : `Divisi tidak terdeteksi otomatis dari posisi <b>${escapeHtml(p.posisi||'-')}</b>, jadi cuma menampilkan materi Additional yang berlaku untuk semua divisi.`;
+
+  const listHtml = modules.length ? modules.map(m=>{
+    const c = moduleCompletionPct(p, m);
+    const doneIdx = (p.progress[m.id]?.lessonsDone) || [];
+    const lessonsHtml = m.lessons.length ? m.lessons.map((l,idx)=>{
+      const isDone = doneIdx.includes(idx);
+      return `<li class="text-[11px] ${isDone?'text-emerald-600':'text-slate-500'} flex items-center gap-1.5"><i class="fa-solid ${isDone?'fa-circle-check':'fa-circle'} text-[9px]"></i>${escapeHtml(l.title)}</li>`;
+    }).join('') : '<li class="text-[11px] text-slate-400 italic">Belum ada materi ditambahkan pada modul ini.</li>';
+    return `<div class="card p-3 mb-2">
+      <div class="flex items-center justify-between mb-1.5 gap-2">
+        <p class="text-xs font-bold flex-1">${escapeHtml(m.title)}${m.divisi?` <span class="badge badge-purple ml-1">${escapeHtml(m.divisi)}</span>`:''}</p>
+        <span class="text-[11px] font-bold flex-shrink-0 ${c===100?'text-emerald-600':'text-slate-400'}">${c}%</span>
+      </div>
+      <ul class="space-y-1">${lessonsHtml}</ul>
+    </div>`;
+  }).join('') : `<p class="text-xs text-slate-400 italic text-center py-6">Belum ada materi Additional yang relevan untuk peserta ini.</p>`;
+
+  body.innerHTML = `
+    <p class="text-[11px] text-slate-400 mb-3">${divisiNote}</p>
+    <div class="max-h-[50vh] overflow-y-auto pr-1 mb-4">${listHtml}</div>
+    <button class="btn-primary w-full flex items-center justify-center gap-2 ${(p.noHp && modules.length)?'':'opacity-40 cursor-not-allowed'}" ${(p.noHp && modules.length)?`onclick="sendFilteredAdditionalWa()"`:'disabled'}>
+      <i class="fa-brands fa-whatsapp"></i> Kirim Reminder via WhatsApp
+    </button>
+    ${!p.noHp ? '<p class="text-[11px] text-red-500 mt-2 text-center">No HP peserta belum diisi.</p>' : ''}
+  `;
+}
+function sendFilteredAdditionalWa(){
+  const p = getParticipant(additionalMateriParticipantId);
+  if(!p) return;
+  const phone = normalizePhoneForWa(p.noHp);
+  if(!phone){ toast('No HP peserta belum diisi'); return; }
+  const modules = additionalModulesForParticipant(p);
+  if(!modules.length){ toast('Tidak ada materi Additional yang relevan untuk peserta ini'); return; }
+  const msg = buildMateriWaMessage(p, modules, 'training additional (tambahan)');
   const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
   window.open(url, '_blank');
 }
@@ -5406,25 +5713,106 @@ function sendReminderWa(idx){
 }
 
 /* ===================== RENDER: MODULES ===================== */
+// Grup/Divisi pengelompokan modul (mis. "Panji (Induction Training)" / "Sales & Marketing"):
+// dipakai murni sebagai tag + filter di halaman ini, tidak memengaruhi urutan/kelulusan.
+function distinctModuleGrupValues(){
+  const set = new Set();
+  MODULES.forEach(m=>(m.grup||'').split(',').map(s=>s.trim()).filter(Boolean).forEach(v=>set.add(v)));
+  return Array.from(set).sort();
+}
+function distinctModuleDivisiValues(){
+  const set = new Set();
+  MODULES.forEach(m=>(m.divisi||'').split(',').map(s=>s.trim()).filter(Boolean).forEach(v=>set.add(v)));
+  return Array.from(set).sort();
+}
+function moduleMatchesFilter(m, searchTerm, grupFilter, divisiFilter){
+  if(searchTerm && !m.title.toLowerCase().includes(searchTerm)) return false;
+  if(grupFilter && !(m.grup||'').split(',').map(s=>s.trim()).includes(grupFilter)) return false;
+  if(divisiFilter && !(m.divisi||'').split(',').map(s=>s.trim()).includes(divisiFilter)) return false;
+  return true;
+}
+// Bulk-select state for the "Pilih Massal" (bulk delete) mode.
+let moduleSelectMode = false;
+let selectedModuleIds = new Set();
+function toggleModuleSelectMode(){
+  moduleSelectMode = !moduleSelectMode;
+  if(!moduleSelectMode) selectedModuleIds.clear();
+  renderModules();
+}
+function toggleModuleSelect(id, checked){
+  if(checked) selectedModuleIds.add(id); else selectedModuleIds.delete(id);
+  updateModuleSelectUI();
+}
+function updateModuleSelectUI(){
+  const countEl = document.getElementById('modul-selected-count');
+  const bulkBtn = document.getElementById('modul-bulk-delete-btn');
+  if(countEl) countEl.textContent = selectedModuleIds.size;
+  if(bulkBtn) bulkBtn.classList.toggle('hidden', selectedModuleIds.size===0);
+}
 function renderModules(){
   const all = state.participants;
   const wrap = document.getElementById('modules-list');
-  wrap.innerHTML = MODULES.map((m,idx)=>{
+
+  // Populate/refresh the Grup & Divisi filter dropdowns, preserving current selection.
+  const grupSel = document.getElementById('modul-filter-grup');
+  const divisiSel = document.getElementById('modul-filter-divisi');
+  if(grupSel){
+    const cur = grupSel.value;
+    grupSel.innerHTML = '<option value="">Semua Grup</option>' + distinctModuleGrupValues().map(v=>`<option value="${escapeHtml(v)}" ${v===cur?'selected':''}>${escapeHtml(v)}</option>`).join('');
+  }
+  if(divisiSel){
+    const cur = divisiSel.value;
+    divisiSel.innerHTML = '<option value="">Semua Divisi</option>' + distinctModuleDivisiValues().map(v=>`<option value="${escapeHtml(v)}" ${v===cur?'selected':''}>${escapeHtml(v)}</option>`).join('');
+  }
+  const toggleBtn = document.getElementById('modul-select-toggle-btn');
+  if(toggleBtn){
+    toggleBtn.innerHTML = moduleSelectMode ? '<i class="fa-solid fa-xmark mr-1"></i>Batal Pilih' : '<i class="fa-solid fa-check-double mr-1"></i>Pilih Massal';
+    toggleBtn.classList.toggle('btn-primary', moduleSelectMode);
+    toggleBtn.classList.toggle('btn-ghost', !moduleSelectMode);
+  }
+  updateModuleSelectUI();
+
+  const searchTerm = (document.getElementById('modul-search')?.value || '').trim().toLowerCase();
+  const grupFilter = grupSel?.value || '';
+  const divisiFilter = divisiSel?.value || '';
+  const filterActive = !!(searchTerm || grupFilter || divisiFilter);
+  const list = MODULES.filter(m=>moduleMatchesFilter(m, searchTerm, grupFilter, divisiFilter));
+  // Reordering (drag & up/down arrows) only makes sense against the full, unfiltered
+  // list, so it's disabled while a search/filter is active.
+  const canReorder = !filterActive && !moduleSelectMode;
+
+  if(!list.length){
+    wrap.innerHTML = `<p class="text-xs text-slate-400 italic col-span-2 text-center py-10">Tidak ada modul yang cocok dengan filter ini.</p>`;
+    if(moduleSortableInstance){ moduleSortableInstance.destroy(); moduleSortableInstance = null; }
+    return;
+  }
+
+  wrap.innerHTML = list.map((m,idx)=>{
     const pct = all.length ? Math.round(all.map(p=>moduleCompletionPct(p,m)).reduce((a,b)=>a+b,0)/all.length) : 0;
     const scores = all.map(p=>p.progress[m.id]?.quizScore).filter(s=>s!==null && s!==undefined);
     const avgScore = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : null;
-    return `<div class="card module-card p-5" data-module-id="${m.id}">
+    const isSelected = selectedModuleIds.has(m.id);
+    const leftControl = moduleSelectMode
+      ? `<input type="checkbox" class="w-4 h-4 flex-shrink-0" ${isSelected?'checked':''} onchange="toggleModuleSelect('${m.id}', this.checked)">`
+      : canReorder
+        ? `<i class="fa-solid fa-grip-vertical module-drag-handle" title="Seret untuk urutkan"></i>
+           <div class="flex flex-col -my-1 mr-0.5">
+             <button class="text-slate-300 hover:text-emerald-600 text-xs leading-none px-1 py-0.5 disabled:opacity-20 disabled:cursor-not-allowed" title="Pindah ke atas" onclick="moveModule('${m.id}',-1)" ${idx===0?'disabled':''}><i class="fa-solid fa-chevron-up"></i></button>
+             <button class="text-slate-300 hover:text-emerald-600 text-xs leading-none px-1 py-0.5 disabled:opacity-20 disabled:cursor-not-allowed" title="Pindah ke bawah" onclick="moveModule('${m.id}',1)" ${idx===list.length-1?'disabled':''}><i class="fa-solid fa-chevron-down"></i></button>
+           </div>`
+        : '';
+    const tags = `${m.day?`<span class="badge badge-slate ml-1">${escapeHtml(m.day)}</span>`:''} <span class="badge ${(m.kategori||'wajib')==='additional'?'badge-amber':'badge-green'} ml-1">${(m.kategori||'wajib')==='additional'?'Additional':'Wajib'}</span>${m.grup?` <span class="badge badge-blue ml-1">${escapeHtml(m.grup)}</span>`:''}${m.divisi?` <span class="badge badge-purple ml-1">${escapeHtml(m.divisi)}</span>`:''}`;
+    return `<div class="card module-card p-5 ${isSelected?'module-selected':''}" data-module-id="${m.id}">
       <div class="flex items-start justify-between mb-3">
         <div class="flex items-center gap-3">
-          <i class="fa-solid fa-grip-vertical module-drag-handle" title="Seret untuk urutkan"></i>
-          <div class="flex flex-col -my-1 mr-0.5">
-            <button class="text-slate-300 hover:text-emerald-600 text-xs leading-none px-1 py-0.5 disabled:opacity-20 disabled:cursor-not-allowed" title="Pindah ke atas" onclick="moveModule('${m.id}',-1)" ${idx===0?'disabled':''}><i class="fa-solid fa-chevron-up"></i></button>
-            <button class="text-slate-300 hover:text-emerald-600 text-xs leading-none px-1 py-0.5 disabled:opacity-20 disabled:cursor-not-allowed" title="Pindah ke bawah" onclick="moveModule('${m.id}',1)" ${idx===MODULES.length-1?'disabled':''}><i class="fa-solid fa-chevron-down"></i></button>
-          </div>
-          <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:#f0fdf6;color:var(--brand-600)"><i class="fa-solid ${m.icon}"></i></div>
-          <div><p class="font-bold text-sm">${escapeHtml(m.title)} ${m.day?`<span class="badge badge-slate ml-1">${escapeHtml(m.day)}</span>`:''} <span class="badge ${(m.kategori||'wajib')==='additional'?'badge-amber':'badge-green'} ml-1">${(m.kategori||'wajib')==='additional'?'Additional':'Wajib'}</span></p><p class="text-xs text-slate-400">${escapeHtml(m.desc)}</p></div>
+          ${leftControl}
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background:#f0fdf6;color:var(--brand-600)"><i class="fa-solid ${m.icon}"></i></div>
+          <div><p class="font-bold text-sm">${escapeHtml(m.title)} ${tags}</p><p class="text-xs text-slate-400">${escapeHtml(m.desc)}</p></div>
         </div>
-        <button class="text-slate-300 hover:text-red-500 text-xs px-1" title="Hapus modul" onclick="deleteModule('${m.id}')"><i class="fa-solid fa-trash-can"></i></button>
+        ${moduleSelectMode ? '' : `<div class="flex items-center gap-1 flex-shrink-0">
+          <button class="text-slate-300 hover:text-emerald-600 text-xs px-1" title="Edit modul" onclick="openEditModule('${m.id}')"><i class="fa-solid fa-pen"></i></button>
+          <button class="text-slate-300 hover:text-red-500 text-xs px-1" title="Hapus modul" onclick="deleteModule('${m.id}')"><i class="fa-solid fa-trash-can"></i></button>
+        </div>`}
       </div>
       <div class="progress-track mb-2"><div class="progress-fill" style="width:${pct}%"></div></div>
       <p class="text-xs text-slate-400 mb-3">Rata-rata ${pct}% selesai ${avgScore!=null ? '&middot; Rata-rata skor kuis: '+avgScore : ''}</p>
@@ -5450,7 +5838,8 @@ function renderModules(){
       <button class="btn-ghost w-full mt-3 !py-1.5 text-[11px]" onclick="openAddLesson('${m.id}')"><i class="fa-solid fa-plus mr-1"></i>Tambah Materi</button>
     </div>`;
   }).join('');
-  initModuleSortable();
+  if(canReorder) initModuleSortable();
+  else if(moduleSortableInstance){ moduleSortableInstance.destroy(); moduleSortableInstance = null; }
 }
 
 let moduleSortableInstance = null;
@@ -5489,16 +5878,55 @@ function moveModule(id, dir){
   renderModules(); renderDashboard(); renderResume(); renderResumeKpi(); renderQuizPicker(); renderTrainingTargets();
   logActivity(`Urutan modul diubah: ${MODULES.find(m=>m.id===id)?.title || id}`);
 }
+let nmEditingId = null;
 function openAddModule(){
+  nmEditingId = null;
   document.getElementById('nm-title').value = '';
   document.getElementById('nm-day').value = '';
   document.getElementById('nm-icon').value = 'fa-book';
   document.getElementById('nm-desc').value = '';
   document.getElementById('nm-kategori').value = 'wajib';
+  document.getElementById('nm-grup').value = '';
+  document.getElementById('nm-divisi').value = '';
+  const titleEl = document.getElementById('module-modal-title');
+  const subtitleEl = document.getElementById('module-modal-subtitle');
+  const saveBtn = document.getElementById('module-modal-save-btn');
+  if(titleEl) titleEl.innerText = 'Tambah Modul';
+  if(subtitleEl) subtitleEl.innerText = 'Buat kerangka modul baru. Materi & kuis dapat dilengkapi kemudian.';
+  if(saveBtn) saveBtn.innerText = 'Simpan Modul';
+  // Isi datalist grup/divisi dengan nilai yang sudah dipakai modul lain, biar konsisten (bukan wajib dipilih dari situ).
+  const grupList = document.getElementById('nm-grup-list');
+  const divisiList = document.getElementById('nm-divisi-list');
+  if(grupList) grupList.innerHTML = distinctModuleGrupValues().map(v=>`<option value="${escapeHtml(v)}">`).join('');
+  if(divisiList) divisiList.innerHTML = distinctModuleDivisiValues().map(v=>`<option value="${escapeHtml(v)}">`).join('');
+  document.getElementById('module-modal').classList.remove('hidden');
+}
+function openEditModule(id){
+  const m = MODULES.find(x=>x.id===id);
+  if(!m) return;
+  nmEditingId = id;
+  document.getElementById('nm-title').value = m.title || '';
+  document.getElementById('nm-day').value = m.day || '';
+  document.getElementById('nm-icon').value = m.icon || 'fa-book';
+  document.getElementById('nm-desc').value = m.desc || '';
+  document.getElementById('nm-kategori').value = (m.kategori||'wajib')==='additional' ? 'additional' : 'wajib';
+  document.getElementById('nm-grup').value = m.grup || '';
+  document.getElementById('nm-divisi').value = m.divisi || '';
+  const titleEl = document.getElementById('module-modal-title');
+  const subtitleEl = document.getElementById('module-modal-subtitle');
+  const saveBtn = document.getElementById('module-modal-save-btn');
+  if(titleEl) titleEl.innerText = 'Edit Modul';
+  if(subtitleEl) subtitleEl.innerText = 'Ubah detail modul. Materi di dalamnya tidak akan hilang.';
+  if(saveBtn) saveBtn.innerText = 'Simpan Perubahan';
+  const grupList = document.getElementById('nm-grup-list');
+  const divisiList = document.getElementById('nm-divisi-list');
+  if(grupList) grupList.innerHTML = distinctModuleGrupValues().map(v=>`<option value="${escapeHtml(v)}">`).join('');
+  if(divisiList) divisiList.innerHTML = distinctModuleDivisiValues().map(v=>`<option value="${escapeHtml(v)}">`).join('');
   document.getElementById('module-modal').classList.remove('hidden');
 }
 function closeAddModule(){
   document.getElementById('module-modal').classList.add('hidden');
+  nmEditingId = null;
 }
 function saveModule(){
   const title = document.getElementById('nm-title').value.trim();
@@ -5508,8 +5936,33 @@ function saveModule(){
   if(!icon) icon = 'fa-book';
   const desc = document.getElementById('nm-desc').value.trim();
   const kategori = document.getElementById('nm-kategori').value === 'additional' ? 'additional' : 'wajib';
+  const grup = document.getElementById('nm-grup').value.trim();
+  const divisi = document.getElementById('nm-divisi').value.trim();
+
+  if(nmEditingId){
+    const id = nmEditingId;
+    const isCustom = state.customModules.some(m=>m.id===id);
+    if(isCustom){
+      const cm = state.customModules.find(m=>m.id===id);
+      Object.assign(cm, { title, day, icon, desc, kategori, grup, divisi });
+    } else {
+      if(!state.moduleOverrides) state.moduleOverrides = {};
+      state.moduleOverrides[id] = { title, day, icon, desc, kategori };
+      if(!state.moduleGroupOverrides) state.moduleGroupOverrides = {};
+      if(grup || divisi) state.moduleGroupOverrides[id] = { grup, divisi };
+      else delete state.moduleGroupOverrides[id];
+    }
+    saveState();
+    rebuildModules();
+    closeAddModule();
+    renderModules(); renderDashboard(); renderQuizPicker(); renderTrainingTargets();
+    logActivity(`Modul diperbarui: ${title}`);
+    toast('Perubahan modul disimpan');
+    return;
+  }
+
   const id = 'custom-' + Date.now();
-  state.customModules.push({ id, title, day, icon, desc, kategori, lessons:[], quiz:[] });
+  state.customModules.push({ id, title, day, icon, desc, kategori, grup, divisi, lessons:[], quiz:[] });
   saveState();
   rebuildModules();
   closeAddModule();
@@ -5642,10 +6095,12 @@ function renderTrash(){
   }).join('');
 }
 
-async function deleteModule(id){
+// Moves a single module to Sampah (Trash) without confirming/toasting/logging —
+// the shared piece of work behind both the single "Hapus modul" button and the
+// bulk "Hapus Terpilih" action, so both stay consistent.
+function deleteModuleInternal(id){
   const mod = MODULES.find(m=>m.id===id);
-  if(!mod) return;
-  if(!await customConfirm(`Hapus modul "${mod.title}"? Progress peserta pada modul ini juga tidak akan dihitung lagi. (Bisa dipulihkan lewat Sampah)`)) return;
+  if(!mod) return null;
   const isCustom = state.customModules.some(m=>m.id===id);
   if(!isCustom){
     // it's a base module, mark as deleted
@@ -5656,11 +6111,114 @@ async function deleteModule(id){
     state.customModules = state.customModules.filter(m=>m.id!==id);
     addToTrash('module', mod.title, {moduleType:'custom', module:snapshot});
   }
+  return mod;
+}
+async function deleteModule(id){
+  const mod = MODULES.find(m=>m.id===id);
+  if(!mod) return;
+  if(!await customConfirm(`Hapus modul "${mod.title}"? Progress peserta pada modul ini juga tidak akan dihitung lagi. (Bisa dipulihkan lewat Sampah)`)) return;
+  deleteModuleInternal(id);
   saveState();
   rebuildModules();
   renderModules(); renderDashboard(); renderQuizPicker(); renderTrainingTargets(); renderTrash();
   logActivity(`Modul dihapus: ${mod.title}`);
   toast('Modul dipindahkan ke Sampah');
+}
+async function bulkDeleteModules(){
+  const ids = Array.from(selectedModuleIds);
+  if(!ids.length) return;
+  const titles = ids.map(id=>MODULES.find(m=>m.id===id)?.title).filter(Boolean);
+  const preview = titles.slice(0,5).join(', ') + (titles.length>5 ? `, +${titles.length-5} lainnya` : '');
+  if(!await customConfirm(`Hapus ${ids.length} modul terpilih (${preview})? Progress peserta pada modul-modul ini juga tidak akan dihitung lagi. (Bisa dipulihkan lewat Sampah)`)) return;
+  let count = 0;
+  ids.forEach(id=>{ if(deleteModuleInternal(id)) count++; });
+  if(!count){ toast('Tidak ada modul yang terhapus'); return; }
+  selectedModuleIds.clear();
+  moduleSelectMode = false;
+  saveState();
+  rebuildModules();
+  renderModules(); renderDashboard(); renderQuizPicker(); renderTrainingTargets(); renderTrash();
+  logActivity(`${count} modul dihapus sekaligus (bulk): ${preview}`);
+  toast(`✅ ${count} modul dipindahkan ke Sampah`);
+}
+
+/* ===================== MODULE GROUPING IMPORT (Grup & Divisi) ===================== */
+// Small CSV/TSV parser that understands quoted fields (incl. embedded newlines/tabs
+// and doubled "" for a literal quote) — needed because pasted Excel/Sheets data
+// often wraps a cell like "Panji\n(Induction Training)" in quotes.
+function parseDelimited(text, delim){
+  const rows = []; let row = []; let field = ''; let inQuotes = false; let i = 0;
+  const s = String(text||'').replace(/\r\n/g,'\n');
+  while(i < s.length){
+    const c = s[i];
+    if(inQuotes){
+      if(c === '"'){
+        if(s[i+1] === '"'){ field += '"'; i += 2; continue; }
+        inQuotes = false; i++; continue;
+      }
+      field += c; i++; continue;
+    }
+    if(c === '"' && field === ''){ inQuotes = true; i++; continue; }
+    if(c === delim){ row.push(field); field=''; i++; continue; }
+    if(c === '\n'){ row.push(field); field=''; rows.push(row); row=[]; i++; continue; }
+    field += c; i++;
+  }
+  if(field !== '' || row.length){ row.push(field); rows.push(row); }
+  return rows;
+}
+function normSpace(s){ return String(s||'').replace(/\s+/g,' ').trim(); }
+function openGroupImportModal(){
+  document.getElementById('gi-textarea').value = '';
+  document.getElementById('group-import-modal').classList.remove('hidden');
+}
+function closeGroupImportModal(){
+  document.getElementById('group-import-modal').classList.add('hidden');
+}
+async function applyGroupImport(){
+  const text = document.getElementById('gi-textarea').value;
+  if(!text.trim()){ toast('Tempel data dulu (Grup, Divisi, Judul Training dipisah Tab)'); return; }
+  const rows = parseDelimited(text, '\t').filter(r=>r.length>=3 && r.some(c=>String(c).trim()!==''));
+  if(!rows.length){ toast('Tidak ada baris valid terbaca dari data ini (butuh 3 kolom: Grup, Divisi, Judul, dipisah Tab)'); return; }
+  const byModuleUpdates = {}; // moduleId -> {grup:Set, divisi:Set}
+  const unmatched = [];
+  rows.forEach(r=>{
+    const grupRaw = normSpace(r[0]);
+    const divisiRaw = normSpace(r[1]);
+    const titleRaw = normSpace(r[2]);
+    if(!titleRaw) return;
+    const mod = findModuleByTraining(titleRaw);
+    if(mod){
+      if(!byModuleUpdates[mod.id]) byModuleUpdates[mod.id] = {grup:new Set(), divisi:new Set()};
+      if(grupRaw) byModuleUpdates[mod.id].grup.add(grupRaw);
+      if(divisiRaw) byModuleUpdates[mod.id].divisi.add(divisiRaw);
+    } else {
+      unmatched.push(titleRaw + (divisiRaw ? ` (${divisiRaw})` : ''));
+    }
+  });
+  const matchedIds = Object.keys(byModuleUpdates);
+  if(!matchedIds.length){
+    await customAlert(`Tidak ada judul di data ini yang cocok dengan modul yang sudah ada di sistem. Buat dulu modulnya lewat "Tambah Modul", baru tempel ulang data ini untuk menandai Grup & Divisi-nya.`, {title:'Tidak Ada yang Cocok'});
+    return;
+  }
+  if(!state.moduleGroupOverrides) state.moduleGroupOverrides = {};
+  matchedIds.forEach(id=>{
+    const u = byModuleUpdates[id];
+    state.moduleGroupOverrides[id] = {
+      grup: Array.from(u.grup).join(', '),
+      divisi: Array.from(u.divisi).join(', ')
+    };
+  });
+  saveState();
+  rebuildModules();
+  closeGroupImportModal();
+  renderModules();
+  logActivity(`Pengelompokan modul diperbarui dari impor: ${matchedIds.length} modul ditandai (Grup/Divisi)`);
+  const capList = (items, max=8) => items.slice(0,max).join('\n- ') + (items.length>max ? `\n- ...dan ${items.length-max} lainnya` : '');
+  let msg = `✅ ${matchedIds.length} modul berhasil ditandai Grup/Divisi-nya.`;
+  if(unmatched.length){
+    msg += `\n\n⚠️ ${unmatched.length} judul di data tidak cocok modul manapun yang sudah ada (dilewati). Buat dulu modulnya kalau mau ditandai, lalu tempel ulang data ini:\n- ${capList(unmatched)}`;
+  }
+  await customAlert(msg, {title:'Impor Pengelompokan Modul'});
 }
 
 const MAX_VIDEO_MB = 100;
@@ -6361,7 +6919,8 @@ function importParticipantsExcel(event){
       if(unmatchedTrainings.size){
         hideImportLoading();
         const list = Array.from(unmatchedTrainings);
-        const ok = await customConfirm(`Ditemukan ${list.length} judul Training pada file yang tidak cocok dengan modul manapun:\n- ${list.join('\n- ')}\n\nTambahkan otomatis sebagai modul TRAINING ADDITIONAL (bukan wajib)? Progress peserta untuk training ini akan tercatat, tapi tidak akan mengganggu perhitungan kurikulum wajib maupun status kelulusan.`);
+        const listPreview = list.slice(0,10).join('\n- ') + (list.length>10 ? `\n- ...dan ${list.length-10} judul lainnya` : '');
+        const ok = await customConfirm(`Ditemukan ${list.length} judul Training pada file yang tidak cocok dengan modul manapun:\n- ${listPreview}\n\nTambahkan otomatis sebagai modul TRAINING ADDITIONAL (bukan wajib)? Progress peserta untuk training ini akan tercatat, tapi tidak akan mengganggu perhitungan kurikulum wajib maupun status kelulusan.`);
         showImportLoading('Sedang mengimpor data peserta...');
         if(ok){
           list.forEach((title, i)=>{
@@ -6391,24 +6950,33 @@ function importParticipantsExcel(event){
       let msg = `Impor selesai: ${participantsCreated} peserta baru, ${participantsUpdated} diperbarui${participantsAutoMerged?`, ${participantsAutoMerged} digabung otomatis`:''}, ${moduleRowsMatched} progress modul tercatat${additionalModulesCreated?`, ${additionalModulesCreated} modul Additional baru dibuat`:''}.`;
       toast(msg);
 
+      // Small helper: cap a bullet list at `max` items so the dialog stays short,
+      // appending a "...dan N lainnya" line instead of dumping everything.
+      const capList = (items, max=5) => {
+        const shown = items.slice(0,max);
+        const rest = items.length - shown.length;
+        return shown.join('\n- ') + (rest>0 ? `\n- ...dan ${rest} lainnya` : '');
+      };
       const warnParts = [];
       if(unmatchedTrainings.size){
-        warnParts.push('Beberapa nama Training pada file tidak cocok dengan judul modul yang ada, sehingga progress modulnya tidak tercatat:\n- ' + Array.from(unmatchedTrainings).join('\n- ') + '\n\nData peserta (nama, lokasi, SPV, dll) tetap diperbarui. Kamu bisa tambahkan modul ini secara manual lewat menu Modul Training (pilih kategori Additional) kalau diperlukan.');
+        const titles = Array.from(unmatchedTrainings);
+        warnParts.push(`Beberapa nama Training pada file (${titles.length}) tidak cocok dengan judul modul yang ada, sehingga progress modulnya tidak tercatat:\n- ` + capList(titles) + '\n\nData peserta (nama, lokasi, SPV, dll) tetap diperbarui. Kamu bisa tambahkan modul ini secara manual lewat menu Modul Training (pilih kategori Additional) kalau diperlukan.');
       }
       if(duplicateNamesFound.length){
-        warnParts.push('⚠️ NAMA DUPLIKAT TERDETEKSI: beberapa baris di file memiliki nama yang sama dengan peserta yang sudah ada, tapi dengan Username berbeda. Data ini OTOMATIS DIGABUNGKAN ke satu akun (username yang dipakai = username dari Join Date paling baru, tanda pengerjaan terbaru):\n- ' + duplicateNamesFound.map(d=>{
+        const lines = duplicateNamesFound.map(d=>{
           const oldUn = d.existingUsername, newUn = d.importedUsername, kept = d.kept;
-          if(oldUn===kept) return `${d.name}: username "${newUn}" digabung ke akun "${oldUn}" (dipertahankan, lebih baru/tidak ada tanggal pembanding)`;
-          return `${d.name}: username "${oldUn}" diganti jadi "${newUn}" (data terbaru, berdasarkan Join Date)`;
-        }).join('\n- ') + '\n\nMohon periksa kembali apakah penggabungan ini sudah benar.');
+          if(oldUn===kept) return `${d.name}: "${newUn}"→"${oldUn}" (dipertahankan)`;
+          return `${d.name}: "${oldUn}"→"${newUn}" (lebih baru)`;
+        });
+        warnParts.push(`⚠️ NAMA DUPLIKAT (${lines.length}): username akun digabung, dipilih yang Join Date-nya paling baru:\n- ` + capList(lines) + '\n\nCek kembali di menu Peserta & Progress kalau perlu.');
       }
       // Also flag any duplicate names that already existed in the data (not caused by this import)
       const remainingDups = scanDuplicateParticipantNames(true).filter(g=>!duplicateNamesFound.some(d=>normNameKey(d.name)===normNameKey(g[0].name)));
       if(remainingDups.length){
-        const preview = remainingDups.map(g=>`${g[0].name} (${g.length}x)`).join(', ');
         const autoMergedExtra = mergeAllDuplicateParticipants(true);
         if(autoMergedExtra){
-          warnParts.push(`⚠️ Selain itu, ditemukan nama peserta lain yang sudah duplikat sebelumnya di data (${preview}). ${autoMergedExtra} data tersebut sudah OTOMATIS DIGABUNGKAN agar tidak ada duplikat.`);
+          const preview = capList(remainingDups.map(g=>`${g[0].name} (${g.length}x)`), 5);
+          warnParts.push(`⚠️ ${autoMergedExtra} nama peserta lain yang sudah duplikat sebelumnya juga OTOMATIS DIGABUNGKAN:\n- ${preview}`);
         }
       }
       if(warnParts.length){
