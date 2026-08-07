@@ -6278,6 +6278,9 @@ function importParticipantsExcel(event){
 
         let p = state.participants.find(pp=>(pp.username||'').trim().toLowerCase()===username.toLowerCase());
         const isNew = !p;
+        // Join Date on this row, computed early so it can be used as a "which
+        // account is more recently active" signal when a name-duplicate is found.
+        const rowJoinDate = idx.joinDate>-1 ? excelDateToYMD(row[idx.joinDate]) : null;
         if(!p){
           // Fallback check: same NAME already exists under a different username?
           // That's very likely the same person entered twice — auto-merge instead
@@ -6288,15 +6291,25 @@ function importParticipantsExcel(event){
           if(dupByName){
             p = dupByName;
             participantsAutoMerged++;
-            duplicateNamesFound.push({ name: nameVal, existingUsername: dupByName.username||'-', importedUsername: username });
-            // Bug fix: merging by name previously never actually filled in the
-            // username field on the kept record, leaving it blank forever even
-            // though the toast claimed it was merged. Fill it in now (only if
-            // the existing record doesn't already have one, so we never
-            // overwrite a username that was already correct).
-            if(!p.username || String(p.username).trim()===''){
+            const existingUsername = dupByName.username||'-';
+            // Decide which username should be kept: prefer whichever record's
+            // Join Date is more recent (proxy for "the currently-used account"),
+            // since that's the only date signal available in this import file.
+            // Falls back to the old "fill only if empty" behavior when we can't
+            // compare dates (e.g. row or existing record has no Join Date).
+            const existingJoinDate = p.joinDate || null;
+            const newIsNewer = rowJoinDate && (!existingJoinDate || rowJoinDate > existingJoinDate);
+            if(newIsNewer){
+              p.username = username;
+            } else if(!p.username || String(p.username).trim()===''){
+              // Bug fix: merging by name previously never actually filled in the
+              // username field on the kept record, leaving it blank forever even
+              // though the toast claimed it was merged. Fill it in now (only if
+              // the existing record doesn't already have one, so we never
+              // overwrite a username that was already correct).
               p.username = username;
             }
+            duplicateNamesFound.push({ name: nameVal, existingUsername, importedUsername: username, kept: p.username, byRecency: !!rowJoinDate });
           } else {
             p = { id:'p'+Date.now()+Math.floor(Math.random()*1000), name:'', progress:{}, ...blankParticipantFields(), username };
             state.participants.push(p);
@@ -6383,7 +6396,11 @@ function importParticipantsExcel(event){
         warnParts.push('Beberapa nama Training pada file tidak cocok dengan judul modul yang ada, sehingga progress modulnya tidak tercatat:\n- ' + Array.from(unmatchedTrainings).join('\n- ') + '\n\nData peserta (nama, lokasi, SPV, dll) tetap diperbarui. Kamu bisa tambahkan modul ini secara manual lewat menu Modul Training (pilih kategori Additional) kalau diperlukan.');
       }
       if(duplicateNamesFound.length){
-        warnParts.push('⚠️ NAMA DUPLIKAT TERDETEKSI: beberapa baris di file memiliki nama yang sama dengan peserta yang sudah ada, tapi dengan Username berbeda. Data ini OTOMATIS DIGABUNGKAN ke peserta yang sudah ada agar tidak menjadi duplikat:\n- ' + duplicateNamesFound.map(d=>`${d.name} (username baru "${d.importedUsername}" digabung ke akun "${d.existingUsername}")`).join('\n- ') + '\n\nMohon periksa kembali apakah penggabungan ini sudah benar.');
+        warnParts.push('⚠️ NAMA DUPLIKAT TERDETEKSI: beberapa baris di file memiliki nama yang sama dengan peserta yang sudah ada, tapi dengan Username berbeda. Data ini OTOMATIS DIGABUNGKAN ke satu akun (username yang dipakai = username dari Join Date paling baru, tanda pengerjaan terbaru):\n- ' + duplicateNamesFound.map(d=>{
+          const oldUn = d.existingUsername, newUn = d.importedUsername, kept = d.kept;
+          if(oldUn===kept) return `${d.name}: username "${newUn}" digabung ke akun "${oldUn}" (dipertahankan, lebih baru/tidak ada tanggal pembanding)`;
+          return `${d.name}: username "${oldUn}" diganti jadi "${newUn}" (data terbaru, berdasarkan Join Date)`;
+        }).join('\n- ') + '\n\nMohon periksa kembali apakah penggabungan ini sudah benar.');
       }
       // Also flag any duplicate names that already existed in the data (not caused by this import)
       const remainingDups = scanDuplicateParticipantNames(true).filter(g=>!duplicateNamesFound.some(d=>normNameKey(d.name)===normNameKey(g[0].name)));
