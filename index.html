@@ -8110,9 +8110,15 @@ async function deleteRecurringRule(id){
 
 
 /* ===================== EXPORT: DASHBOARD EXCEL ===================== */
+// Format export disamakan dengan template Book1.xlsx: 1 sheet, header ganda
+// (baris 1 = judul modul wajib yang di-merge 2 kolom, baris 2 = "Pre Test"/"Post
+// Test" per modul), kolom Nama & Username di-merge vertikal 2 baris, dan panel
+// "Ringkasan Dashboard SalesPro Academy" di kolom kanan (dipisah 2 kolom kosong).
 function exportDashboardExcel(){
   const scoped = getFilteredParticipants();
   if(!scoped.length){ toast('Tidak ada data peserta untuk diekspor'); return; }
+
+  const wm = wajibModules();
 
   const allScores = scoped.map(p=>avgQuizScore(p)).filter(s=>s!==null);
   const avgScoreAll = allScores.length ? Math.round(allScores.reduce((a,b)=>a+b,0)/allScores.length) : '—';
@@ -8125,9 +8131,20 @@ function exportDashboardExcel(){
     else { cBelumMulai++; }
   });
 
-  const ringkasanRows = [
-    ['Ringkasan Dashboard SalesPro Academy'],
-    ['Diekspor pada', new Date().toLocaleString('id-ID')],
+  // Baris 1 & 2: "Nama"/"Username" (merge vertikal) + judul modul wajib (merge
+  // horizontal, 2 kolom "Pre Test"/"Post Test") + panel Ringkasan di kanan.
+  const headerRow1 = ['Nama', 'Username'];
+  const headerRow2 = ['', ''];
+  wm.forEach(m=>{
+    headerRow1.push(m.title, '');
+    headerRow2.push('Pre Test', 'Post Test');
+  });
+  headerRow1.push('', '', 'Ringkasan Dashboard SalesPro Academy', '');
+  headerRow2.push('', '', 'Diekspor pada', new Date().toLocaleString('id-ID'));
+
+  // Panel ringkasan (kolom kanan), satu baris demi baris mengikuti urutan yang
+  // sama seperti di dashboard.
+  const summaryPanel = [
     ['Filter Bulan', dashboardFilterBln || 'Semua Bulan'],
     ['Filter Tahun', dashboardFilterTahun || 'Semua Tahun'],
     ['Filter Batch', dashboardFilterBatch || 'Semua Batch'],
@@ -8136,7 +8153,7 @@ function exportDashboardExcel(){
     ['Metrik', 'Nilai'],
     ['Total Peserta', scoped.length],
     ['Modul Aktif (Total)', MODULES.length],
-    ['Modul Wajib', wajibModules().length],
+    ['Modul Wajib', wm.length],
     ['Modul Additional', additionalModules().length],
     ['Rata-rata Skor Kuis (Modul Wajib)', avgScoreAll],
     ['Sertifikat Terbit', scoped.filter(isCertified).length],
@@ -8147,31 +8164,41 @@ function exportDashboardExcel(){
     ['Mundur', cMundur]
   ];
 
-  const resumeRows = [
-    ['Peserta','Posisi','Modul Wajib Selesai','Total Modul Wajib','Progress (%)','Rata-rata Skor (Wajib)','Status']
-  ];
+  const dataColCount = 2 + wm.length*2; // Nama + Username + (Pre/Post) per modul wajib
+  const summaryStartCol = dataColCount + 2; // 2 kolom kosong pemisah sebelum panel kanan
+
+  const rows = [headerRow1, headerRow2];
   scoped.forEach(p=>{
-    const done = modulesFullyCompleted(p);
-    const pct = overallProgressPct(p);
-    const score = avgQuizScore(p);
-    let status = 'Belum Mulai';
-    if(pct>0 && pct<100) status = 'Sedang Berjalan';
-    if(pct===100) status = isCertified(p) ? 'Lulus' : 'Selesai, Belum Lulus';
-    if(p.resignDate) status = 'Mundur';
-    resumeRows.push([p.name, p.posisi || '—', done, wajibModules().length, pct, score===null?'—':score, status]);
+    const row = [p.name, p.username || ''];
+    wm.forEach(m=>{
+      const prog = p.progress[m.id] || {};
+      row.push(prog.pretestScore ?? '', prog.posttestScore ?? '');
+    });
+    rows.push(row);
+  });
+  // Tulis panel Ringkasan ke baris data ke-3 dan seterusnya (sejajar dengan
+  // baris peserta). Kalau jumlah baris panel lebih banyak dari jumlah peserta,
+  // tambahkan baris tambahan khusus untuk sisa panel.
+  summaryPanel.forEach((panelRow, i)=>{
+    const rIdx = 2 + i; // baris ke-3 (index 2) dan seterusnya
+    if(!rows[rIdx]) rows[rIdx] = new Array(dataColCount).fill('');
+    rows[rIdx][summaryStartCol] = panelRow[0] ?? '';
+    rows[rIdx][summaryStartCol+1] = panelRow[1] ?? '';
   });
 
-  const moduleScoreRows = [['Modul','Kategori','Rata-rata Skor Kuis']];
-  MODULES.forEach(m=>{
-    const scores = scoped.map(p=>p.progress[m.id]?.quizScore).filter(s=>s!==null && s!==undefined);
-    const avg = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : '—';
-    moduleScoreRows.push([m.title, (m.kategori||'wajib')==='additional' ? 'Additional' : 'Wajib', avg]);
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const merges = [
+    { s:{r:0,c:0}, e:{r:1,c:0} }, // Nama
+    { s:{r:0,c:1}, e:{r:1,c:1} }  // Username
+  ];
+  wm.forEach((m,idx)=>{
+    const c = 2 + idx*2;
+    merges.push({ s:{r:0,c:c}, e:{r:0,c:c+1} });
   });
+  ws['!merges'] = merges;
 
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ringkasanRows), 'Ringkasan');
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(resumeRows), 'Resume Peserta');
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(moduleScoreRows), 'Skor per Modul');
+  XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
 
   const dateStr = new Date().toISOString().slice(0,10);
   XLSX.writeFile(wb, `dashboard-salespro-academy-${dateStr}.xlsx`);
