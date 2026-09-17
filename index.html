@@ -481,6 +481,36 @@
         </div>
 
         <div id="dashboard-body" class="space-y-5">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <span id="rt-live-badge" class="inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full" style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                LIVE
+              </span>
+              <span id="rt-sync-status" class="text-[10px] text-slate-400">Menunggu sinkron cloud…</span>
+            </div>
+            <button type="button" class="btn-ghost !py-1 !px-2.5 !text-[10px]" onclick="forceRealtimeRefresh()" title="Refresh dari cloud">
+              <i class="fa-solid fa-rotate mr-1"></i>Refresh
+            </button>
+          </div>
+
+          <div class="card p-4">
+            <div class="flex items-center justify-between mb-3">
+              <p class="text-xs font-bold text-slate-700">KPI Real-time <span class="font-normal text-slate-400">(bulan filter)</span></p>
+              <button class="text-[10px] font-semibold" style="color:var(--brand-600)" onclick="switchTab('resumekpi')">Buka Resume →</button>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2" id="dashboard-rt-kpi">
+              <div class="rounded-lg p-2.5 bg-slate-50 border border-slate-100"><p class="text-[9px] text-slate-400 font-semibold uppercase">Agenda</p><p id="rt-kpi-agenda" class="text-sm font-extrabold text-slate-800 mt-0.5">—</p></div>
+              <div class="rounded-lg p-2.5 bg-slate-50 border border-slate-100"><p class="text-[9px] text-slate-400 font-semibold uppercase">Peserta</p><p id="rt-kpi-training" class="text-sm font-extrabold text-slate-800 mt-0.5">—</p></div>
+              <div class="rounded-lg p-2.5 bg-slate-50 border border-slate-100"><p class="text-[9px] text-slate-400 font-semibold uppercase">Closing</p><p id="rt-kpi-closing" class="text-sm font-extrabold text-slate-800 mt-0.5">—</p></div>
+              <div class="rounded-lg p-2.5 bg-slate-50 border border-slate-100"><p class="text-[9px] text-slate-400 font-semibold uppercase">Dampak</p><p id="rt-kpi-impact" class="text-sm font-extrabold text-slate-800 mt-0.5">—</p></div>
+              <div class="rounded-lg p-2.5 bg-slate-50 border border-slate-100"><p class="text-[9px] text-slate-400 font-semibold uppercase">Penerapan</p><p id="rt-kpi-apply" class="text-sm font-extrabold text-slate-800 mt-0.5">—</p></div>
+              <div class="rounded-lg p-2.5 bg-slate-50 border border-slate-100"><p class="text-[9px] text-slate-400 font-semibold uppercase">Feedback</p><p id="rt-kpi-fltl" class="text-sm font-extrabold text-slate-800 mt-0.5">—</p></div>
+              <div class="rounded-lg p-2.5 bg-slate-50 border border-slate-100"><p class="text-[9px] text-slate-400 font-semibold uppercase">Coaching</p><p id="rt-kpi-sc" class="text-sm font-extrabold text-slate-800 mt-0.5">—</p></div>
+              <div class="rounded-lg p-2.5 bg-slate-50 border border-slate-100"><p class="text-[9px] text-slate-400 font-semibold uppercase">Skor</p><p id="rt-kpi-score" class="text-sm font-extrabold mt-0.5" style="color:var(--brand-600)">—</p></div>
+            </div>
+          </div>
+
           <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <div class="card p-4 cursor-pointer hover:shadow-md transition" onclick="openPesertaListModal()" title="Lihat daftar peserta">
               <p class="text-xs text-slate-500 font-medium">Total Peserta</p>
@@ -586,6 +616,10 @@
             </div>
             <div class="flex flex-wrap items-end gap-3">
               <div>
+                <label class="text-[10px] font-semibold text-slate-400 uppercase">Week · Batch</label>
+                <div id="resume-week-tabs" class="flex items-center gap-1 flex-wrap mt-0.5"></div>
+              </div>
+              <div>
                 <label class="text-[10px] font-semibold text-slate-400 uppercase">Bulan</label>
                 <select id="resumekpi-filter-bln" class="field !mt-0.5 !py-1.5" onchange="applyResumeKpiMonthFilter()"><option value="">Semua Bulan</option></select>
               </div>
@@ -599,6 +633,7 @@
                   <span id="kpi-score-label" class="text-lg font-bold text-brand-600" style="color:var(--brand-600)">0.0</span>
                   <span id="kpi-scale-label" class="text-xs text-slate-400">/ 4.0</span>
                 </button>
+                <span id="resume-kpi-lock-badge" class="hidden text-[10px] font-bold px-2 py-0.5 rounded-full" style="background:#fef3c7;color:#92400e"><i class="fa-solid fa-lock mr-1"></i>Terkunci</span>
               </div>
             </div>
           </div>
@@ -626,7 +661,7 @@
             </div>
             <p id="resumekpi-training-sub" class="text-[10px] text-slate-400">0 dari 0 peserta</p>
           </div>
-          <div class="card p-3.5 resumekpi-card cursor-pointer" onclick="switchTab('closingskill')" title="Detail skill closing">
+          <div class="card p-3.5 resumekpi-card cursor-pointer" onclick="openClosingSkillDetailModal()" title="Detail skill closing per batch">
             <div class="flex items-center justify-between mb-2">
               <span class="text-xs font-medium text-slate-600">% Closing skill</span>
               <span id="resumekpi-closing-pct" class="text-xs font-bold text-amber-600">0%</span>
@@ -636,7 +671,7 @@
             </div>
             <p id="resumekpi-closing-sub" class="text-[10px] text-slate-400">0 growth dari 0 peserta</p>
           </div>
-          <div class="card p-3.5 resumekpi-card cursor-pointer" onclick="switchTab('tasklistmarketing')" title="Detail tasklist">
+          <div class="card p-3.5 resumekpi-card cursor-pointer" onclick="openApplyDetailModal()" title="Detail penerapan per minggu">
             <div class="flex items-center justify-between mb-2">
               <span class="text-xs font-medium text-slate-600">% Penerapan materi lapangan</span>
               <span id="resumekpi-apply-pct" class="text-xs font-bold" style="color:var(--brand-600)">0%</span>
@@ -646,7 +681,7 @@
             </div>
             <p id="resumekpi-apply-sub" class="text-[10px] text-slate-400">0 dari 0 task selesai</p>
           </div>
-          <div class="card p-3.5 resumekpi-card cursor-pointer" onclick="switchTab('pencapaian')" title="Detail booking">
+          <div class="card p-3.5 resumekpi-card cursor-pointer" onclick="openImpactDetailModal()" title="Detail dampak per minggu">
             <div class="flex items-center justify-between mb-2">
               <span class="text-xs font-medium text-slate-600">% Dampak ke aktivitas sales</span>
               <span id="resumekpi-impact-pct" class="text-xs font-bold text-blue-600">0%</span>
@@ -666,7 +701,7 @@
             </div>
             <p id="resumekpi-lengkap-sub" class="text-[10px] text-slate-400">0 dari 8 indikator</p>
           </div>
-          <div class="card p-3.5 resumekpi-card cursor-pointer" onclick="switchTab('feedbacktl')" title="Detail feedback">
+          <div class="card p-3.5 resumekpi-card cursor-pointer" onclick="openFeedbackDetailModal()" title="Detail feedback per minggu">
             <div class="flex items-center justify-between mb-2">
               <span class="text-xs font-medium text-slate-600">% Feedback ditindaklanjuti</span>
               <span id="resumekpi-fltl-pct" class="text-xs font-bold text-amber-600">0%</span>
@@ -676,7 +711,7 @@
             </div>
             <p id="resumekpi-fltl-sub" class="text-[10px] text-slate-400">0 dari 0 point</p>
           </div>
-          <div class="card p-3.5 resumekpi-card cursor-pointer" onclick="switchTab('supportcoaching')" title="Detail coaching">
+          <div class="card p-3.5 resumekpi-card cursor-pointer" onclick="openCoachingDetailModal()" title="Detail coaching per minggu">
             <div class="flex items-center justify-between mb-2">
               <span class="text-xs font-medium text-slate-600">% Support coaching lapangan</span>
               <span id="resumekpi-sc-pct" class="text-xs font-bold" style="color:var(--brand-600)">0%</span>
@@ -686,6 +721,29 @@
             </div>
             <p id="resumekpi-sc-sub" class="text-[10px] text-slate-400">0 dari 0 sesi</p>
           </div>
+        </div>
+
+        <!-- Tren KPI Mingguan -->
+        <div class="card p-5">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div>
+              <p class="text-sm font-semibold text-slate-900">Tren KPI Mingguan</p>
+              <p id="resume-trend-subtitle" class="text-xs text-slate-400 mt-0.5">Week 1–5 · Batch 1–5 · bulan aktif</p>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap text-[10px] text-slate-500">
+              <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#0d9488"></span>Agenda</span>
+              <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#6366f1"></span>Peserta</span>
+              <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#f59e0b"></span>Closing</span>
+              <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#3b82f6"></span>Dampak</span>
+              <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#ec4899"></span>Penerapan</span>
+              <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#8b5cf6"></span>Feedback</span>
+              <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#14b8a6"></span>Coaching</span>
+            </div>
+          </div>
+          <div class="relative" style="height:260px">
+            <canvas id="resume-kpi-trend-chart"></canvas>
+          </div>
+          <div id="resume-trend-table" class="mt-4 overflow-x-auto"></div>
         </div>
 
         <!-- Hidden ring elements kept for renderKpiScore() compatibility -->
@@ -1340,7 +1398,7 @@
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
           <!-- Calendar -->
           <div class="card p-5 lg:col-span-2">
-            <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
               <div class="flex items-center gap-2">
                 <button onclick="agendaChangeMonth(-1)" class="w-8 h-8 rounded-lg btn-ghost !p-0 flex items-center justify-center"><i class="fa-solid fa-chevron-left text-xs"></i></button>
                 <p id="agenda-month-label" class="text-sm font-extrabold w-40 text-center">—</p>
@@ -1498,10 +1556,10 @@
         </div>
         <div class="card p-5 max-w-lg">
           <p class="text-sm font-bold mb-1">Google Sheets — Agenda Kegiatan</p>
-          <p class="text-xs text-slate-400 mb-4">Setiap Simpan / Hapus di menu <b>Agenda Kegiatan</b> otomatis di-write ke spreadsheet online (kolom sama field web: id, title, date, time, category, location, notes, color).</p>
+          <p class="text-xs text-slate-400 mb-4">Setiap Simpan / Hapus di menu <b>Agenda Kegiatan</b> otomatis di-write ke spreadsheet. Plus <b>sync penuh mingguan</b> (setiap 7 hari) saat admin membuka app — memastikan sheet tetap lengkap.</p>
           <label class="flex items-center gap-2 text-xs font-semibold text-slate-600 mb-3 cursor-pointer">
             <input type="checkbox" id="sheets-agenda-enabled" class="rounded border-slate-300" onchange="saveSheetsAgendaSettings()">
-            Aktifkan auto-sync Agenda → Google Sheets
+            Aktifkan auto-sync + sync mingguan Agenda → Google Sheets
           </label>
           <label class="text-[11px] font-bold text-slate-500">URL Web App (Apps Script)</label>
           <input id="sheets-agenda-url" type="url" class="field" placeholder="https://script.google.com/macros/s/.../exec" onchange="saveSheetsAgendaSettings()">
@@ -1983,11 +2041,86 @@
 <div id="peserta-list-modal" class="modal-overlay hidden">
   <div class="card p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto">
     <div class="flex items-center justify-between mb-1">
-      <p class="text-sm font-extrabold">Daftar Peserta</p>
+      <p class="text-sm font-extrabold">Detail Peserta Lulus Evaluasi</p>
       <button onclick="closePesertaListModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <p id="peserta-list-subtitle" class="text-xs text-slate-400 mb-4"></p>
     <div class="space-y-2" id="peserta-list-body"></div>
+  </div>
+</div>
+
+<!-- Feedback TL Detail Modal -->
+<div id="feedback-detail-modal" class="modal-overlay hidden">
+  <div class="card p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-1">
+      <p class="text-sm font-extrabold">Detail Feedback Ditindaklanjuti</p>
+      <button onclick="closeFeedbackDetailModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <p id="feedback-detail-subtitle" class="text-xs text-slate-400 mb-4"></p>
+    <div class="space-y-2" id="feedback-detail-body"></div>
+    <div class="mt-4 pt-3 border-t flex justify-end" style="border-color:var(--line)">
+      <button class="btn-ghost text-xs" onclick="closeFeedbackDetailModal();switchTab('feedbacktl')"><i class="fa-solid fa-comments mr-1"></i>Buka Tindak Lanjut</button>
+    </div>
+  </div>
+</div>
+
+<!-- Support Coaching Detail Modal -->
+<div id="coaching-detail-modal" class="modal-overlay hidden">
+  <div class="card p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-1">
+      <p class="text-sm font-extrabold">Detail Support Coaching Lapangan</p>
+      <button onclick="closeCoachingDetailModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <p id="coaching-detail-subtitle" class="text-xs text-slate-400 mb-4"></p>
+    <div class="space-y-2" id="coaching-detail-body"></div>
+    <div class="mt-4 pt-3 border-t flex justify-end" style="border-color:var(--line)">
+      <button class="btn-ghost text-xs" onclick="closeCoachingDetailModal();switchTab('supportcoaching')"><i class="fa-solid fa-user-group mr-1"></i>Buka Support Coaching</button>
+    </div>
+  </div>
+</div>
+
+<!-- Penerapan Materi Detail Modal -->
+<div id="apply-detail-modal" class="modal-overlay hidden">
+  <div class="card p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-1">
+      <p class="text-sm font-extrabold">Detail Penerapan Materi Lapangan</p>
+      <button onclick="closeApplyDetailModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <p id="apply-detail-subtitle" class="text-xs text-slate-400 mb-4"></p>
+    <div class="space-y-2" id="apply-detail-body"></div>
+    <div class="mt-4 pt-3 border-t flex justify-end" style="border-color:var(--line)">
+      <button class="btn-ghost text-xs" onclick="closeApplyDetailModal();switchTab('tasklistmarketing')"><i class="fa-solid fa-list-check mr-1"></i>Buka Tasklist</button>
+    </div>
+  </div>
+</div>
+
+<!-- Dampak Aktivitas Sales Detail Modal -->
+<div id="impact-detail-modal" class="modal-overlay hidden">
+  <div class="card p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-1">
+      <p class="text-sm font-extrabold">Detail Dampak ke Aktivitas Sales</p>
+      <button onclick="closeImpactDetailModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <p id="impact-detail-subtitle" class="text-xs text-slate-400 mb-4"></p>
+    <div class="space-y-2" id="impact-detail-body"></div>
+    <div class="mt-4 pt-3 border-t flex justify-end" style="border-color:var(--line)">
+      <button class="btn-ghost text-xs" onclick="closeImpactDetailModal();switchTab('pencapaian')"><i class="fa-solid fa-chart-line mr-1"></i>Buka Pencapaian</button>
+    </div>
+  </div>
+</div>
+
+<!-- Closing Skill Detail by Batch Modal -->
+<div id="closing-skill-detail-modal" class="modal-overlay hidden">
+  <div class="card p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-1">
+      <p class="text-sm font-extrabold">Detail Skill Closing per Batch</p>
+      <button onclick="closeClosingSkillDetailModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <p id="closing-skill-detail-subtitle" class="text-xs text-slate-400 mb-4"></p>
+    <div class="space-y-2" id="closing-skill-detail-body"></div>
+    <div class="mt-4 pt-3 border-t flex justify-end" style="border-color:var(--line)">
+      <button class="btn-ghost text-xs" onclick="closeClosingSkillDetailModal();switchTab('closingskill')"><i class="fa-solid fa-table mr-1"></i>Buka tab penuh</button>
+    </div>
   </div>
 </div>
 
@@ -3070,6 +3203,7 @@ if(applyMasterTrainingList()){
 
 let pendingLesson = null;
 let dashboardFilterBln = '';
+let resumeSelectedWeek = null;
 let dashboardFilterTahun = '';
 let dashboardFilterBatch = '';
 let dashboardFilterPosisi = '';
@@ -3137,7 +3271,9 @@ function defaultState(){
     feedbackTL:[],
     supportCoaching:[],
     tasklistMarketing:{ tasks:[] },
-    kpiConfig:{ indicators:{} }
+    kpiConfig:{ indicators:{} },
+    kpiWeekly:{},
+    kpiWeekLocks:{}
   };
 }
 function normalizeState(parsed){
@@ -3155,6 +3291,8 @@ function normalizeState(parsed){
   if(!Array.isArray(parsed.moduleOrder)) parsed.moduleOrder = [];
   if(!Array.isArray(parsed.trash)) parsed.trash = [];
   if(!parsed.kpiWeekly || typeof parsed.kpiWeekly!=='object') parsed.kpiWeekly = {};
+  if(!parsed.kpiWeekLocks || typeof parsed.kpiWeekLocks!=='object') parsed.kpiWeekLocks = {};
+  if(!parsed.kpiWeekLocks || typeof parsed.kpiWeekLocks!=='object') parsed.kpiWeekLocks = {};
   if(!Array.isArray(parsed.agenda)) parsed.agenda = [];
   if(!Array.isArray(parsed.agendaRecurring)) parsed.agendaRecurring = [];
   if(!Array.isArray(parsed.agendaRecurringSkips)) parsed.agendaRecurringSkips = [];
@@ -3221,6 +3359,162 @@ function chunkArray(arr, size){
   for(let i=0;i<arr.length;i+=size) out.push(arr.slice(i,i+size));
   return out;
 }
+
+/* ===== Real-time Firebase → Dashboard / Resume KPI ===== */
+let _rtUnsubDoc = null;
+let _rtUnsubParts = null;
+let _rtApplyingRemote = false;
+let _rtRefreshTimer = null;
+let _rtLastLocalSave = 0;
+
+function markLocalSave(){ _rtLastLocalSave = Date.now(); }
+
+function setRealtimeStatus(text, ok){
+  const el = document.getElementById('rt-sync-status');
+  const badge = document.getElementById('rt-live-badge');
+  if(el) el.innerText = text;
+  if(badge){
+    if(ok===false){
+      badge.style.background = '#fef2f2';
+      badge.style.color = '#991b1b';
+      badge.style.borderColor = '#fecaca';
+      badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> OFFLINE';
+    } else {
+      badge.style.background = '#ecfdf5';
+      badge.style.color = '#065f46';
+      badge.style.borderColor = '#a7f3d0';
+      badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> LIVE';
+    }
+  }
+}
+
+function scheduleRealtimeUiRefresh(){
+  if(_rtRefreshTimer) clearTimeout(_rtRefreshTimer);
+  _rtRefreshTimer = setTimeout(()=>{
+    _rtRefreshTimer = null;
+    try{
+      if(typeof renderDashboard==='function') renderDashboard();
+      if(typeof renderResumeKpi==='function') renderResumeKpi();
+      updateDashboardRealtimeKpiStrip();
+    }catch(e){ console.warn('rt ui refresh', e); }
+  }, 250);
+}
+
+function updateDashboardRealtimeKpiStrip(){
+  const m = window.__lastResumeKpiMetrics;
+  if(!m){
+    // trigger compute
+    try{ if(typeof renderResumeKpi==='function') renderResumeKpi(); }catch(_){}
+  }
+  const metrics = window.__lastResumeKpiMetrics || {};
+  const set = (id, v, suffix)=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    if(v===undefined || v===null){ el.innerText = '—'; return; }
+    el.innerText = (typeof v==='number' ? v : v) + (suffix||'');
+    const n = Number(v);
+    if(!isNaN(n)){
+      el.style.color = n>=80 ? '#15803d' : n>=50 ? '#d97706' : '#64748b';
+    }
+  };
+  set('rt-kpi-agenda', metrics.agenda, '%');
+  set('rt-kpi-training', metrics.training, '%');
+  set('rt-kpi-closing', metrics.closing, '%');
+  set('rt-kpi-impact', metrics.impact, '%');
+  set('rt-kpi-apply', metrics.apply, '%');
+  set('rt-kpi-fltl', metrics.fltl, '%');
+  set('rt-kpi-sc', metrics.sc, '%');
+  const scoreEl = document.getElementById('rt-kpi-score');
+  const scoreLabel = document.getElementById('kpi-score-label');
+  if(scoreEl && scoreLabel) scoreEl.innerText = scoreLabel.innerText;
+}
+
+function applyRemoteWorkspaceData(data){
+  if(!data) return;
+  _rtApplyingRemote = true;
+  try{
+    if(data.state){
+      if(!data.state.participants) data.state.participants = state.participants || [];
+      const keepParts = state.participants;
+      state = normalizeState(data.state);
+      // participants from subcollection listener; keep current until parts snap arrives
+      if(keepParts && keepParts.length) state.participants = keepParts;
+      try{ applyMasterTrainingList(); }catch(_){}
+      rebuildModules();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+    if(Array.isArray(data.gciData)){
+      gciData = data.gciData;
+      localStorage.setItem(GCI_STORAGE_KEY, JSON.stringify(gciData));
+    }
+    if(Array.isArray(data.posisiScope)){
+      savedPosisiScope = data.posisiScope.slice();
+      localStorage.setItem(POSISI_SCOPE_KEY, JSON.stringify(savedPosisiScope));
+    }
+    if(typeof data.aiProxyUrl==='string') cachedAIProxyUrl = data.aiProxyUrl;
+  } finally {
+    _rtApplyingRemote = false;
+  }
+}
+
+function startRealtimeSync(){
+  if(typeof FB_DOC==='undefined' || !FB_DOC) return;
+  stopRealtimeSync();
+  setRealtimeStatus('Menghubungkan…', true);
+  try{
+    _rtUnsubDoc = FB_DOC.onSnapshot(snap=>{
+      // Abaikan echo dari save lokal baru saja
+      if(Date.now() - _rtLastLocalSave < 800) {
+        setRealtimeStatus('Tersinkron · ' + new Date().toLocaleTimeString('id-ID'), true);
+        return;
+      }
+      if(!snap.exists) return;
+      applyRemoteWorkspaceData(snap.data());
+      setRealtimeStatus('Update · ' + new Date().toLocaleTimeString('id-ID'), true);
+      scheduleRealtimeUiRefresh();
+    }, err=>{
+      console.warn('rt doc', err);
+      setRealtimeStatus('Gagal live: ' + (err.message||err), false);
+    });
+    _rtUnsubParts = FB_PARTICIPANTS.onSnapshot(partSnap=>{
+      if(Date.now() - _rtLastLocalSave < 800) return;
+      try{
+        state.participants = partSnap.docs.map(d=>d.data());
+        lastSyncedParticipants = new Map(partSnap.docs.map(d=>[d.id, JSON.stringify(d.data())]));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        setRealtimeStatus('Peserta live · ' + new Date().toLocaleTimeString('id-ID'), true);
+        scheduleRealtimeUiRefresh();
+      }catch(e){ console.warn('rt parts', e); }
+    }, err=>{
+      console.warn('rt parts', err);
+      setRealtimeStatus('Peserta offline', false);
+    });
+    setRealtimeStatus('Live · menunggu perubahan', true);
+  }catch(e){
+    console.warn('startRealtimeSync', e);
+    setRealtimeStatus('Realtime tidak aktif', false);
+  }
+}
+function stopRealtimeSync(){
+  try{ if(_rtUnsubDoc) _rtUnsubDoc(); }catch(_){}
+  try{ if(_rtUnsubParts) _rtUnsubParts(); }catch(_){}
+  _rtUnsubDoc = null;
+  _rtUnsubParts = null;
+}
+async function forceRealtimeRefresh(){
+  setRealtimeStatus('Refresh manual…', true);
+  try{
+    await loadAllCloudData();
+    scheduleRealtimeUiRefresh();
+    setRealtimeStatus('Refresh selesai · ' + new Date().toLocaleTimeString('id-ID'), true);
+    toast('Data cloud diperbarui');
+  }catch(e){
+    setRealtimeStatus('Refresh gagal', false);
+    toast('Gagal refresh cloud');
+  }
+}
+
+
 async function syncParticipantsToCloud(participants){
   if(!Array.isArray(participants)) return;
   // Belum selesai load awal dari cloud: jangan diff dulu (bisa salah hapus
@@ -3918,14 +4212,29 @@ function computeFeedbackTLStatsFor(blnName, tahunNum){
 // Statistik Tasklist Marketing untuk satu periode Bulan/Tahun tertentu (dipakai
 // oleh kartu Resume KPI), dihitung dari state.tasklistMarketing.tasks berdasarkan
 // kolom Tanggal tiap task.
+/** Rata-rata % pengerjaan per orang, lalu dirata-rata antar orang (bukan rata task). */
+function computeApplyPctByPeople(taskList){
+  const list = taskList || [];
+  const byPerson = {};
+  list.forEach(t=>{
+    const key = String(t.employee || t.nama || t.pic || '(Tanpa nama)').trim().toLowerCase() || '(tanpa nama)';
+    if(!byPerson[key]) byPerson[key] = [];
+    byPerson[key].push(Number(t.pctTask)||0);
+  });
+  const personKeys = Object.keys(byPerson);
+  const personAvgs = personKeys.map(k=>{
+    const arr = byPerson[k];
+    return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0;
+  });
+  const pct = personAvgs.length ? Math.round(personAvgs.reduce((a,b)=>a+b,0)/personAvgs.length) : 0;
+  const done = list.filter(t=>!!t.actual).length;
+  return { total: list.length, done, pct, people: personKeys.length, personAvgs };
+}
 function computeTasklistMarketingStatsFor(blnName, tahunNum){
   const list = (state.tasklistMarketing.tasks||[]).filter(t=>
     monthNameFromDate(t.tanggal)===blnName && yearFromDate(t.tanggal)===String(tahunNum)
   );
-  const total = list.length;
-  const done = list.filter(t=>!!t.actual).length;
-  const pct = total ? Math.round(list.reduce((a,t)=>a+(Number(t.pctTask)||0),0)/total) : 0;
-  return { total, done, pct };
+  return computeApplyPctByPeople(list);
 }
 function renderFeedbackTL(){
   renderFeedbackTLFilters();
@@ -4968,6 +5277,7 @@ function renderDashboard(){
   document.getElementById('learner-ring').setAttribute('stroke-dashoffset', circumference - (circumference*avgPct/100));
   document.getElementById('learner-ring-label').innerText = avgPct+'%';
   document.getElementById('learner-ring-name').innerText = scoped.length + ' peserta';
+  try{ updateDashboardRealtimeKpiStrip(); }catch(_){}
 
   const log = document.getElementById('recent-activity');
   if(log) log.innerHTML = state.activityLog.length ? state.activityLog.map(a=>`
@@ -5101,37 +5411,98 @@ function computeRecurringMonthlyCompletionWajib(year, month){
   const pct = total>0 ? Math.round((done/total)*100) : 0;
   return { total, done, pct };
 }
-function renderResumeKpi(){
-  renderResumeKpiFilters();
-  const scoped = getFilteredParticipants();
 
-  // 1) Persentase training sales (modul wajib) yang sudah selesai, untuk peserta
-  // sesuai filter bulan/tahun yang dipilih.
-  const totalPeserta = scoped.length;
-  const selesaiPeserta = scoped.filter(p=>overallProgressPct(p)===100).length;
-  const trainingPct = totalPeserta ? Math.round((selesaiPeserta/totalPeserta)*100) : 0;
-  document.getElementById('resumekpi-training-pct').innerText = trainingPct + '%';
-  document.getElementById('resumekpi-training-sub').innerText = `${selesaiPeserta} dari ${totalPeserta} peserta`;
-
-  // 2) Persentase pencapaian booking (konversi Booking dari total data GCI) untuk
-  // bulan yang dipilih. Jika "Semua Bulan" dipilih, dihitung dari seluruh data GCI.
-  const monthKey = dashboardGciMonthKey();
-  const monthLabel = monthKey ? gciMonthLabel(monthKey) : 'Semua Bulan';
-  let bookingPct = 0, bookingCount = 0, gciTotal = 0;
-  gciData = loadGciData();
-  if(monthKey){
-    const agg = aggregateGciMonth(monthKey);
-    bookingPct = agg.conversion; bookingCount = agg.booking; gciTotal = agg.total;
+function weekDayRange(w){
+  if(w===1) return [1,5];
+  if(w===2) return [6,12];
+  if(w===3) return [13,19];
+  if(w===4) return [20,26];
+  if(w===5) return [27,31];
+  return [1,31];
+}
+function resumeMonthKeyFromFilters(){
+  const bln = document.getElementById('resumekpi-filter-bln')?.value || dashboardFilterBln || MONTH_NAMES_ID[new Date().getMonth()];
+  const th = document.getElementById('resumekpi-filter-tahun')?.value || dashboardFilterTahun || String(new Date().getFullYear());
+  const mi = MONTH_NAMES_ID.indexOf(bln);
+  const mm = mi>=0 ? String(mi+1).padStart(2,'0') : String(new Date().getMonth()+1).padStart(2,'0');
+  return (th||String(new Date().getFullYear()))+'-'+mm;
+}
+function isKpiWeekLocked(weekNum, monthKey){
+  if(!weekNum) return false;
+  const key = monthKey || resumeMonthKeyFromFilters();
+  const locks = (state.kpiWeekLocks && state.kpiWeekLocks[key]) || {};
+  return !!locks['W'+weekNum];
+}
+function toggleKpiWeekLock(weekNum, ev){
+  if(ev){ try{ev.stopPropagation();}catch(_){} }
+  if(!weekNum) return;
+  if(!state.kpiWeekLocks) state.kpiWeekLocks = {};
+  const key = resumeMonthKeyFromFilters();
+  if(!state.kpiWeekLocks[key]) state.kpiWeekLocks[key] = {};
+  const wk = 'W'+weekNum;
+  if(state.kpiWeekLocks[key][wk]){
+    delete state.kpiWeekLocks[key][wk];
+    toast(wk+' dibuka');
   } else {
-    gciTotal = gciData.length;
-    bookingCount = gciData.filter(r=>classifyGciStatus(r)==='booking').length;
-    bookingPct = gciTotal ? Math.round((bookingCount/gciTotal)*1000)/10 : 0;
+    state.kpiWeekLocks[key][wk] = true;
+    toast(wk+' dikunci — KPI minggu ini terkunci');
   }
-  document.getElementById('resumekpi-impact-pct').innerText = bookingPct + '%';
-  document.getElementById('resumekpi-impact-sub').innerText = `${bookingCount} booking dari ${gciTotal} data (${monthLabel})`;
+  saveState();
+  renderResumeWeekTabs();
+  renderResumeKpi();
+}
+function setResumeWeekFilter(w){
+  if(w===null || w===undefined){ resumeSelectedWeek = null; }
+  else { resumeSelectedWeek = (resumeSelectedWeek===w) ? null : w; }
+  renderResumeWeekTabs();
+  renderResumeKpi();
+}
+function renderResumeWeekTabs(){
+  const el = document.getElementById('resume-week-tabs');
+  if(!el) return;
+  const key = resumeMonthKeyFromFilters();
+  el.innerHTML = [1,2,3,4,5].map(w=>{
+    const active = resumeSelectedWeek===w;
+    const locked = isKpiWeekLocked(w, key);
+    return `<div class="inline-flex items-center rounded-lg overflow-hidden border" style="border-color:${active?'var(--brand-500)':'var(--line)'}">
+      <button type="button" onclick="setResumeWeekFilter(${w})" class="px-2 py-1.5 text-[11px] font-bold transition"
+        style="${active?'background:var(--brand-600);color:#fff':'background:#fff;color:#475569'}" title="KPI fokus Week ${w} / Batch ${w}">
+        W${w}
+      </button>
+      <button type="button" onclick="toggleKpiWeekLock(${w},event)" class="px-1.5 py-1.5 text-[10px] border-l transition"
+        style="border-color:${active?'rgba(255,255,255,.25)':'var(--line)'};background:${locked?'#fef3c7':(active?'var(--brand-700)':'#f8fafc')};color:${locked?'#92400e':(active?'#fff':'#94a3b8')}"
+        title="${locked?'Buka kunci W'+w:'Kunci KPI W'+w}">
+        <i class="fa-solid ${locked?'fa-lock':'fa-lock-open'}"></i>
+      </button>
+    </div>`;
+  }).join('') + `<button type="button" onclick="setResumeWeekFilter(null)" class="px-2 py-1.5 text-[11px] font-semibold rounded-lg btn-ghost ${resumeSelectedWeek==null?'ring-1 ring-teal-500':''}">Semua</button>`;
+  const badge = document.getElementById('resume-kpi-lock-badge');
+  if(badge){
+    const lockedNow = resumeSelectedWeek && isKpiWeekLocked(resumeSelectedWeek);
+    badge.classList.toggle('hidden', !lockedNow);
+  }
+}
+function dateInResumeWeek(dateStr){
+  if(!resumeSelectedWeek || !dateStr) return true;
+  const day = parseInt(String(dateStr).split('-')[2],10);
+  if(isNaN(day)) return true;
+  const [a,b] = weekDayRange(resumeSelectedWeek);
+  return day>=a && day<=b;
+}
+function filterListByResumeWeek(list, getDateOrWeek){
+  if(!resumeSelectedWeek) return list;
+  return list.filter(item=>{
+    const v = getDateOrWeek(item);
+    if(typeof v === 'number') return v === resumeSelectedWeek;
+    return dateInResumeWeek(v);
+  });
+}
 
-  // 3) Persentase penyelesaian agenda WAJIB untuk bulan yang dipilih (default: bulan
-  // berjalan jika belum ada bulan/tahun yang dipilih).
+
+
+let resumeKpiTrendChart = null;
+function computeWeeklyKpiSeries(){
+  // Hitung % tiap indikator untuk W1–W5 (tanpa mengubah resumeSelectedWeek)
   let agendaYear, agendaMonth;
   if(dashboardFilterBln && dashboardFilterTahun){
     agendaMonth = MONTH_NAMES_ID.indexOf(dashboardFilterBln);
@@ -5141,9 +5512,206 @@ function renderResumeKpi(){
     agendaYear = now.getFullYear();
     agendaMonth = now.getMonth();
   }
-  const agendaStats = computeRecurringMonthlyCompletionWajib(agendaYear, agendaMonth);
+  const blnName = MONTH_NAMES_ID[agendaMonth];
+  const tahunNum = agendaYear;
+  const monthKey = (dashboardFilterBln && dashboardFilterTahun)
+    ? (dashboardFilterTahun + '-' + String(MONTH_NAMES_ID.indexOf(dashboardFilterBln)+1).padStart(2,'0'))
+    : (String(agendaYear) + '-' + String(agendaMonth+1).padStart(2,'0'));
+
+  const allPeserta = getFilteredParticipants();
+  const csMod = typeof closingSkillModule==='function' ? closingSkillModule() : null;
+  gciData = loadGciData();
+  const gciMonthRows = gciData.filter(r=>gciMonthKey(r.tanggal)===monthKey);
+  const wajibList = (typeof getWajibOccurrencesForMonth==='function')
+    ? getWajibOccurrencesForMonth(agendaYear, agendaMonth) : [];
+  const tasks = (state.tasklistMarketing.tasks||[]).filter(t=>
+    monthNameFromDate(t.tanggal)===blnName && yearFromDate(t.tanggal)===String(tahunNum)
+  );
+  const feedbacks = state.feedbackTL.filter(f=>f.bln===blnName && Number(f.tahun)===Number(tahunNum));
+  const coachings = state.supportCoaching.filter(f=>f.bln===blnName && Number(f.tahun)===Number(tahunNum));
+
+  const series = { agenda:[], training:[], closing:[], impact:[], apply:[], fltl:[], sc:[] };
+  for(let w=1; w<=5; w++){
+    const [d0,d1] = weekDayRange(w);
+    const inWeek = (dateStr)=>{
+      if(!dateStr) return false;
+      const day = parseInt(String(dateStr).split('-')[2],10);
+      return !isNaN(day) && day>=d0 && day<=d1;
+    };
+
+    // Agenda
+    const ag = wajibList.filter(e=>inWeek(e.date));
+    const agDone = ag.filter(e=>getAgendaEffectiveStatus(e)==='selesai').length;
+    series.agenda.push(ag.length ? Math.round((agDone/ag.length)*100) : 0);
+
+    // Peserta
+    const ps = allPeserta.filter(p=>typeof participantWeekBatch==='function' && participantWeekBatch(p)===w);
+    const psDone = ps.filter(p=>overallProgressPct(p)===100).length;
+    series.training.push(ps.length ? Math.round((psDone/ps.length)*100) : 0);
+
+    // Closing
+    let csAvg = 0;
+    if(csMod){
+      const csRows = ps.map(p=>getClosingSkillData(p, csMod)).filter(d=>d.avg!==null);
+      csAvg = csRows.length ? Math.round(csRows.reduce((a,d)=>a+d.avg,0)/csRows.length) : 0;
+    }
+    series.closing.push(csAvg);
+
+    // Impact GCI
+    const gciW = gciMonthRows.filter(r=>inWeek(r.tanggal));
+    const book = gciW.filter(r=>classifyGciStatus(r)==='booking').length;
+    series.impact.push(gciW.length ? Math.round((book/gciW.length)*1000)/10 : 0);
+
+    // Apply tasks: rata-rata per orang di minggu itu
+    const tw = tasks.filter(t=>inWeek(t.tanggal));
+    series.apply.push(computeApplyPctByPeople(tw).pct);
+
+    // Feedback
+    const fw = feedbacks.filter(f=>Number(f.week)===w);
+    const fd = fw.filter(f=>f.status==='done').length;
+    series.fltl.push(fw.length ? Math.round((fd/fw.length)*100) : 0);
+
+    // Coaching
+    const cw = coachings.filter(f=>Number(f.week)===w);
+    const cd = cw.filter(f=>f.status==='done').length;
+    series.sc.push(cw.length ? Math.round((cd/cw.length)*100) : 0);
+  }
+  return { series, blnName, tahunNum };
+}
+function renderResumeKpiTrendChart(){
+  const canvas = document.getElementById('resume-kpi-trend-chart');
+  if(!canvas || typeof Chart==='undefined') return;
+  const { series, blnName, tahunNum } = computeWeeklyKpiSeries();
+  const sub = document.getElementById('resume-trend-subtitle');
+  if(sub) sub.innerText = `Week 1–5 · Batch 1–5 · ${blnName} ${tahunNum}`;
+
+  const labels = ['W1','W2','W3','W4','W5'];
+  const datasets = [
+    { label:'Agenda', data:series.agenda, borderColor:'#0d9488', backgroundColor:'rgba(13,148,136,.12)', tension:.35, fill:false, borderWidth:2, pointRadius:3 },
+    { label:'Peserta', data:series.training, borderColor:'#6366f1', backgroundColor:'rgba(99,102,241,.12)', tension:.35, fill:false, borderWidth:2, pointRadius:3 },
+    { label:'Closing', data:series.closing, borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,.12)', tension:.35, fill:false, borderWidth:2, pointRadius:3 },
+    { label:'Dampak', data:series.impact, borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,.12)', tension:.35, fill:false, borderWidth:2, pointRadius:3 },
+    { label:'Penerapan', data:series.apply, borderColor:'#ec4899', backgroundColor:'rgba(236,72,153,.12)', tension:.35, fill:false, borderWidth:2, pointRadius:3 },
+    { label:'Feedback', data:series.fltl, borderColor:'#8b5cf6', backgroundColor:'rgba(139,92,246,.12)', tension:.35, fill:false, borderWidth:2, pointRadius:3 },
+    { label:'Coaching', data:series.sc, borderColor:'#14b8a6', backgroundColor:'rgba(20,184,166,.12)', tension:.35, fill:false, borderWidth:2, pointRadius:3 }
+  ];
+
+  if(resumeKpiTrendChart){
+    resumeKpiTrendChart.data.labels = labels;
+    resumeKpiTrendChart.data.datasets.forEach((ds,i)=>{ ds.data = datasets[i].data; });
+    resumeKpiTrendChart.update();
+  } else {
+    resumeKpiTrendChart = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: (items)=> items.length ? items[0].label + ' / Batch ' + String(items[0].label).replace('W','') : '',
+              label: (ctx)=> ` ${ctx.dataset.label}: ${ctx.parsed.y}%`
+            }
+          }
+        },
+        scales: {
+          y: {
+            min: 0, max: 100,
+            ticks: { callback: (v)=> v+'%', font: { size: 10 } },
+            grid: { color: 'rgba(148,163,184,.2)' }
+          },
+          x: {
+            ticks: { font: { size: 11, weight: '600' } },
+            grid: { display: false }
+          }
+        }
+      }
+    });
+  }
+
+  // Mini table
+  const tbl = document.getElementById('resume-trend-table');
+  if(tbl){
+    const rows = [
+      ['Agenda', series.agenda],
+      ['Peserta', series.training],
+      ['Closing', series.closing],
+      ['Dampak', series.impact],
+      ['Penerapan', series.apply],
+      ['Feedback', series.fltl],
+      ['Coaching', series.sc]
+    ];
+    tbl.innerHTML = `<table class="w-full text-[11px]">
+      <thead><tr class="text-slate-400 border-b" style="border-color:var(--line)">
+        <th class="text-left py-2 pr-2 font-semibold">Indikator</th>
+        ${labels.map(l=>`<th class="text-center py-2 px-1 font-semibold">${l}</th>`).join('')}
+      </tr></thead>
+      <tbody>
+        ${rows.map(([name,arr])=>`<tr class="border-b" style="border-color:var(--line)">
+          <td class="py-1.5 pr-2 font-medium text-slate-600">${name}</td>
+          ${arr.map(v=>{
+            const c = v>=80?'#15803d':v>=50?'#d97706':'#94a3b8';
+            return `<td class="text-center py-1.5 font-bold" style="color:${c}">${v}%</td>`;
+          }).join('')}
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+  }
+}
+
+
+function renderResumeKpi(){
+  renderResumeKpiFilters();
+  renderResumeWeekTabs();
+  let scoped = getFilteredParticipants();
+  if(resumeSelectedWeek && typeof participantWeekBatch==='function'){
+    scoped = scoped.filter(p=>participantWeekBatch(p)===resumeSelectedWeek);
+  }
+  const weekTag = resumeSelectedWeek ? ` · W${resumeSelectedWeek}` : '';
+
+  // 1) Peserta lulus (scoped by week/batch)
+  const totalPeserta = scoped.length;
+  const selesaiPeserta = scoped.filter(p=>overallProgressPct(p)===100).length;
+  const trainingPct = totalPeserta ? Math.round((selesaiPeserta/totalPeserta)*100) : 0;
+  document.getElementById('resumekpi-training-pct').innerText = trainingPct + '%';
+  document.getElementById('resumekpi-training-sub').innerText = `${selesaiPeserta} dari ${totalPeserta} peserta${weekTag}`;
+
+  // 2) Dampak / booking GCI (filter tanggal by week)
+  const monthKey = dashboardGciMonthKey();
+  const monthLabel = monthKey ? gciMonthLabel(monthKey) : 'Semua Bulan';
+  let bookingPct = 0, bookingCount = 0, gciTotal = 0;
+  gciData = loadGciData();
+  let gciRows = gciData.slice();
+  if(monthKey) gciRows = gciRows.filter(r=>gciMonthKey(r.tanggal)===monthKey);
+  if(resumeSelectedWeek) gciRows = gciRows.filter(r=>dateInResumeWeek(r.tanggal));
+  gciTotal = gciRows.length;
+  bookingCount = gciRows.filter(r=>classifyGciStatus(r)==='booking').length;
+  bookingPct = gciTotal ? Math.round((bookingCount/gciTotal)*1000)/10 : 0;
+  document.getElementById('resumekpi-impact-pct').innerText = bookingPct + '%';
+  document.getElementById('resumekpi-impact-sub').innerText = `${bookingCount} booking dari ${gciTotal} data (${monthLabel}${weekTag})`;
+
+  // 3) Agenda wajib (filter occurrences by week day range)
+  let agendaYear, agendaMonth;
+  if(dashboardFilterBln && dashboardFilterTahun){
+    agendaMonth = MONTH_NAMES_ID.indexOf(dashboardFilterBln);
+    agendaYear = Number(dashboardFilterTahun);
+  } else {
+    const now = new Date();
+    agendaYear = now.getFullYear();
+    agendaMonth = now.getMonth();
+  }
+  let agendaStats = computeRecurringMonthlyCompletionWajib(agendaYear, agendaMonth);
+  if(resumeSelectedWeek && typeof getWajibOccurrencesForMonth==='function'){
+    const list = getWajibOccurrencesForMonth(agendaYear, agendaMonth).filter(e=>dateInResumeWeek(e.date));
+    const done = list.filter(e=>getAgendaEffectiveStatus(e)==='selesai').length;
+    const total = list.length;
+    agendaStats = { total, done, pct: total?Math.round((done/total)*100):0 };
+  }
   document.getElementById('resumekpi-agenda-pct').innerText = agendaStats.pct + '%';
-  document.getElementById('resumekpi-agenda-sub').innerText = `${agendaStats.done} dari ${agendaStats.total} kegiatan wajib (${MONTH_NAMES_ID[agendaMonth]} ${agendaYear})`;
+  document.getElementById('resumekpi-agenda-sub').innerText = `${agendaStats.done} dari ${agendaStats.total} kegiatan wajib (${MONTH_NAMES_ID[agendaMonth]} ${agendaYear}${weekTag})`;
 
   // 4) Rata-rata nilai Skill Closing (kuis Teknik Closing + nilai manual trainer,
   // dirata-rata) untuk peserta sesuai filter bulan/tahun yang dipilih.
@@ -5158,7 +5726,7 @@ function renderResumeKpi(){
   }
   document.getElementById('resumekpi-closing-pct').innerText = csAvg + '%';
   document.getElementById('resumekpi-closing-sub').innerText = csMod
-    ? `${csGrowth} growth dari ${csScored} peserta dinilai`
+    ? `${csGrowth} growth dari ${csScored} peserta dinilai${weekTag}`
     : 'Modul Teknik Closing belum ditemukan';
 
   // 5) Persentase penyelesaian Tindak Lanjut Feedback untuk bulan yang dipilih
@@ -5166,27 +5734,41 @@ function renderResumeKpi(){
   // logika kartu "Penyelesaian Agenda Wajib" di atas.
   const fltlBlnName = (dashboardFilterBln && dashboardFilterTahun) ? dashboardFilterBln : MONTH_NAMES_ID[agendaMonth];
   const fltlTahunNum = (dashboardFilterBln && dashboardFilterTahun) ? Number(dashboardFilterTahun) : agendaYear;
-  const fltlStats = computeFeedbackTLStatsFor(fltlBlnName, fltlTahunNum);
+  let fltlStats = computeFeedbackTLStatsFor(fltlBlnName, fltlTahunNum);
+  if(resumeSelectedWeek){
+    const fl = state.feedbackTL.filter(f=> f.bln===fltlBlnName && Number(f.tahun)===Number(fltlTahunNum) && Number(f.week)===resumeSelectedWeek);
+    fltlStats = computeFeedbackTLStats(fl);
+  }
   document.getElementById('resumekpi-fltl-pct').innerText = fltlStats.pct + '%';
-  document.getElementById('resumekpi-fltl-sub').innerText = `${fltlStats.done} dari ${fltlStats.total} point selesai (${fltlBlnName} ${fltlTahunNum})`;
+  document.getElementById('resumekpi-fltl-sub').innerText = `${fltlStats.done} dari ${fltlStats.total} point selesai (${fltlBlnName} ${fltlTahunNum}${weekTag})`;
 
   // 6) Keterlaksanaan Support Coaching untuk bulan yang sama (jumlah target/actual
   // mingguan) — memakai periode yang sama dengan kartu Tindak Lanjut Feedback di atas.
-  const scStats = computeSupportCoachingStatsFor(fltlBlnName, fltlTahunNum);
-  document.getElementById('resumekpi-sc-pct').innerText = scStats.avgActual + '%';
-  document.getElementById('resumekpi-sc-sub').innerText = `${scStats.done} dari ${scStats.total} sesi done (${fltlBlnName} ${fltlTahunNum})`;
+  let scStats = computeSupportCoachingStatsFor(fltlBlnName, fltlTahunNum);
+  if(resumeSelectedWeek){
+    const sc = state.supportCoaching.filter(f=> f.bln===fltlBlnName && Number(f.tahun)===Number(fltlTahunNum) && Number(f.week)===resumeSelectedWeek);
+    scStats = computeSupportCoachingStats(sc);
+  }
+  // Keterlaksanaan = % sesi done (bukan avg actual target)
+  document.getElementById('resumekpi-sc-pct').innerText = scStats.pct + '%';
+  document.getElementById('resumekpi-sc-sub').innerText = `${scStats.done} dari ${scStats.total} sesi done (${fltlBlnName} ${fltlTahunNum}${weekTag})`;
 
   // 7) Tasklist Marketing: rata-rata % Task dari data Tasklist Marketing (Excel)
   // untuk bulan/tahun yang sama (berdasarkan kolom Tanggal), dan jumlah task yang
   // sudah selesai (Actual/Finish terisi) dari total task pada periode tersebut.
-  const tmStats = computeTasklistMarketingStatsFor(fltlBlnName, fltlTahunNum);
+  let tmList = (state.tasklistMarketing.tasks||[]).filter(t=>
+    monthNameFromDate(t.tanggal)===fltlBlnName && yearFromDate(t.tanggal)===String(fltlTahunNum)
+  );
+  if(resumeSelectedWeek) tmList = tmList.filter(t=>dateInResumeWeek(t.tanggal));
+  const tmStats = computeApplyPctByPeople(tmList);
   document.getElementById('resumekpi-apply-pct').innerText = tmStats.pct + '%';
-  document.getElementById('resumekpi-apply-sub').innerText = `${tmStats.done} dari ${tmStats.total} task selesai (${fltlBlnName} ${fltlTahunNum})`;
+  document.getElementById('resumekpi-apply-sub').innerText =
+    `${tmStats.people} orang · avg pengerjaan ${tmStats.pct}% · ${tmStats.done}/${tmStats.total} task (${fltlBlnName} ${fltlTahunNum}${weekTag})`;
 
   // 8) Laporan Training Lengkap: persentase kelengkapan berdasarkan berapa dari
   // 7 indikator di atas yang sudah punya nilai (>0). Semua terisi = 100%, kalau
   // ada 1 indikator yang masih 0 (belum ada data), otomatis di bawah 100%.
-  const indikatorValues = [trainingPct, bookingPct, agendaStats.pct, csAvg, fltlStats.pct, scStats.avgActual, tmStats.pct];
+  const indikatorValues = [trainingPct, bookingPct, agendaStats.pct, csAvg, fltlStats.pct, scStats.pct, tmStats.pct];
   const indikatorTerisi = indikatorValues.filter(v=>v>0).length;
   const lengkapPct = Math.round((indikatorTerisi/indikatorValues.length)*100);
   document.getElementById('resumekpi-lengkap-pct').innerText = lengkapPct + '%';
@@ -5207,7 +5789,7 @@ function renderResumeKpi(){
     impact: impactPct,
     lengkap: lengkapPct,
     fltl: fltlStats.pct,
-    sc: scStats.avgActual
+    sc: scStats.pct
   });
 
   // Progress bars (redesign)
@@ -5228,7 +5810,7 @@ function renderResumeKpi(){
   setBar('resumekpi-impact-bar', impactPct, barColor(impactPct));
   setBar('resumekpi-lengkap-bar', lengkapPct, barColor(lengkapPct));
   setBar('resumekpi-fltl-bar', fltlStats.pct, barColor(fltlStats.pct));
-  setBar('resumekpi-sc-bar', scStats.avgActual, barColor(scStats.avgActual));
+  setBar('resumekpi-sc-bar', scStats.pct, barColor(scStats.pct));
 
   // Color pct labels
   const setPctColor = (id, pct) => {
@@ -5245,13 +5827,14 @@ function renderResumeKpi(){
   setPctColor('resumekpi-impact-pct', impactPct);
   setPctColor('resumekpi-lengkap-pct', lengkapPct);
   setPctColor('resumekpi-fltl-pct', fltlStats.pct);
-  setPctColor('resumekpi-sc-pct', scStats.avgActual);
+  setPctColor('resumekpi-sc-pct', scStats.pct);
 
   window.__lastResumeKpiMetrics = {
     agenda: agendaStats.pct, training: trainingPct, closing: csAvg,
     apply: applyPct, impact: impactPct, lengkap: lengkapPct,
-    fltl: fltlStats.pct, sc: scStats.avgActual
+    fltl: fltlStats.pct, sc: scStats.pct
   };
+  try{ renderResumeKpiTrendChart(); }catch(err){ console.warn('trend chart', err); }
   renderResumeHasilTable();
 }
 
@@ -5411,6 +5994,12 @@ function renderKpiWeekly(){
 }
 
 function updateKpiWeekField(key, field, val){
+  const wn = parseInt(String(kpiWeekCurrent).replace(/\D/g,''),10);
+  if(isKpiWeekLocked(wn)){
+    toast('KPI '+kpiWeekCurrent+' terkunci — buka gembok di Agenda dulu');
+    if(typeof renderKpiWeekly==='function') renderKpiWeekly();
+    return;
+  }
   const week = getKpiWeekData();
   const n = Number(val);
   if(field==='target'){
@@ -5432,6 +6021,11 @@ function autoFillKpiWeek(){
 }
 
 function saveKpiWeek(){
+  const wn = parseInt(String(kpiWeekCurrent).replace(/\D/g,''),10);
+  if(isKpiWeekLocked(wn)){
+    toast('KPI '+kpiWeekCurrent+' terkunci — buka gembok di Agenda dulu');
+    return;
+  }
   const week = getKpiWeekData();
   const notesEl = document.getElementById('kpi-week-notes');
   if(notesEl) week.notes = notesEl.value;
@@ -5731,21 +6325,69 @@ function renderAgendaWajibDetailModal(){
   const stats = computeRecurringMonthlyCompletionWajib(year, month);
   const list = getWajibOccurrencesForMonth(year, month);
   document.getElementById('agenda-wajib-detail-subtitle').innerText =
-    `${stats.done} dari ${stats.total} kegiatan wajib selesai (${stats.pct}%) \u00b7 ${MONTH_NAMES_ID[month]} ${year}`;
+    `${stats.done} dari ${stats.total} kegiatan wajib selesai (${stats.pct}%) · ${MONTH_NAMES_ID[month]} ${year}`;
   const body = document.getElementById('agenda-wajib-detail-body');
-  body.innerHTML = list.length ? list.map(e=>{
-    const status = getAgendaEffectiveStatus(e);
-    const sMeta = agendaStatusMeta(status);
-    const dateLabel = new Date(e.date+'T00:00:00').toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'});
-    return `<div class="lesson-row">
-      <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style="background:#fef2f2;color:#b91c1c"><i class="fa-solid fa-repeat text-xs"></i></div>
-      <div class="flex-1 min-w-0">
-        <p class="text-xs font-bold">${escapeHtml(e.title)}</p>
-        <p class="text-[10px] text-slate-400 mt-0.5">${escapeHtml(dateLabel)}${e.time?(' &middot; '+escapeHtml(e.time)):''}${e.location?(' &middot; '+escapeHtml(e.location)):''}</p>
+  if(!list.length){
+    body.innerHTML = '<p class="text-sm text-center text-slate-400 py-6">Tidak ada kegiatan wajib pada bulan ini.</p>';
+    return;
+  }
+  // Kelompokkan per minggu (W1–W5 = Batch 1–5)
+  const byWeek = {1:[],2:[],3:[],4:[],5:[]};
+  list.forEach(e=>{
+    const day = parseInt(String(e.date||'').split('-')[2],10);
+    const w = (typeof weekNumberFromDay==='function' ? weekNumberFromDay(day) : null) || 1;
+    if(byWeek[w]) byWeek[w].push(e); else byWeek[1].push(e);
+  });
+  const weekRanges = {1:'tgl 1–5',2:'tgl 6–12',3:'tgl 13–19',4:'tgl 20–26',5:'tgl 27–31'};
+  body.innerHTML = [1,2,3,4,5].map(w=>{
+    const items = byWeek[w] || [];
+    if(!items.length){
+      return `<div class="mb-4 rounded-xl border border-slate-100 overflow-hidden">
+        <div class="flex items-center justify-between px-3 py-2.5 bg-slate-50">
+          <div>
+            <p class="text-xs font-extrabold text-slate-600">Week ${w} · Batch ${w}</p>
+            <p class="text-[10px] text-slate-400">${weekRanges[w]} · tidak ada agenda wajib</p>
+          </div>
+          <span class="text-xs font-bold text-slate-300">—</span>
+        </div>
+      </div>`;
+    }
+    const done = items.filter(e=>getAgendaEffectiveStatus(e)==='selesai').length;
+    const total = items.length;
+    const pct = total ? Math.round((done/total)*100) : 0;
+    const pctColor = pct>=100 ? '#15803d' : pct>=70 ? 'var(--brand-600)' : pct>=40 ? '#d97706' : '#dc2626';
+    const barBg = pct>=100 ? '#16a34a' : pct>=70 ? 'var(--brand-500)' : pct>=40 ? '#f59e0b' : '#ef4444';
+    const headBg = pct>=100 ? '#f0fdf4' : '#f8fafc';
+    const rows = items.map(e=>{
+      const status = getAgendaEffectiveStatus(e);
+      const sMeta = agendaStatusMeta(status);
+      const dateLabel = new Date(e.date+'T00:00:00').toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'});
+      const rowBg = status==='selesai' ? '#f0fdf4' : '#fff';
+      return `<div class="lesson-row !rounded-none !border-0 !border-b !shadow-none" style="background:${rowBg};border-color:#f1f5f9!important">
+        <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style="background:${status==='selesai'?'#dcfce7':'#fef2f2'};color:${status==='selesai'?'#15803d':'#b91c1c'}"><i class="fa-solid ${status==='selesai'?'fa-circle-check':'fa-repeat'} text-xs"></i></div>
+        <div class="flex-1 min-w-0">
+          <p class="text-xs font-bold ${status==='selesai'?'text-emerald-800':''}">${escapeHtml(e.title)}</p>
+          <p class="text-[10px] text-slate-400 mt-0.5">${escapeHtml(dateLabel)}${e.time?(' · '+escapeHtml(e.time)):''}${e.location?(' · '+escapeHtml(e.location)):''}</p>
+        </div>
+        <span class="badge flex-shrink-0" style="background:${sMeta.bg};color:${sMeta.color}"><i class="fa-solid ${sMeta.icon} mr-1"></i>${sMeta.label}</span>
+      </div>`;
+    }).join('');
+    return `<div class="mb-4 rounded-xl border overflow-hidden" style="border-color:${pct>=100?'#86efac':'var(--line)'}">
+      <div class="flex items-center justify-between px-3 py-2.5 gap-3" style="background:${headBg}">
+        <div class="min-w-0">
+          <p class="text-xs font-extrabold text-slate-700">Week ${w} · Batch ${w}</p>
+          <p class="text-[10px] text-slate-400">${weekRanges[w]} · ${done}/${total} selesai</p>
+        </div>
+        <div class="text-right flex-shrink-0 w-28">
+          <p class="text-sm font-extrabold" style="color:${pctColor}">${pct}%</p>
+          <div class="h-1.5 bg-slate-200 rounded-full overflow-hidden mt-1">
+            <div class="h-full rounded-full" style="width:${pct}%;background:${barBg}"></div>
+          </div>
+        </div>
       </div>
-      <span class="badge flex-shrink-0" style="background:${sMeta.bg};color:${sMeta.color}"><i class="fa-solid ${sMeta.icon} mr-1"></i>${sMeta.label}</span>
+      <div>${rows}</div>
     </div>`;
-  }).join('') : '<p class="text-sm text-center text-slate-400 py-6">Tidak ada kegiatan wajib pada bulan ini.</p>';
+  }).join('');
 }
 
 /* ===================== PESERTA LIST / DETAIL MODAL (Dashboard) ===================== */
@@ -5776,34 +6418,531 @@ function gciStatsForParticipant(p, monthKey){
   });
   return { leads, booking, nominalBooking, total:rows.length };
 }
+
+function weekFromDateStr(dateStr){
+  if(!dateStr) return 0;
+  const day = parseInt(String(dateStr).split('-')[2],10);
+  if(isNaN(day)) return 0;
+  return (typeof weekNumberFromDay==='function') ? (weekNumberFromDay(day)||0) : 0;
+}
+
+function openFeedbackDetailModal(){
+  renderFeedbackDetailModal();
+  document.getElementById('feedback-detail-modal').classList.remove('hidden');
+}
+function closeFeedbackDetailModal(){ document.getElementById('feedback-detail-modal').classList.add('hidden'); }
+function renderFeedbackDetailModal(){
+  const blnName = (dashboardFilterBln && dashboardFilterTahun) ? dashboardFilterBln : MONTH_NAMES_ID[new Date().getMonth()];
+  const tahunNum = (dashboardFilterBln && dashboardFilterTahun) ? Number(dashboardFilterTahun) : new Date().getFullYear();
+  const list = state.feedbackTL.filter(f=> f.bln===blnName && Number(f.tahun)===Number(tahunNum));
+  const stats = computeFeedbackTLStats(list);
+  document.getElementById('feedback-detail-subtitle').innerText =
+    `${stats.done} dari ${stats.total} point selesai (${stats.pct}%) · ${blnName} ${tahunNum}. Week 1–5 = Batch 1–5.`;
+  const body = document.getElementById('feedback-detail-body');
+  if(!list.length){
+    body.innerHTML = '<p class="text-sm text-center text-slate-400 py-6">Tidak ada point feedback di periode ini.</p>';
+    return;
+  }
+  const byWeek = {0:[],1:[],2:[],3:[],4:[],5:[]};
+  list.forEach(f=>{
+    let w = Number(f.week)||0;
+    if(w<1||w>5) w = 0;
+    byWeek[w].push(f);
+  });
+  const ranges = {1:'tgl 1–5',2:'tgl 6–12',3:'tgl 13–19',4:'tgl 20–26',5:'tgl 27–31'};
+  body.innerHTML = [1,2,3,4,5].map(w=>{
+    const items = byWeek[w]||[];
+    if(!items.length){
+      return `<div class="mb-4 rounded-xl border border-slate-100 overflow-hidden">
+        <div class="flex items-center justify-between px-3 py-2.5 bg-slate-50">
+          <div><p class="text-xs font-extrabold text-slate-600">Week ${w} · Batch ${w}</p>
+          <p class="text-[10px] text-slate-400">${ranges[w]} · tidak ada point</p></div>
+          <span class="text-xs font-bold text-slate-300">—</span>
+        </div></div>`;
+    }
+    const done = items.filter(f=>f.status==='done').length;
+    const tot = items.length;
+    const pct = tot ? Math.round((done/tot)*100) : 0;
+    const pctColor = pct>=100 ? '#15803d' : pct>=70 ? 'var(--brand-600)' : pct>=40 ? '#d97706' : '#dc2626';
+    const barBg = pct>=100 ? '#16a34a' : pct>=70 ? 'var(--brand-500)' : pct>=40 ? '#f59e0b' : '#ef4444';
+    const headBg = pct>=100 ? '#f0fdf4' : '#f8fafc';
+    const rows = items.map(f=>{
+      const ok = f.status==='done';
+      return `<div class="lesson-row !rounded-none !border-0 !border-b !shadow-none" style="background:${ok?'#f0fdf4':'#fff'};border-color:#f1f5f9!important">
+        <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style="background:${ok?'#dcfce7':'#fef3c7'};color:${ok?'#15803d':'#92400e'}"><i class="fa-solid ${ok?'fa-circle-check':'fa-comment-dots'} text-xs"></i></div>
+        <div class="flex-1 min-w-0">
+          <p class="text-xs font-bold ${ok?'text-emerald-800':''}">${escapeHtml(f.point||'(Tanpa judul)')}</p>
+          <p class="text-[10px] text-slate-400">${escapeHtml((f.detail||'').slice(0,80))}${(f.detail||'').length>80?'…':''}</p>
+        </div>
+        ${ok?'<span class="badge badge-green">Selesai</span>':'<span class="badge badge-amber">Belum</span>'}
+      </div>`;
+    }).join('');
+    return `<div class="mb-4 rounded-xl border overflow-hidden" style="border-color:${pct>=100?'#86efac':'var(--line)'}">
+      <div class="flex items-center justify-between px-3 py-2.5 gap-3" style="background:${headBg}">
+        <div class="min-w-0">
+          <p class="text-xs font-extrabold text-slate-700">Week ${w} · Batch ${w}</p>
+          <p class="text-[10px] text-slate-400">${ranges[w]} · ${done}/${tot} selesai</p>
+        </div>
+        <div class="text-right flex-shrink-0 w-28">
+          <p class="text-sm font-extrabold" style="color:${pctColor}">${pct}%</p>
+          <div class="h-1.5 bg-slate-200 rounded-full overflow-hidden mt-1"><div class="h-full rounded-full" style="width:${pct}%;background:${barBg}"></div></div>
+        </div>
+      </div><div>${rows}</div></div>`;
+  }).join('') + ((byWeek[0]||[]).length ? (()=>{
+    const items = byWeek[0];
+    const done = items.filter(f=>f.status==='done').length;
+    const rows = items.map(f=>`<div class="lesson-row"><div class="flex-1"><p class="text-xs font-bold">${escapeHtml(f.point||'—')}</p></div>
+      ${f.status==='done'?'<span class="badge badge-green">Selesai</span>':'<span class="badge badge-slate">Belum</span>'}</div>`).join('');
+    return `<div class="mb-4 rounded-xl border border-slate-200 overflow-hidden"><div class="px-3 py-2.5 bg-slate-50"><p class="text-xs font-extrabold">Tanpa week</p>
+      <p class="text-[10px] text-slate-400">${done}/${items.length} selesai</p></div><div>${rows}</div></div>`;
+  })() : '');
+}
+
+function openCoachingDetailModal(){
+  renderCoachingDetailModal();
+  document.getElementById('coaching-detail-modal').classList.remove('hidden');
+}
+function closeCoachingDetailModal(){ document.getElementById('coaching-detail-modal').classList.add('hidden'); }
+function renderCoachingDetailModal(){
+  const blnName = (dashboardFilterBln && dashboardFilterTahun) ? dashboardFilterBln : MONTH_NAMES_ID[new Date().getMonth()];
+  const tahunNum = (dashboardFilterBln && dashboardFilterTahun) ? Number(dashboardFilterTahun) : new Date().getFullYear();
+  const list = state.supportCoaching.filter(f=> f.bln===blnName && Number(f.tahun)===Number(tahunNum));
+  const stats = computeSupportCoachingStats(list);
+  document.getElementById('coaching-detail-subtitle').innerText =
+    `${stats.done} dari ${stats.total} sesi selesai (${stats.pct}%) · actual ${stats.avgActual}% · ${blnName} ${tahunNum}. Week 1–5 = Batch 1–5.`;
+  const body = document.getElementById('coaching-detail-body');
+  if(!list.length){
+    body.innerHTML = '<p class="text-sm text-center text-slate-400 py-6">Tidak ada sesi coaching di periode ini.</p>';
+    return;
+  }
+  const byWeek = {0:[],1:[],2:[],3:[],4:[],5:[]};
+  list.forEach(f=>{
+    let w = Number(f.week)||0;
+    if(w<1||w>5) w = 0;
+    byWeek[w].push(f);
+  });
+  const ranges = {1:'tgl 1–5',2:'tgl 6–12',3:'tgl 13–19',4:'tgl 20–26',5:'tgl 27–31'};
+  body.innerHTML = [1,2,3,4,5].map(w=>{
+    const items = byWeek[w]||[];
+    if(!items.length){
+      return `<div class="mb-4 rounded-xl border border-slate-100 overflow-hidden">
+        <div class="flex items-center justify-between px-3 py-2.5 bg-slate-50">
+          <div><p class="text-xs font-extrabold text-slate-600">Week ${w} · Batch ${w}</p>
+          <p class="text-[10px] text-slate-400">${ranges[w]} · tidak ada sesi</p></div>
+          <span class="text-xs font-bold text-slate-300">—</span>
+        </div></div>`;
+    }
+    const done = items.filter(f=>f.status==='done').length;
+    const tot = items.length;
+    const pct = tot ? Math.round((done/tot)*100) : 0;
+    const avgAct = Math.min(100, Math.round(items.reduce((s,f)=>s+(Number(f.actual)||0),0)/tot));
+    const pctColor = pct>=100 ? '#15803d' : pct>=70 ? 'var(--brand-600)' : pct>=40 ? '#d97706' : '#dc2626';
+    const barBg = pct>=100 ? '#16a34a' : pct>=70 ? 'var(--brand-500)' : pct>=40 ? '#f59e0b' : '#ef4444';
+    const headBg = pct>=100 ? '#f0fdf4' : '#f8fafc';
+    const rows = items.map(f=>{
+      const ok = f.status==='done';
+      return `<div class="lesson-row !rounded-none !border-0 !border-b !shadow-none" style="background:${ok?'#f0fdf4':'#fff'};border-color:#f1f5f9!important">
+        <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style="background:${ok?'#dcfce7':'#e0f2fe'};color:${ok?'#15803d':'#0369a1'}"><i class="fa-solid ${ok?'fa-circle-check':'fa-user-group'} text-xs"></i></div>
+        <div class="flex-1 min-w-0">
+          <p class="text-xs font-bold ${ok?'text-emerald-800':''}">${escapeHtml(f.trainer||'(Tanpa trainer)')}</p>
+          <p class="text-[10px] text-slate-400">Target ${f.target||0}% · Actual ${f.actual||0}%${f.catatan?' · '+escapeHtml(String(f.catatan).slice(0,40)):''}</p>
+        </div>
+        ${ok?'<span class="badge badge-green">Selesai</span>':'<span class="badge badge-slate">Belum</span>'}
+      </div>`;
+    }).join('');
+    return `<div class="mb-4 rounded-xl border overflow-hidden" style="border-color:${pct>=100?'#86efac':'var(--line)'}">
+      <div class="flex items-center justify-between px-3 py-2.5 gap-3" style="background:${headBg}">
+        <div class="min-w-0">
+          <p class="text-xs font-extrabold text-slate-700">Week ${w} · Batch ${w}</p>
+          <p class="text-[10px] text-slate-400">${ranges[w]} · ${done}/${tot} selesai · avg actual ${avgAct}%</p>
+        </div>
+        <div class="text-right flex-shrink-0 w-28">
+          <p class="text-sm font-extrabold" style="color:${pctColor}">${pct}%</p>
+          <div class="h-1.5 bg-slate-200 rounded-full overflow-hidden mt-1"><div class="h-full rounded-full" style="width:${pct}%;background:${barBg}"></div></div>
+        </div>
+      </div><div>${rows}</div></div>`;
+  }).join('') + ((byWeek[0]||[]).length ? (()=>{
+    const items = byWeek[0];
+    const done = items.filter(f=>f.status==='done').length;
+    const rows = items.map(f=>`<div class="lesson-row"><div class="flex-1"><p class="text-xs font-bold">${escapeHtml(f.trainer||'—')}</p></div>
+      ${f.status==='done'?'<span class="badge badge-green">Selesai</span>':'<span class="badge badge-slate">Belum</span>'}</div>`).join('');
+    return `<div class="mb-4 rounded-xl border border-slate-200 overflow-hidden"><div class="px-3 py-2.5 bg-slate-50"><p class="text-xs font-extrabold">Tanpa week</p>
+      <p class="text-[10px] text-slate-400">${done}/${items.length} selesai</p></div><div>${rows}</div></div>`;
+  })() : '');
+}
+
+
+function openApplyDetailModal(){
+  renderApplyDetailModal();
+  document.getElementById('apply-detail-modal').classList.remove('hidden');
+}
+function closeApplyDetailModal(){ document.getElementById('apply-detail-modal').classList.add('hidden'); }
+function renderApplyDetailModal(){
+  const blnName = (dashboardFilterBln && dashboardFilterTahun) ? dashboardFilterBln : MONTH_NAMES_ID[new Date().getMonth()];
+  const tahunNum = (dashboardFilterBln && dashboardFilterTahun) ? Number(dashboardFilterTahun) : new Date().getFullYear();
+  const list = (state.tasklistMarketing.tasks||[]).filter(t=>
+    monthNameFromDate(t.tanggal)===blnName && yearFromDate(t.tanggal)===String(tahunNum)
+  );
+  const allStats = computeApplyPctByPeople(list);
+  document.getElementById('apply-detail-subtitle').innerText =
+    `${allStats.people} orang · avg pengerjaan ${allStats.pct}% · ${allStats.done}/${allStats.total} task · ${blnName} ${tahunNum}. Rata-rata per orang, lalu per Week/Batch.`;
+  const body = document.getElementById('apply-detail-body');
+  if(!list.length){
+    body.innerHTML = '<p class="text-sm text-center text-slate-400 py-6">Tidak ada task di periode ini.</p>';
+    return;
+  }
+  const byWeek = {0:[],1:[],2:[],3:[],4:[],5:[]};
+  list.forEach(t=>{
+    const w = weekFromDateStr(t.tanggal);
+    if(byWeek[w]) byWeek[w].push(t); else byWeek[0].push(t);
+  });
+  const ranges = {1:'tgl 1–5',2:'tgl 6–12',3:'tgl 13–19',4:'tgl 20–26',5:'tgl 27–31'};
+  body.innerHTML = [1,2,3,4,5].map(w=>{
+    const items = byWeek[w]||[];
+    if(!items.length){
+      return `<div class="mb-4 rounded-xl border border-slate-100 overflow-hidden">
+        <div class="flex items-center justify-between px-3 py-2.5 bg-slate-50">
+          <div><p class="text-xs font-extrabold text-slate-600">Week ${w} · Batch ${w}</p>
+          <p class="text-[10px] text-slate-400">${ranges[w]} · tidak ada task</p></div>
+          <span class="text-xs font-bold text-slate-300">—</span>
+        </div></div>`;
+    }
+    const dN = items.filter(t=>!!t.actual).length;
+    const tot = items.length;
+    const peopleStats = computeApplyPctByPeople(items);
+    const pct = peopleStats.pct;
+    const pctColor = pct>=100 ? '#15803d' : pct>=70 ? 'var(--brand-600)' : pct>=40 ? '#d97706' : '#dc2626';
+    const barBg = pct>=100 ? '#16a34a' : pct>=70 ? 'var(--brand-500)' : pct>=40 ? '#f59e0b' : '#ef4444';
+    const headBg = pct>=100 ? '#f0fdf4' : '#f8fafc';
+    const rows = items.map(t=>{
+      const ok = !!t.actual;
+      const dateLabel = t.tanggal ? new Date(t.tanggal+'T00:00:00').toLocaleDateString('id-ID',{day:'numeric',month:'short'}) : '—';
+      return `<div class="lesson-row !rounded-none !border-0 !border-b !shadow-none" style="background:${ok?'#f0fdf4':'#fff'};border-color:#f1f5f9!important">
+        <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style="background:${ok?'#dcfce7':'#f1f5f9'};color:${ok?'#15803d':'#64748b'}"><i class="fa-solid ${ok?'fa-circle-check':'fa-list-check'} text-xs"></i></div>
+        <div class="flex-1 min-w-0">
+          <p class="text-xs font-bold ${ok?'text-emerald-800':''}">${escapeHtml(t.task||t.judul||'(Tanpa judul)')}</p>
+          <p class="text-[10px] text-slate-400">${dateLabel}${t.pic?' · '+escapeHtml(t.pic):''}${t.target?' · target '+escapeHtml(String(t.target)):''}</p>
+        </div>
+        <span class="text-xs font-bold mr-2" style="color:${pctColor}">${Number(t.pctTask)||0}%</span>
+        ${ok?'<span class="badge badge-green">Selesai</span>':'<span class="badge badge-slate">Belum</span>'}
+      </div>`;
+    }).join('');
+    return `<div class="mb-4 rounded-xl border overflow-hidden" style="border-color:${pct>=100?'#86efac':'var(--line)'}">
+      <div class="flex items-center justify-between px-3 py-2.5 gap-3" style="background:${headBg}">
+        <div class="min-w-0">
+          <p class="text-xs font-extrabold text-slate-700">Week ${w} · Batch ${w}</p>
+          <p class="text-[10px] text-slate-400">${ranges[w]} · ${dN}/${tot} selesai</p>
+        </div>
+        <div class="text-right flex-shrink-0 w-28">
+          <p class="text-sm font-extrabold" style="color:${pctColor}">${pct}%</p>
+          <div class="h-1.5 bg-slate-200 rounded-full overflow-hidden mt-1"><div class="h-full rounded-full" style="width:${Math.min(100,pct)}%;background:${barBg}"></div></div>
+        </div>
+      </div><div>${rows}</div></div>`;
+  }).join('');
+}
+
+function openImpactDetailModal(){
+  renderImpactDetailModal();
+  document.getElementById('impact-detail-modal').classList.remove('hidden');
+}
+function closeImpactDetailModal(){ document.getElementById('impact-detail-modal').classList.add('hidden'); }
+function renderImpactDetailModal(){
+  gciData = loadGciData();
+  const monthKey = dashboardGciMonthKey();
+  const monthLabel = monthKey ? gciMonthLabel(monthKey) : 'Semua Bulan';
+  let rows = gciData.slice();
+  if(monthKey) rows = rows.filter(r=>gciMonthKey(r.tanggal)===monthKey);
+  const bookingAll = rows.filter(r=>classifyGciStatus(r)==='booking').length;
+  const convAll = rows.length ? Math.round((bookingAll/rows.length)*1000)/10 : 0;
+  document.getElementById('impact-detail-subtitle').innerText =
+    `${bookingAll} booking dari ${rows.length} data (${convAll}%) · ${monthLabel}. Week 1–5 = Batch 1–5.`;
+  const body = document.getElementById('impact-detail-body');
+  if(!rows.length){
+    body.innerHTML = '<p class="text-sm text-center text-slate-400 py-6">Tidak ada data GCI di periode ini.</p>';
+    return;
+  }
+  const byWeek = {0:[],1:[],2:[],3:[],4:[],5:[]};
+  rows.forEach(r=>{
+    const w = weekFromDateStr(r.tanggal);
+    if(byWeek[w]) byWeek[w].push(r); else byWeek[0].push(r);
+  });
+  const ranges = {1:'tgl 1–5',2:'tgl 6–12',3:'tgl 13–19',4:'tgl 20–26',5:'tgl 27–31'};
+  body.innerHTML = [1,2,3,4,5].map(w=>{
+    const items = byWeek[w]||[];
+    if(!items.length){
+      return `<div class="mb-4 rounded-xl border border-slate-100 overflow-hidden">
+        <div class="flex items-center justify-between px-3 py-2.5 bg-slate-50">
+          <div><p class="text-xs font-extrabold text-slate-600">Week ${w} · Batch ${w}</p>
+          <p class="text-[10px] text-slate-400">${ranges[w]} · tidak ada data</p></div>
+          <span class="text-xs font-bold text-slate-300">—</span>
+        </div></div>`;
+    }
+    const booking = items.filter(r=>classifyGciStatus(r)==='booking').length;
+    const total = items.length;
+    const pct = total ? Math.round((booking/total)*1000)/10 : 0;
+    const pctColor = pct>=50 ? '#15803d' : pct>=25 ? 'var(--brand-600)' : pct>=10 ? '#d97706' : '#dc2626';
+    const barBg = pct>=50 ? '#16a34a' : pct>=25 ? 'var(--brand-500)' : pct>=10 ? '#f59e0b' : '#ef4444';
+    const headBg = pct>=50 ? '#f0fdf4' : '#f8fafc';
+    // ringkas per marketing
+    const byMk = {};
+    items.forEach(r=>{
+      const mk = r.marketing || '(Tanpa Marketing)';
+      if(!byMk[mk]) byMk[mk] = { total:0, booking:0, leads:0 };
+      byMk[mk].total++;
+      if(classifyGciStatus(r)==='booking') byMk[mk].booking++; else byMk[mk].leads++;
+    });
+    const mkRows = Object.keys(byMk).sort((a,b)=>byMk[b].booking-byMk[a].booking).slice(0,12).map(mk=>{
+      const s = byMk[mk];
+      const c = s.total ? Math.round((s.booking/s.total)*1000)/10 : 0;
+      return `<div class="lesson-row !rounded-none !border-0 !border-b !shadow-none" style="border-color:#f1f5f9!important">
+        <div class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white text-xs flex-shrink-0" style="background:var(--brand-600)">${escapeHtml(mk.charAt(0).toUpperCase())}</div>
+        <div class="flex-1 min-w-0">
+          <p class="text-xs font-bold">${escapeHtml(mk)}</p>
+          <p class="text-[10px] text-slate-400">${s.booking} booking · ${s.leads} leads · ${s.total} data</p>
+        </div>
+        <span class="text-xs font-extrabold" style="color:${c>=25?'#15803d':'#64748b'}">${c}%</span>
+      </div>`;
+    }).join('');
+    return `<div class="mb-4 rounded-xl border overflow-hidden" style="border-color:${pct>=50?'#86efac':'var(--line)'}">
+      <div class="flex items-center justify-between px-3 py-2.5 gap-3" style="background:${headBg}">
+        <div class="min-w-0">
+          <p class="text-xs font-extrabold text-slate-700">Week ${w} · Batch ${w}</p>
+          <p class="text-[10px] text-slate-400">${ranges[w]} · ${booking}/${total} booking</p>
+        </div>
+        <div class="text-right flex-shrink-0 w-28">
+          <p class="text-sm font-extrabold" style="color:${pctColor}">${pct}%</p>
+          <div class="h-1.5 bg-slate-200 rounded-full overflow-hidden mt-1"><div class="h-full rounded-full" style="width:${Math.min(100,pct)}%;background:${barBg}"></div></div>
+        </div>
+      </div><div>${mkRows}</div></div>`;
+  }).join('');
+}
+
+
+function openClosingSkillDetailModal(){
+  renderClosingSkillDetailModal();
+  document.getElementById('closing-skill-detail-modal').classList.remove('hidden');
+}
+function closeClosingSkillDetailModal(){
+  document.getElementById('closing-skill-detail-modal').classList.add('hidden');
+}
+function renderClosingSkillDetailModal(){
+  const mod = closingSkillModule();
+  const scoped = getFilteredParticipants();
+  const bln = dashboardFilterBln || '';
+  const th = dashboardFilterTahun || '';
+  const periodLabel = (bln||th) ? [bln, th].filter(Boolean).join(' ') : 'Semua Periode';
+  const sub = document.getElementById('closing-skill-detail-subtitle');
+  const body = document.getElementById('closing-skill-detail-body');
+  if(!mod){
+    if(sub) sub.innerText = 'Modul Teknik Closing belum ditemukan.';
+    if(body) body.innerHTML = '<p class="text-sm text-center text-slate-400 py-6">Tambahkan modul "Teknik Closing" di Modul Training.</p>';
+    return;
+  }
+  const rows = scoped.map(p=>({ p, d: getClosingSkillData(p, mod) }));
+  const scored = rows.filter(x=>x.d.avg!==null);
+  const growth = rows.filter(x=>x.d.status==='growth').length;
+  if(sub) sub.innerText = `${growth} growth dari ${scored.length} peserta dinilai · ${periodLabel}. Batch 1–5 = Week 1–5.`;
+  if(!scoped.length){
+    body.innerHTML = '<p class="text-sm text-center text-slate-400 py-6">Tidak ada peserta sesuai filter.</p>';
+    return;
+  }
+  const byBatch = {0:[],1:[],2:[],3:[],4:[],5:[]};
+  rows.forEach(x=>{
+    const w = participantWeekBatch(x.p);
+    if(byBatch[w]) byBatch[w].push(x); else byBatch[0].push(x);
+  });
+  const weekRanges = {1:'tgl 1–5',2:'tgl 6–12',3:'tgl 13–19',4:'tgl 20–26',5:'tgl 27–31'};
+  body.innerHTML = [1,2,3,4,5].map(w=>{
+    const items = byBatch[w] || [];
+    if(!items.length){
+      return `<div class="mb-4 rounded-xl border border-slate-100 overflow-hidden">
+        <div class="flex items-center justify-between px-3 py-2.5 bg-slate-50">
+          <div>
+            <p class="text-xs font-extrabold text-slate-600">Batch ${w} · Week ${w}</p>
+            <p class="text-[10px] text-slate-400">${weekRanges[w]} · tidak ada peserta</p>
+          </div>
+          <span class="text-xs font-bold text-slate-300">—</span>
+        </div>
+      </div>`;
+    }
+    const scoredItems = items.filter(x=>x.d.avg!==null);
+    const growthN = items.filter(x=>x.d.status==='growth').length;
+    const total = scoredItems.length;
+    const pct = total ? Math.round((growthN/total)*100) : 0;
+    const pctColor = pct>=100 ? '#15803d' : pct>=70 ? 'var(--brand-600)' : pct>=40 ? '#d97706' : '#dc2626';
+    const barBg = pct>=100 ? '#16a34a' : pct>=70 ? 'var(--brand-500)' : pct>=40 ? '#f59e0b' : '#ef4444';
+    const headBg = pct>=100 ? '#f0fdf4' : '#f8fafc';
+    const avgBatch = scoredItems.length
+      ? Math.round(scoredItems.reduce((a,x)=>a+x.d.avg,0)/scoredItems.length)
+      : null;
+    const listHtml = items.map(({p,d})=>{
+      const growthOk = d.status==='growth';
+      const avgShow = d.avg===null ? '—' : d.avg;
+      return `<div class="lesson-row !rounded-none !border-0 !border-b !shadow-none" style="background:${growthOk?'#f0fdf4':'#fff'};border-color:#f1f5f9!important">
+        <div class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white text-xs flex-shrink-0" style="background:${growthOk?'#16a34a':'var(--brand-600)'}">${escapeHtml((p.name||'?').charAt(0).toUpperCase())}</div>
+        <div class="flex-1 min-w-0">
+          <p class="text-xs font-bold ${growthOk?'text-emerald-800':''}">${escapeHtml(p.name)||'(Tanpa nama)'}</p>
+          <p class="text-[10px] text-slate-400">${escapeHtml(p.posisi)||'—'} · Kuis ${d.quizScore===null?'—':d.quizScore} · Manual ${d.manualScore===null?'—':d.manualScore}${p.batch?' · '+escapeHtml(p.batch):''}</p>
+        </div>
+        <span class="text-xs font-extrabold mr-2" style="color:${growthOk?'#15803d':(d.avg===null?'#94a3b8':'#dc2626')}">${avgShow}</span>
+        ${growthOk?'<span class="badge badge-green">Growth</span>':(d.avg===null?'<span class="badge badge-slate">Belum dinilai</span>':'<span class="badge badge-red">Belum Growth</span>')}
+      </div>`;
+    }).join('');
+    return `<div class="mb-4 rounded-xl border overflow-hidden" style="border-color:${pct>=100?'#86efac':'var(--line)'}">
+      <div class="flex items-center justify-between px-3 py-2.5 gap-3" style="background:${headBg}">
+        <div class="min-w-0">
+          <p class="text-xs font-extrabold text-slate-700">Batch ${w} · Week ${w}</p>
+          <p class="text-[10px] text-slate-400">${weekRanges[w]} · ${growthN}/${total||items.length} growth${avgBatch!==null?' · avg '+avgBatch:''}</p>
+        </div>
+        <div class="text-right flex-shrink-0 w-28">
+          <p class="text-sm font-extrabold" style="color:${total?pctColor:'#94a3b8'}">${total?pct+'%':'—'}</p>
+          <div class="h-1.5 bg-slate-200 rounded-full overflow-hidden mt-1">
+            <div class="h-full rounded-full" style="width:${total?pct:0}%;background:${barBg}"></div>
+          </div>
+        </div>
+      </div>
+      <div>${listHtml}</div>
+    </div>`;
+  }).join('') + ((byBatch[0]||[]).length ? (()=>{
+    const items = byBatch[0];
+    const growthN = items.filter(x=>x.d.status==='growth').length;
+    const scoredN = items.filter(x=>x.d.avg!==null).length;
+    const pct = scoredN ? Math.round((growthN/scoredN)*100) : 0;
+    const listHtml = items.map(({p,d})=>{
+      const growthOk = d.status==='growth';
+      return `<div class="lesson-row">
+        <div class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white text-xs" style="background:var(--brand-600)">${escapeHtml((p.name||'?').charAt(0).toUpperCase())}</div>
+        <div class="flex-1 min-w-0">
+          <p class="text-xs font-bold">${escapeHtml(p.name)||'(Tanpa nama)'}</p>
+          <p class="text-[10px] text-slate-400">${p.batch?escapeHtml(p.batch):'tanpa batch'} · ${d.avg===null?'—':d.avg}</p>
+        </div>
+        ${growthOk?'<span class="badge badge-green">Growth</span>':'<span class="badge badge-slate">—</span>'}
+      </div>`;
+    }).join('');
+    return `<div class="mb-4 rounded-xl border border-slate-200 overflow-hidden">
+      <div class="flex items-center justify-between px-3 py-2.5 bg-slate-50">
+        <div><p class="text-xs font-extrabold text-slate-600">Batch lain</p>
+        <p class="text-[10px] text-slate-400">${growthN}/${scoredN||items.length} growth</p></div>
+        <p class="text-sm font-extrabold text-slate-500">${scoredN?pct+'%':'—'}</p>
+      </div><div>${listHtml}</div></div>`;
+  })() : '');
+}
+
 function openPesertaListModal(){
   renderPesertaListModal();
   document.getElementById('peserta-list-modal').classList.remove('hidden');
 }
 function closePesertaListModal(){ document.getElementById('peserta-list-modal').classList.add('hidden'); }
+function participantWeekBatch(p){
+  // Batch 1–5 = Week 1–5. Ambil dari field batch bila 1–5, else dari tanggal join.
+  const b = String(p.batch||'').trim();
+  let m = b.match(/batch\s*([1-5])\b/i);
+  if(!m) m = b.match(/^([1-5])$/);
+  if(m) return parseInt(m[1],10);
+  if(p.joinDate){
+    const day = parseInt(String(p.joinDate).split('-')[2],10);
+    if(!isNaN(day) && typeof weekNumberFromDay==='function') return weekNumberFromDay(day);
+  }
+  return 0; // Lainnya / tidak terpetakan
+}
 function renderPesertaListModal(){
   const scoped = getFilteredParticipants();
   const monthKey = dashboardGciMonthKey();
-  const monthLabel = monthKey ? gciMonthLabel(monthKey) : 'Semua Bulan';
-  document.getElementById('peserta-list-subtitle').innerText = `${scoped.length} peserta sesuai filter dashboard saat ini · Pencapaian GCI: ${monthLabel}. Klik salah satu peserta untuk lihat detail.`;
+  const bln = dashboardFilterBln || '';
+  const th = dashboardFilterTahun || '';
+  const periodLabel = (bln||th) ? [bln, th].filter(Boolean).join(' ') : 'Semua Periode';
+  const selesaiTotal = scoped.filter(p=>overallProgressPct(p)===100).length;
+  const pctTotal = scoped.length ? Math.round((selesaiTotal/scoped.length)*100) : 0;
+  document.getElementById('peserta-list-subtitle').innerText =
+    `${selesaiTotal} dari ${scoped.length} peserta selesai evaluasi (${pctTotal}%) · ${periodLabel}. Dikelompokkan per Batch 1–5 (= Week 1–5).`;
   const wrap = document.getElementById('peserta-list-body');
-  wrap.innerHTML = scoped.length ? scoped.map(p=>{
-    const done = modulesFullyCompleted(p);
-    const pct = overallProgressPct(p);
-    const stats = gciStatsForParticipant(p, monthKey);
-    return `<div class="lesson-row cursor-pointer hover:bg-slate-50" onclick="openPesertaDetail('${p.id}')">
-      <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white" style="background:var(--brand-600)">${escapeHtml((p.name||'?').charAt(0).toUpperCase())}</div>
-      <div class="flex-1">
-        <p class="font-bold">${escapeHtml(p.name) || '(Tanpa nama)'} <span class="text-slate-400 font-normal">${p.username?'· @'+escapeHtml(p.username):''}</span></p>
-        <p class="text-slate-400">${escapeHtml(p.posisi) || '—'} &middot; Modul ${done}/${wajibModules().length} &middot; Progress ${pct}%</p>
+  if(!scoped.length){
+    wrap.innerHTML = '<p class="text-sm text-center text-slate-400 py-6">Tidak ada peserta yang cocok dengan filter saat ini.</p>';
+    return;
+  }
+  const byBatch = {0:[],1:[],2:[],3:[],4:[],5:[]};
+  scoped.forEach(p=>{
+    const w = participantWeekBatch(p);
+    if(byBatch[w]) byBatch[w].push(p); else byBatch[0].push(p);
+  });
+  const weekRanges = {1:'tgl 1–5',2:'tgl 6–12',3:'tgl 13–19',4:'tgl 20–26',5:'tgl 27–31',0:'batch lain / tanpa tanggal'};
+  const sections = [1,2,3,4,5,0].filter(w=> (byBatch[w]||[]).length>0 || (w>=1 && w<=5));
+  wrap.innerHTML = [1,2,3,4,5].map(w=>{
+    const items = byBatch[w] || [];
+    if(!items.length){
+      return `<div class="mb-4 rounded-xl border border-slate-100 overflow-hidden">
+        <div class="flex items-center justify-between px-3 py-2.5 bg-slate-50">
+          <div>
+            <p class="text-xs font-extrabold text-slate-600">Batch ${w} · Week ${w}</p>
+            <p class="text-[10px] text-slate-400">${weekRanges[w]} · tidak ada peserta</p>
+          </div>
+          <span class="text-xs font-bold text-slate-300">—</span>
+        </div>
+      </div>`;
+    }
+    const done = items.filter(p=>overallProgressPct(p)===100).length;
+    const total = items.length;
+    const pct = total ? Math.round((done/total)*100) : 0;
+    const pctColor = pct>=100 ? '#15803d' : pct>=70 ? 'var(--brand-600)' : pct>=40 ? '#d97706' : '#dc2626';
+    const barBg = pct>=100 ? '#16a34a' : pct>=70 ? 'var(--brand-500)' : pct>=40 ? '#f59e0b' : '#ef4444';
+    const headBg = pct>=100 ? '#f0fdf4' : '#f8fafc';
+    const rows = items.map(p=>{
+      const prog = overallProgressPct(p);
+      const lulus = prog===100;
+      const score = avgQuizScore(p);
+      const certified = isCertified(p);
+      const statusBadge = lulus
+        ? (certified ? '<span class="badge badge-green">Lulus</span>' : '<span class="badge badge-amber">Selesai</span>')
+        : (prog>0 ? '<span class="badge badge-slate">Berjalan '+prog+'%</span>' : '<span class="badge badge-slate">Belum mulai</span>');
+      return `<div class="lesson-row cursor-pointer hover:bg-slate-50 !rounded-none !border-0 !border-b !shadow-none" style="background:${lulus?'#f0fdf4':'#fff'};border-color:#f1f5f9!important" onclick="openPesertaDetail('${p.id}')">
+        <div class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white text-xs flex-shrink-0" style="background:${lulus?'#16a34a':'var(--brand-600)'}">${escapeHtml((p.name||'?').charAt(0).toUpperCase())}</div>
+        <div class="flex-1 min-w-0">
+          <p class="text-xs font-bold ${lulus?'text-emerald-800':''}">${escapeHtml(p.name)||'(Tanpa nama)'}</p>
+          <p class="text-[10px] text-slate-400">${escapeHtml(p.posisi)||'—'} · Progress ${prog}%${score!==null?' · Skor '+score:''}${p.batch?' · '+escapeHtml(p.batch):''}</p>
+        </div>
+        ${statusBadge}
+        <i class="fa-solid fa-chevron-right text-slate-300 ml-1 text-[10px]"></i>
+      </div>`;
+    }).join('');
+    return `<div class="mb-4 rounded-xl border overflow-hidden" style="border-color:${pct>=100?'#86efac':'var(--line)'}">
+      <div class="flex items-center justify-between px-3 py-2.5 gap-3" style="background:${headBg}">
+        <div class="min-w-0">
+          <p class="text-xs font-extrabold text-slate-700">Batch ${w} · Week ${w}</p>
+          <p class="text-[10px] text-slate-400">${weekRanges[w]} · ${done}/${total} selesai evaluasi</p>
+        </div>
+        <div class="text-right flex-shrink-0 w-28">
+          <p class="text-sm font-extrabold" style="color:${pctColor}">${pct}%</p>
+          <div class="h-1.5 bg-slate-200 rounded-full overflow-hidden mt-1">
+            <div class="h-full rounded-full" style="width:${pct}%;background:${barBg}"></div>
+          </div>
+        </div>
       </div>
-      <div class="text-right text-[11px]">
-        <span class="badge badge-green">${stats.booking} Booking</span>
-        <span class="badge badge-slate ml-1">${stats.leads} Leads</span>
-      </div>
-      <i class="fa-solid fa-chevron-right text-slate-300 ml-2"></i>
+      <div>${rows}</div>
     </div>`;
-  }).join('') : '<p class="text-sm text-center text-slate-400 py-6">Tidak ada peserta yang cocok dengan filter dashboard saat ini.</p>';
+  }).join('') + ((byBatch[0]||[]).length ? (()=>{
+    const items = byBatch[0];
+    const done = items.filter(p=>overallProgressPct(p)===100).length;
+    const total = items.length;
+    const pct = total ? Math.round((done/total)*100) : 0;
+    const rows = items.map(p=>{
+      const prog = overallProgressPct(p);
+      const lulus = prog===100;
+      return `<div class="lesson-row cursor-pointer hover:bg-slate-50" onclick="openPesertaDetail('${p.id}')">
+        <div class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white text-xs" style="background:var(--brand-600)">${escapeHtml((p.name||'?').charAt(0).toUpperCase())}</div>
+        <div class="flex-1 min-w-0">
+          <p class="text-xs font-bold">${escapeHtml(p.name)||'(Tanpa nama)'}</p>
+          <p class="text-[10px] text-slate-400">${escapeHtml(p.posisi)||'—'} · ${p.batch?escapeHtml(p.batch):'tanpa batch'} · ${prog}%</p>
+        </div>
+        ${lulus?'<span class="badge badge-green">Selesai</span>':'<span class="badge badge-slate">'+prog+'%</span>'}
+      </div>`;
+    }).join('');
+    return `<div class="mb-4 rounded-xl border border-slate-200 overflow-hidden">
+      <div class="flex items-center justify-between px-3 py-2.5 bg-slate-50">
+        <div><p class="text-xs font-extrabold text-slate-600">Batch lain</p>
+        <p class="text-[10px] text-slate-400">${done}/${total} selesai · di luar Batch 1–5</p></div>
+        <p class="text-sm font-extrabold text-slate-500">${pct}%</p>
+      </div><div>${rows}</div></div>`;
+  })() : '');
 }
 function openPesertaDetail(id){
   if(id !== currentPesertaDetailId){ pesertaDetailMonthA = null; pesertaDetailMonthB = undefined; }
@@ -8115,6 +9254,17 @@ let agendaViewDate = new Date();
 let agendaSelectedDate = toYMD(new Date());
 let editingAgendaId = null;
 let editingRecurringId = null;
+
+function weekNumberFromDay(day){
+  const d = Number(day);
+  if(d>=1 && d<=5) return 1;
+  if(d>=6 && d<=12) return 2;
+  if(d>=13 && d<=19) return 3;
+  if(d>=20 && d<=26) return 4;
+  if(d>=27) return 5;
+  return null;
+}
+
 function agendaChangeMonth(delta){
   agendaViewDate = new Date(agendaViewDate.getFullYear(), agendaViewDate.getMonth()+delta, 1);
   agendaMonthlyDetailOpen = false;
@@ -8291,13 +9441,17 @@ function agendaEventRowHtml(e){
   const btnTunda = status==='tunda'
     ? `<button onclick="event.stopPropagation();setAgendaStatusForEvent('${e.date}', ${argIds}, 'pending')" class="text-[10px] font-bold px-2 py-1 rounded-md" style="background:#fef3c7;color:#92400e"><i class="fa-solid fa-rotate-left mr-1"></i>Batalkan Tunda</button>`
     : `<button onclick="event.stopPropagation();setAgendaStatusForEvent('${e.date}', ${argIds}, 'tunda')" class="text-[10px] font-bold px-2 py-1 rounded-md btn-ghost"><i class="fa-solid fa-clock mr-1"></i>Tunda</button>`;
-  return `<div class="lesson-row" style="flex-direction:column;align-items:stretch;gap:8px;cursor:default">
+  const rowBg = status==='selesai' ? '#f0fdf4' : (status==='tunda' ? '#fffbeb' : '#fff');
+  const rowBorder = status==='selesai' ? '#86efac' : (status==='tunda' ? '#fde68a' : 'var(--line)');
+  const iconBg = status==='selesai' ? '#dcfce7' : cMeta.bg;
+  const iconColor = status==='selesai' ? '#15803d' : cMeta.color;
+  return `<div class="lesson-row" style="flex-direction:column;align-items:stretch;gap:8px;cursor:default;background:${rowBg};border-color:${rowBorder}">
     <div class="flex items-start gap-3 cursor-pointer" onclick="${onclick}">
-      <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5" style="background:${cMeta.bg};color:${cMeta.color}"><i class="fa-solid ${e.isRecurring?'fa-repeat':'fa-calendar-day'} text-xs"></i></div>
+      <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5" style="background:${iconBg};color:${iconColor}"><i class="fa-solid ${status==='selesai'?'fa-circle-check':(e.isRecurring?'fa-repeat':'fa-calendar-day')} text-xs"></i></div>
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-2 flex-wrap">
-          <span class="w-2 h-2 rounded-full inline-block flex-shrink-0" style="background:${cMeta.color}"></span>
-          <p class="text-xs font-bold">${escapeHtml(e.title)}</p>
+          <span class="w-2 h-2 rounded-full inline-block flex-shrink-0" style="background:${status==='selesai'?'#16a34a':cMeta.color}"></span>
+          <p class="text-xs font-bold ${status==='selesai'?'text-emerald-800':''}">${escapeHtml(e.title)}</p>
           ${e.day?`<span class="badge badge-slate">${escapeHtml(e.day)}</span>`:''}
           ${e.wajib?'<span class="badge badge-red">Wajib</span>':''}
           <span class="badge" style="background:${meta.bg};color:${meta.color}">${meta.label}</span>
@@ -8341,16 +9495,27 @@ function renderAgenda(){
     const events = getAgendaEventsForDate(c.dateStr);
     const isToday = c.dateStr===todayStr;
     const isSelected = c.dateStr===agendaSelectedDate;
+    const doneCount = events.filter(e=>getAgendaEffectiveStatus(e)==='selesai').length;
+    const allDone = events.length>0 && doneCount===events.length;
+    const someDone = doneCount>0 && !allDone;
     const dots = events.slice(0,4).map(e=>{
+      const st = getAgendaEffectiveStatus(e);
+      if(st==='selesai') return `<span class="w-1.5 h-1.5 rounded-full inline-block" style="background:#16a34a" title="Selesai"></span>`;
+      if(st==='tunda') return `<span class="w-1.5 h-1.5 rounded-full inline-block" style="background:#d97706" title="Ditunda"></span>`;
       const cMeta = agendaEventColorMeta(e);
       return `<span class="w-1.5 h-1.5 rounded-full inline-block" style="background:${cMeta.color}"></span>`;
     }).join('');
     const moreLabel = events.length>4 ? `<span class="text-[9px] text-slate-400 ml-0.5">+${events.length-4}</span>` : '';
     const dayNumHtml = isToday
       ? `<span class="text-[11px] font-bold inline-flex items-center justify-center" style="width:18px;height:18px;border-radius:50%;background:var(--brand-600);color:#fff">${c.day}</span>`
-      : `<span class="text-[11px] font-bold ${c.otherMonth?'text-slate-300':'text-slate-600'}">${c.day}</span>`;
+      : `<span class="text-[11px] font-bold ${c.otherMonth?'text-slate-300':(allDone?'text-emerald-700':'text-slate-600')}">${c.day}</span>`;
+    let bg = c.otherMonth ? '#fafafa' : '#fff';
+    let border = 'var(--line)';
+    if(isSelected){ bg = allDone ? '#dcfce7' : '#f0fdf6'; border = allDone ? '#16a34a' : 'var(--brand-500)'; }
+    else if(allDone && !c.otherMonth){ bg = '#dcfce7'; border = '#86efac'; }
+    else if(someDone && !c.otherMonth){ bg = '#f0fdf4'; border = '#bbf7d0'; }
     return `<button onclick="selectAgendaDay('${c.dateStr}')" class="rounded-lg p-1.5 text-left h-16 sm:h-20 flex flex-col justify-between transition"
-      style="border:1px solid ${isSelected?'var(--brand-500)':'var(--line)'};background:${isSelected?'#f0fdf6':(c.otherMonth?'#fafafa':'#fff')}">
+      style="border:1px solid ${border};background:${bg}" title="${events.length? (allDone?'Semua selesai ('+doneCount+'/'+events.length+')': doneCount+'/'+events.length+' selesai'):''}">
       ${dayNumHtml}
       <span class="flex items-center flex-wrap">${dots}${moreLabel}</span>
     </button>`;
@@ -8382,10 +9547,13 @@ function renderAgenda(){
       const cMeta = agendaEventColorMeta(e);
       const dLabel = new Date(e.date+'T00:00:00').toLocaleDateString('id-ID',{day:'numeric', month:'short'});
       const sMeta = agendaStatusMeta(getAgendaEffectiveStatus(e));
-      return `<div class="lesson-row cursor-pointer" onclick="selectAgendaDay('${e.date}')">
-        <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style="background:${cMeta.bg};color:${cMeta.color}"><i class="fa-solid ${e.isRecurring?'fa-repeat':'fa-calendar-day'} text-xs"></i></div>
+      const stUp = getAgendaEffectiveStatus(e);
+      const upBg = stUp==='selesai' ? '#f0fdf4' : (stUp==='tunda' ? '#fffbeb' : '#fff');
+      const upBorder = stUp==='selesai' ? '#86efac' : (stUp==='tunda' ? '#fde68a' : 'var(--line)');
+      return `<div class="lesson-row cursor-pointer" onclick="selectAgendaDay('${e.date}')" style="background:${upBg};border-color:${upBorder}">
+        <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style="background:${stUp==='selesai'?'#dcfce7':cMeta.bg};color:${stUp==='selesai'?'#15803d':cMeta.color}"><i class="fa-solid ${stUp==='selesai'?'fa-circle-check':(e.isRecurring?'fa-repeat':'fa-calendar-day')} text-xs"></i></div>
         <div class="flex-1 min-w-0">
-          <p class="text-xs font-bold truncate">${escapeHtml(e.title)}</p>
+          <p class="text-xs font-bold truncate ${stUp==='selesai'?'text-emerald-800':''}">${escapeHtml(e.title)}</p>
           <p class="text-[10px] text-slate-400">${dLabel}${e.time?', '+e.time:''}${e.day?' &middot; '+escapeHtml(e.day):''}</p>
         </div>
         <span class="badge flex-shrink-0" style="background:${sMeta.bg};color:${sMeta.color}"><i class="fa-solid ${sMeta.icon} mr-1"></i>${sMeta.label}</span>
@@ -8459,22 +9627,73 @@ function closeAgendaModal(){
 const SHEETS_AGENDA_URL_KEY = 'salespro_sheets_agenda_url';
 const SHEETS_AGENDA_SECRET_KEY = 'salespro_sheets_agenda_secret';
 const SHEETS_AGENDA_ENABLED_KEY = 'salespro_sheets_agenda_enabled';
+const SHEETS_AGENDA_LAST_WEEKLY_KEY = 'salespro_sheets_agenda_last_weekly';
+const SHEETS_AGENDA_WEEKLY_MS = 7 * 24 * 60 * 60 * 1000; // 7 hari
 
 function getSheetsAgendaConfig(){
   return {
     enabled: localStorage.getItem(SHEETS_AGENDA_ENABLED_KEY) === '1',
     url: (localStorage.getItem(SHEETS_AGENDA_URL_KEY) || '').trim(),
-    secret: (localStorage.getItem(SHEETS_AGENDA_SECRET_KEY) || 'salespro-secret').trim()
+    secret: (localStorage.getItem(SHEETS_AGENDA_SECRET_KEY) || 'salespro-secret').trim(),
+    lastWeekly: parseInt(localStorage.getItem(SHEETS_AGENDA_LAST_WEEKLY_KEY) || '0', 10) || 0
   };
+}
+function markSheetsAgendaWeeklyDone(){
+  localStorage.setItem(SHEETS_AGENDA_LAST_WEEKLY_KEY, String(Date.now()));
+}
+/** Sync penuh semua agenda jika sudah lewat 7 hari sejak sync mingguan terakhir. */
+async function runWeeklyAgendaSheetsSyncIfDue(opts){
+  const silent = !!(opts && opts.silent);
+  const cfg = getSheetsAgendaConfig();
+  if(!cfg.enabled || !cfg.url) return false;
+  const due = !cfg.lastWeekly || (Date.now() - cfg.lastWeekly) >= SHEETS_AGENDA_WEEKLY_MS;
+  if(!due) return false;
+  try{
+    const items = (state.agenda || []).map(agendaItemForSheets);
+    const res = await postToSheetsAgenda({ action: 'sync_all_agenda', items });
+    const rec = state.agendaRecurring || [];
+    if(rec.length){
+      await postToSheetsAgenda({
+        action: 'upsert_recurring',
+        items: rec.map(r => ({
+          id: r.id, title: r.title || '', weekday: r.weekday,
+          time: r.time || '', wajib: r.wajib !== false,
+          location: r.location || '', color: r.color || ''
+        }))
+      });
+    }
+    if(res && res.ok){
+      markSheetsAgendaWeeklyDone();
+      if(!silent) toast('Sync mingguan Agenda → Sheets selesai (' + (res.written || items.length) + ' kegiatan)');
+      else console.log('[SalesPro] Weekly agenda sheets sync OK', res.written || items.length);
+      const st = document.getElementById('sheets-agenda-status');
+      if(st){
+        st.innerText = '✅ Sync mingguan otomatis — ' + (res.written || items.length) + ' kegiatan · ' + new Date().toLocaleString('id-ID');
+        st.className = 'text-[11px] mt-2 text-emerald-600 font-semibold';
+      }
+      return true;
+    }
+  }catch(err){
+    console.warn('[SalesPro] Weekly agenda sheets sync gagal:', err);
+  }
+  return false;
 }
 function loadSheetsAgendaSettingsUI(){
   const cfg = getSheetsAgendaConfig();
   const en = document.getElementById('sheets-agenda-enabled');
   const url = document.getElementById('sheets-agenda-url');
   const sec = document.getElementById('sheets-agenda-secret');
+  const st = document.getElementById('sheets-agenda-status');
   if(en) en.checked = cfg.enabled;
   if(url) url.value = cfg.url;
   if(sec) sec.value = cfg.secret === 'salespro-secret' ? '' : cfg.secret;
+  if(st && cfg.lastWeekly){
+    const next = cfg.lastWeekly + SHEETS_AGENDA_WEEKLY_MS;
+    const due = Date.now() >= next;
+    st.innerText = 'Sync mingguan terakhir: ' + new Date(cfg.lastWeekly).toLocaleString('id-ID')
+      + (due ? ' · jatuh tempo (akan jalan saat buka app)' : ' · berikutnya ~' + new Date(next).toLocaleDateString('id-ID'));
+    st.className = 'text-[11px] mt-2 text-slate-400';
+  }
 }
 function saveSheetsAgendaSettings(){
   const en = document.getElementById('sheets-agenda-enabled');
@@ -8486,19 +9705,65 @@ function saveSheetsAgendaSettings(){
   const st = document.getElementById('sheets-agenda-status');
   if(st) st.innerText = 'Pengaturan disimpan di browser ini.';
 }
+function normalizeSheetsWebAppUrl(url){
+  let u = (url || '').trim();
+  if(!u) return '';
+  // Pastikan berakhiran /exec (bukan /dev atau library)
+  u = u.replace(/\/$/, '');
+  if(u.includes('/macros/s/') && !u.endsWith('/exec')) u += '/exec';
+  return u;
+}
+/** POST ke Apps Script. Browser sering kena CORS saat baca respons — pakai no-cors
+ *  agar doPost tetap jalan di server Google. Balasan tidak bisa dibaca (opaque). */
 async function postToSheetsAgenda(payload){
   const cfg = getSheetsAgendaConfig();
-  if(!cfg.url) throw new Error('URL Web App belum diisi');
+  const url = normalizeSheetsWebAppUrl(cfg.url);
+  if(!url) throw new Error('URL Web App belum diisi');
   payload.secret = cfg.secret || 'salespro-secret';
-  // Apps Script Web App: kirim text/plain agar preflight CORS sederhana
-  const res = await fetch(cfg.url, {
+  const body = JSON.stringify(payload);
+  // 1) Coba form-POST lewat iframe (paling andal vs CORS Apps Script)
+  try{
+    await postSheetsViaHiddenForm(url, body);
+    return { ok: true, via: 'form' };
+  }catch(formErr){
+    console.warn('Sheets form post fallback ke fetch no-cors', formErr);
+  }
+  // 2) Fallback fetch no-cors (request terkirim, response tidak bisa dibaca)
+  await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(payload)
+    mode: 'no-cors',
+    body: body
   });
-  // Beberapa deployment mengembalikan redirect; coba parse JSON jika ada
-  const text = await res.text();
-  try { return JSON.parse(text); } catch(_){ return { ok: res.ok, raw: text }; }
+  return { ok: true, via: 'no-cors', corsLimited: true };
+}
+function postSheetsViaHiddenForm(url, jsonBody){
+  return new Promise((resolve, reject) => {
+    try{
+      const frameName = 'gsheets_frame_' + Date.now();
+      const iframe = document.createElement('iframe');
+      iframe.name = frameName;
+      iframe.style.cssText = 'position:absolute;width:0;height:0;border:0;left:-9999px';
+      document.body.appendChild(iframe);
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = url;
+      form.target = frameName;
+      form.style.display = 'none';
+      // Apps Script membaca e.parameter.payload
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'payload';
+      input.value = jsonBody;
+      form.appendChild(input);
+      document.body.appendChild(form);
+      const cleanup = () => {
+        try{ form.remove(); iframe.remove(); }catch(_){}
+      };
+      iframe.onload = () => { cleanup(); resolve(); };
+      setTimeout(() => { cleanup(); resolve(); }, 4000);
+      form.submit();
+    }catch(e){ reject(e); }
+  });
 }
 function agendaItemForSheets(e){
   if(!e) return null;
@@ -8553,22 +9818,31 @@ async function testSheetsAgendaConnection(){
   const st = document.getElementById('sheets-agenda-status');
   saveSheetsAgendaSettings();
   const cfg = getSheetsAgendaConfig();
-  if(!cfg.url){
-    if(st){ st.innerText = 'Isi URL Web App dulu.'; st.className = 'text-[11px] mt-2 text-red-600'; }
+  const url = normalizeSheetsWebAppUrl(cfg.url);
+  if(!url){
+    if(st){ st.innerText = 'Isi URL Web App dulu (harus berakhiran /exec).'; st.className = 'text-[11px] mt-2 text-red-600'; }
     return;
   }
-  if(st){ st.innerText = 'Menghubungi Google Sheets...'; st.className = 'text-[11px] mt-2 text-slate-400'; }
+  if(!url.includes('/macros/s/') || !url.endsWith('/exec')){
+    if(st){ st.innerText = 'URL salah — pakai Web app URL yang berakhiran /exec (bukan Library).'; st.className = 'text-[11px] mt-2 text-red-600'; }
+    toast('URL Web App tidak valid');
+    return;
+  }
+  if(st){ st.innerText = 'Mengirim ping ke Google Sheets...'; st.className = 'text-[11px] mt-2 text-slate-400'; }
   try{
     const res = await postToSheetsAgenda({ action: 'ping' });
     if(res && res.ok){
-      if(st){ st.innerText = '✅ Koneksi OK' + (res.sheet ? ' — sheet: '+res.sheet : ''); st.className = 'text-[11px] mt-2 text-emerald-600 font-semibold'; }
-      toast('Koneksi Google Sheets berhasil');
+      if(st){
+        st.innerText = '✅ Request terkirim. Cek tab "Log Sync" di Google Sheet — harus ada baris ping. (Browser tidak bisa baca balasan Apps Script karena CORS.)';
+        st.className = 'text-[11px] mt-2 text-emerald-600 font-semibold';
+      }
+      toast('Request terkirim — cek Log Sync di sheet');
     } else {
-      if(st){ st.innerText = '❌ ' + (res && res.error ? res.error : 'Respons tidak valid'); st.className = 'text-[11px] mt-2 text-red-600'; }
+      if(st){ st.innerText = '❌ ' + (res && res.error ? res.error : 'Gagal'); st.className = 'text-[11px] mt-2 text-red-600'; }
     }
   }catch(e){
     if(st){ st.innerText = '❌ Gagal: ' + (e.message || e); st.className = 'text-[11px] mt-2 text-red-600'; }
-    toast('Gagal menghubungi Apps Script — cek URL & akses Anyone');
+    toast('Gagal — pastikan deploy: Anyone + URL /exec');
   }
 }
 async function syncAllAgendaToSheets(){
@@ -8594,6 +9868,7 @@ async function syncAllAgendaToSheets(){
       });
     }
     if(res && res.ok){
+      markSheetsAgendaWeeklyDone();
       if(st){ st.innerText = '✅ Sync selesai — ' + (res.written || items.length) + ' kegiatan'; st.className = 'text-[11px] mt-2 text-emerald-600 font-semibold'; }
       toast('Semua agenda tersinkron ke Google Sheets');
     } else {
@@ -9455,8 +10730,10 @@ async function showApp(){
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('app-root').classList.remove('hidden');
   await loadAllCloudData();
+  try{ startRealtimeSync(); }catch(e){ console.warn(e); }
   renderAll();
   switchTab('dashboard');
+  try{ updateDashboardRealtimeKpiStrip(); }catch(_){}
   renderAIChatButtonVisibility();
   const autoMergedOnLoad = mergeAllDuplicateParticipants(true);
   const autoMergedTTOnLoad = mergeAllDuplicateTrainingTargets(true);
@@ -9466,6 +10743,8 @@ async function showApp(){
   if(autoMergedTTOnLoad){
     toast(`✅ ${autoMergedTTOnLoad} target training duplikat berhasil digabungkan otomatis`);
   }
+  // Sync penuh Agenda → Google Sheets tiap 7 hari (saat admin buka app)
+  setTimeout(() => { runWeeklyAgendaSheetsSyncIfDue({ silent: true }); }, 2500);
 }
 function showLogin(){
   document.getElementById('app-root').classList.add('hidden');
@@ -9501,6 +10780,8 @@ async function attemptLogin(){
   }
 }
 async function logoutAdmin(){
+  try{ stopRealtimeSync(); }catch(_){}
+
   if(!await customConfirm('Keluar dari aplikasi?')) return;
   fbAuth.signOut();
 }
