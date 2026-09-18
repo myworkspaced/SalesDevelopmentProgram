@@ -4217,7 +4217,7 @@ function computeApplyPctByPeople(taskList){
   const list = taskList || [];
   const byPerson = {};
   list.forEach(t=>{
-    const key = String(t.employee || t.nama || t.pic || '(Tanpa nama)').trim().toLowerCase() || '(tanpa nama)';
+    const key = String(t.employeeName || t.employee || t.nama || t.pic || '(Tanpa nama)').trim().toLowerCase() || '(tanpa nama)';
     if(!byPerson[key]) byPerson[key] = [];
     byPerson[key].push(Number(t.pctTask)||0);
   });
@@ -6616,7 +6616,7 @@ function renderApplyDetailModal(){
     const headBg = pct>=100 ? '#f0fdf4' : '#f8fafc';
     const byPerson = {};
     items.forEach(t=>{
-      const key = String(t.employee || t.nama || t.pic || '(Tanpa nama)').trim() || '(Tanpa nama)';
+      const key = String(t.employeeName || t.employee || t.nama || t.pic || '(Tanpa nama)').trim() || '(Tanpa nama)';
       if(!byPerson[key]) byPerson[key] = [];
       byPerson[key].push(t);
     });
