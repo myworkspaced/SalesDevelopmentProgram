@@ -6614,16 +6614,28 @@ function renderApplyDetailModal(){
     const pctColor = pct>=100 ? '#15803d' : pct>=70 ? 'var(--brand-600)' : pct>=40 ? '#d97706' : '#dc2626';
     const barBg = pct>=100 ? '#16a34a' : pct>=70 ? 'var(--brand-500)' : pct>=40 ? '#f59e0b' : '#ef4444';
     const headBg = pct>=100 ? '#f0fdf4' : '#f8fafc';
-    const rows = items.map(t=>{
-      const ok = !!t.actual;
-      const dateLabel = t.tanggal ? new Date(t.tanggal+'T00:00:00').toLocaleDateString('id-ID',{day:'numeric',month:'short'}) : '—';
+    const byPerson = {};
+    items.forEach(t=>{
+      const key = String(t.employee || t.nama || t.pic || '(Tanpa nama)').trim() || '(Tanpa nama)';
+      if(!byPerson[key]) byPerson[key] = [];
+      byPerson[key].push(t);
+    });
+    const rows = Object.keys(byPerson).map(name=>{
+      const personTasks = byPerson[name];
+      const personPct = Math.round(personTasks.reduce((a,t)=>a+(Number(t.pctTask)||0),0)/personTasks.length);
+      const personDone = personTasks.filter(t=>!!t.actual).length;
+      const personTot = personTasks.length;
+      const ok = personDone>=personTot;
+      const pColor = personPct>=100 ? '#15803d' : personPct>=70 ? 'var(--brand-600)' : personPct>=40 ? '#d97706' : '#dc2626';
+      const lastDate = personTasks.map(t=>t.tanggal).filter(Boolean).sort().pop();
+      const dateLabel = lastDate ? new Date(lastDate+'T00:00:00').toLocaleDateString('id-ID',{day:'numeric',month:'short'}) : '—';
       return `<div class="lesson-row !rounded-none !border-0 !border-b !shadow-none" style="background:${ok?'#f0fdf4':'#fff'};border-color:#f1f5f9!important">
-        <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style="background:${ok?'#dcfce7':'#f1f5f9'};color:${ok?'#15803d':'#64748b'}"><i class="fa-solid ${ok?'fa-circle-check':'fa-list-check'} text-xs"></i></div>
+        <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style="background:${ok?'#dcfce7':'#f1f5f9'};color:${ok?'#15803d':'#64748b'}"><i class="fa-solid ${ok?'fa-circle-check':'fa-user'} text-xs"></i></div>
         <div class="flex-1 min-w-0">
-          <p class="text-xs font-bold ${ok?'text-emerald-800':''}">${escapeHtml(t.task||t.judul||'(Tanpa judul)')}</p>
-          <p class="text-[10px] text-slate-400">${dateLabel}${t.pic?' · '+escapeHtml(t.pic):''}${t.target?' · target '+escapeHtml(String(t.target)):''}</p>
+          <p class="text-xs font-bold ${ok?'text-emerald-800':''}">${escapeHtml(name)}</p>
+          <p class="text-[10px] text-slate-400">${personDone}/${personTot} task selesai · update terakhir ${dateLabel}</p>
         </div>
-        <span class="text-xs font-bold mr-2" style="color:${pctColor}">${Number(t.pctTask)||0}%</span>
+        <span class="text-xs font-bold mr-2" style="color:${pColor}">${personPct}%</span>
         ${ok?'<span class="badge badge-green">Selesai</span>':'<span class="badge badge-slate">Belum</span>'}
       </div>`;
     }).join('');
@@ -7092,9 +7104,7 @@ function renderPesertaDetail(id){
         ${p.resignDate ? `<p class="text-[11px] text-red-500 font-semibold mt-1"><i class="fa-solid fa-person-walking-arrow-right mr-1"></i>Mundur sejak ${fmtDate(p.resignDate)}</p>` : ''}
       </div>
       <div class="flex items-center gap-2 flex-wrap">
-        <button class="${p.manualLulus ? 'btn-ghost !text-red-600' : 'btn-primary'}" onclick="toggleManualLulus('${p.id}')">
-          ${p.manualLulus ? '<i class="fa-solid fa-rotate-left mr-1"></i>Batalkan Lulus Manual' : '<i class="fa-solid fa-check mr-1"></i>Tandai Lulus Manual'}
-        </button>
+        ${p.manualLulus ? `<button class="btn-ghost !text-red-600" onclick="toggleManualLulus('${p.id}')"><i class="fa-solid fa-rotate-left mr-1"></i>Batalkan Lulus Manual</button>` : (isCertified(p) ? '' : `<button class="btn-primary" onclick="toggleManualLulus('${p.id}')"><i class="fa-solid fa-check mr-1"></i>Tandai Lulus Manual</button>`)}
         <button class="${p.resignDate ? 'btn-ghost !text-red-600' : 'btn-ghost'}" onclick="toggleMundur('${p.id}')">
           ${p.resignDate ? '<i class="fa-solid fa-rotate-left mr-1"></i>Batalkan Mundur' : '<i class="fa-solid fa-person-walking-arrow-right mr-1"></i>Tandai Mundur'}
         </button>
