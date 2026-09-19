@@ -12,6 +12,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -571,7 +573,10 @@
           <div class="card overflow-hidden">
             <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-2 flex-wrap">
               <p class="text-sm font-semibold text-slate-900">Daftar Peserta &amp; Status</p>
-              <button type="button" class="btn-ghost !py-1.5 !px-2.5 !text-xs" onclick="switchTab('participants')"><i class="fa-solid fa-users mr-1"></i>Kelola Peserta</button>
+              <div class="flex items-center gap-2 flex-wrap">
+                <button type="button" class="btn-ghost !py-1.5 !px-2.5 !text-xs" onclick="exportPesertaKelulusanExcel()"><i class="fa-solid fa-file-excel mr-1"></i>Export Excel</button>
+                <button type="button" class="btn-ghost !py-1.5 !px-2.5 !text-xs" onclick="switchTab('participants')"><i class="fa-solid fa-users mr-1"></i>Kelola Peserta</button>
+              </div>
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-sm">
@@ -836,6 +841,7 @@
             <i class="fa-solid fa-file-import mr-1"></i>Impor Data GCI (.xlsx)
             <input type="file" accept=".xlsx,.xls" class="hidden" onchange="importGciExcel(event)">
           </label>
+          <button class="btn-ghost" onclick="exportPencapaianExcel()"><i class="fa-solid fa-file-excel mr-1"></i>Export Excel</button>
           <button class="btn-ghost" onclick="clearGciData()"><i class="fa-solid fa-trash mr-1"></i>Hapus Data</button>
         </div>
 
@@ -900,6 +906,35 @@
               <p class="text-sm font-bold mb-1">Komposisi Status</p>
               <p class="text-[11px] text-slate-400 mb-4">Bulan terpilih: <span id="gci-status-month-label" class="font-semibold"></span></p>
               <canvas id="chart-gci-status" height="180"></canvas>
+            </div>
+          </div>
+
+          <div class="card p-5">
+            <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
+              <p class="text-sm font-bold"><i class="fa-solid fa-calendar-week text-slate-400 mr-1"></i>Pencapaian per Minggu</p>
+              <span class="text-[11px] text-slate-400">Bulan: <span id="gci-weekly-month-label" class="font-semibold"></span></span>
+            </div>
+            <p class="text-[11px] text-slate-400 mb-4">Data bulan terpilih dikelompokkan otomatis per minggu kalender (Senin–Minggu) supaya progres prospek &amp; booking mudah dipantau tiap minggu.</p>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              <div class="overflow-x-auto lg:col-span-2">
+                <table class="w-full text-xs">
+                  <thead>
+                    <tr class="text-left text-slate-400 border-b" style="border-color:var(--line)">
+                      <th class="py-2 pr-3 font-bold">Minggu</th>
+                      <th class="py-2 pr-3 font-bold">Tanggal</th>
+                      <th class="py-2 pr-3 font-bold">Total Prospek</th>
+                      <th class="py-2 pr-3 font-bold">Leads</th>
+                      <th class="py-2 pr-3 font-bold">Booking</th>
+                      <th class="py-2 pr-3 font-bold">Konversi</th>
+                      <th class="py-2 pr-3 font-bold">Nominal Booking</th>
+                    </tr>
+                  </thead>
+                  <tbody id="gci-weekly-body"></tbody>
+                </table>
+              </div>
+              <div>
+                <canvas id="chart-gci-weekly" height="180"></canvas>
+              </div>
             </div>
           </div>
 
@@ -969,6 +1004,10 @@
           <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
             <p class="text-sm font-bold">Peningkatan Skill Closing</p>
             <div class="flex items-end gap-2 flex-wrap">
+              <div>
+                <label class="text-[10px] font-bold text-slate-400 uppercase">&nbsp;</label>
+                <button type="button" class="btn-ghost !py-1.5 !px-2.5 !text-xs block" onclick="exportClosingSkillExcel()"><i class="fa-solid fa-file-excel mr-1"></i>Export Excel</button>
+              </div>
               <div>
                 <label class="text-[10px] font-bold text-slate-400 uppercase">Bulan</label>
                 <select id="cs-filter-bln" class="field" onchange="applyClosingSkillFilter()"><option value="">Semua Bulan</option></select>
@@ -1075,6 +1114,7 @@
                 <label class="text-[10px] font-bold text-slate-400 uppercase">Tahun</label>
                 <select id="fltl-filter-tahun" class="field" onchange="applyFeedbackTLFilter()"></select>
               </div>
+              <button class="btn-ghost !py-1.5 !px-3 text-[11px]" onclick="exportFeedbackTLExcel()"><i class="fa-solid fa-file-excel mr-1"></i>Export Excel</button>
               <button class="btn-primary !py-1.5 !px-3 text-[11px]" onclick="openFeedbackTLModal()"><i class="fa-solid fa-plus mr-1"></i>Tambah Point</button>
             </div>
           </div>
@@ -1131,6 +1171,7 @@
                 <input type="file" accept=".xlsx,.xls" class="hidden" onchange="importTasklistMarketingExcel(event)">
               </label>
               <button class="btn-primary" onclick="openAddTasklistMarketing()"><i class="fa-solid fa-plus mr-1"></i>Tambah Task</button>
+              <button class="btn-ghost" onclick="exportTasklistMarketingExcel()"><i class="fa-solid fa-file-excel mr-1"></i>Export Excel</button>
               <button class="btn-ghost !text-red-600" onclick="clearTasklistMarketingData()"><i class="fa-solid fa-broom mr-1"></i>Bersihkan</button>
             </div>
           </div>
@@ -1409,6 +1450,7 @@
                 <button onclick="agendaGoToday()" class="btn-ghost !py-1.5 !px-3 text-[11px]"><i class="fa-solid fa-calendar-day mr-1"></i>Hari Ini</button>
                 <button onclick="openRecurringManager()" class="btn-ghost !py-1.5 !px-3 text-[11px]"><i class="fa-solid fa-repeat mr-1"></i>Jadwal Rutin</button>
                 <button onclick="openAgendaModal()" class="btn-primary !py-1.5 !px-3 text-[11px]"><i class="fa-solid fa-plus mr-1"></i>Tambah Kegiatan</button>
+                <button onclick="exportAgendaWeeklyExcel()" class="btn-ghost !py-1.5 !px-3 text-[11px]"><i class="fa-solid fa-file-excel mr-1"></i>Export Excel</button>
               </div>
             </div>
             <div class="grid grid-cols-7 gap-1 text-center text-[10px] font-extrabold text-slate-400 mb-1">
@@ -1458,6 +1500,7 @@
                 <label class="text-[10px] font-bold text-slate-400 uppercase">Tahun</label>
                 <select id="sc-filter-tahun" class="field" onchange="applySupportCoachingFilter()"></select>
               </div>
+              <button class="btn-ghost !py-1.5 !px-3 text-[11px]" onclick="exportSupportCoachingExcel()"><i class="fa-solid fa-file-excel mr-1"></i>Export Excel</button>
               <button class="btn-primary !py-1.5 !px-3 text-[11px]" onclick="openSupportCoachingModal()"><i class="fa-solid fa-plus mr-1"></i>Tambah Coaching</button>
             </div>
           </div>
@@ -2535,6 +2578,79 @@ function aggregateGciMonth(key){
 function formatRupiah(n){
   return 'Rp ' + Math.round(n||0).toLocaleString('id-ID');
 }
+function gciMondayOf(dateStr){
+  const d = new Date(dateStr);
+  if(isNaN(d)) return null;
+  const day = d.getDay(); // 0=Minggu,1=Senin,...6=Sabtu
+  const diff = (day===0) ? -6 : (1-day);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()+diff);
+}
+function gciWeekKey(dateStr){
+  const mon = gciMondayOf(dateStr);
+  if(!mon) return null;
+  return mon.getFullYear()+'-'+String(mon.getMonth()+1).padStart(2,'0')+'-'+String(mon.getDate()).padStart(2,'0');
+}
+function gciWeekRangeLabel(weekKey){
+  const [y,m,d] = weekKey.split('-').map(Number);
+  const monday = new Date(y, m-1, d);
+  const sunday = new Date(y, m-1, d+6);
+  const fmtShort = dt => `${dt.getDate()} ${MONTH_NAMES_ID[dt.getMonth()].slice(0,3)}`;
+  if(monday.getMonth()===sunday.getMonth()){
+    return `${monday.getDate()}-${sunday.getDate()} ${MONTH_NAMES_ID[monday.getMonth()]}`;
+  }
+  return `${fmtShort(monday)} - ${fmtShort(sunday)}`;
+}
+function aggregateGciWeeksInMonth(monthKey){
+  const rows = gciData.filter(r=>gciMonthKey(r.tanggal)===monthKey);
+  const weeks = {};
+  rows.forEach(r=>{
+    const wk = gciWeekKey(r.tanggal);
+    if(!wk) return;
+    if(!weeks[wk]) weeks[wk] = { key:wk, total:0, leads:0, booking:0, nominalBooking:0, incomeBooking:0 };
+    const cat = classifyGciStatus(r);
+    weeks[wk].total++;
+    weeks[wk][cat]++;
+    if(cat==='booking'){
+      weeks[wk].nominalBooking += Number(r.nominalBookingSpr)||0;
+      weeks[wk].incomeBooking += Number(r.incomeBooking)||0;
+    }
+  });
+  return Object.keys(weeks).sort().map((k,idx)=>{
+    const v = weeks[k];
+    return { ...v, week: idx+1, label:'Minggu '+(idx+1), range:gciWeekRangeLabel(k), conversion: v.total ? Math.round((v.booking/v.total)*1000)/10 : 0 };
+  });
+}
+let gciWeeklyChart = null;
+function renderGciWeekly(monthKey){
+  const weeks = aggregateGciWeeksInMonth(monthKey);
+  document.getElementById('gci-weekly-month-label').innerText = gciMonthLabel(monthKey);
+  document.getElementById('gci-weekly-body').innerHTML = weeks.length ? weeks.map(w=>`
+    <tr class="border-b" style="border-color:var(--line)">
+      <td class="py-2 pr-3 font-semibold">${w.label}</td>
+      <td class="py-2 pr-3 text-slate-400">${w.range}</td>
+      <td class="py-2 pr-3 mono">${w.total}</td>
+      <td class="py-2 pr-3 mono">${w.leads}</td>
+      <td class="py-2 pr-3 mono font-bold" style="color:var(--brand-600)">${w.booking}</td>
+      <td class="py-2 pr-3 mono">${w.conversion}%</td>
+      <td class="py-2 pr-3 mono">${formatRupiah(w.nominalBooking)}</td>
+    </tr>`).join('') : '<tr><td colspan="7" class="py-4 text-center text-slate-400">Tidak ada data</td></tr>';
+
+  const ctx = document.getElementById('chart-gci-weekly');
+  if(gciWeeklyChart) gciWeeklyChart.destroy();
+  if(ctx){
+    gciWeeklyChart = new Chart(ctx, {
+      type:'bar',
+      data:{
+        labels: weeks.map(w=>w.label),
+        datasets:[
+          { label:'Prospek', data: weeks.map(w=>w.total), backgroundColor:'#cbd5e1', borderRadius:6, maxBarThickness:28 },
+          { label:'Booking', data: weeks.map(w=>w.booking), backgroundColor:'#0e7c63', borderRadius:6, maxBarThickness:28 }
+        ]
+      },
+      options:{ responsive:true, scales:{ y:{ beginAtZero:true } }, plugins:{ legend:{ position:'bottom', labels:{boxWidth:10,font:{size:10}} } } }
+    });
+  }
+}
 function gciDeltaHtml(curr, prev, opts){
   opts = opts || {};
   if(prev===null || prev===undefined) return '<span class="text-slate-300">Belum ada data bulan pembanding</span>';
@@ -2646,6 +2762,9 @@ function renderPencapaian(){
     options:{ responsive:true, cutout:'68%', plugins:{ legend:{ position:'bottom', labels:{boxWidth:10,font:{size:10}} } } },
     plugins:[gciCenterTextPlugin]
   });
+
+  // Weekly breakdown for selected month (bulan A)
+  renderGciWeekly(keyA);
 
   // Comparison table
   const thA = document.getElementById('gci-compare-th-a');
@@ -2999,6 +3118,114 @@ async function clearGciData(){
   saveGciData(gciData);
   renderPencapaian();
   toast('Data pencapaian GCI berhasil dihapus');
+}
+
+async function exportPencapaianExcel(){
+  if(typeof ExcelJS === 'undefined'){ toast('Modul export belum siap, coba lagi sebentar'); return; }
+  const months = getGciMonths();
+  if(!months.length){ toast('Belum ada data pencapaian untuk diexport'); return; }
+  const keyA = document.getElementById('gci-bulan-a').value || months[months.length-1];
+  const aggA = aggregateGciMonth(keyA);
+  const weeks = aggregateGciWeeksInMonth(keyA);
+  const monthLabel = gciMonthLabel(keyA);
+
+  const COLOR = { headerFill:'FF1E293B', headerFont:'FFFFFFFF', zebra:'FFF8FAFC', border:'FFE2E8F0', weekFill:'FF0E7C63', weekFont:'FFFFFFFF' };
+  const thin = { style:'thin', color:{argb:COLOR.border} };
+  const borderAll = { top:thin, left:thin, bottom:thin, right:thin };
+  function styleHeaderRow(row){
+    row.eachCell(cell=>{
+      cell.font = { bold:true, color:{argb:COLOR.headerFont} };
+      cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.headerFill} };
+      cell.border = borderAll;
+      cell.alignment = { vertical:'middle', horizontal:'center' };
+    });
+  }
+  function styleBodyRow(row, idx, alignFirstLeft){
+    const zebra = idx % 2 === 1;
+    row.eachCell((cell, colNum)=>{
+      cell.border = borderAll;
+      cell.alignment = { vertical:'middle', horizontal: (alignFirstLeft && colNum===1) ? 'left' : 'center' };
+      if(zebra) cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.zebra} };
+    });
+  }
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'SalesPro Academy';
+  wb.created = new Date();
+
+  // Sheet 1: Ringkasan bulan terpilih saja
+  const wsSummary = wb.addWorksheet(`Ringkasan ${monthLabel}`.slice(0,31));
+  wsSummary.columns = [{width:22},{width:20}];
+  wsSummary.mergeCells('A1:B1');
+  const titleCell = wsSummary.getCell('A1');
+  titleCell.value = `Pencapaian Bulanan — ${monthLabel}`;
+  titleCell.font = { bold:true, size:13, color:{argb:COLOR.headerFont} };
+  titleCell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.headerFill} };
+  titleCell.alignment = { vertical:'middle', horizontal:'center' };
+  wsSummary.getRow(1).height = 22;
+  const summaryRows = [
+    ['Total Prospek', aggA.total],
+    ['Leads', aggA.leads],
+    ['Booking', aggA.booking],
+    ['Konversi Booking (%)', aggA.conversion]
+  ];
+  summaryRows.forEach((r,idx)=>{
+    const row = wsSummary.addRow(r);
+    row.getCell(1).font = { bold:true };
+    row.eachCell(cell=>{
+      cell.border = borderAll;
+      cell.alignment = { vertical:'middle', horizontal:'left' };
+      if(idx%2===1) cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.zebra} };
+    });
+  });
+
+  // Sheet 2: Mingguan — breakdown per minggu lengkap dengan nama konsumen & sales
+  const wsWeekly = wb.addWorksheet(`Mingguan ${monthLabel}`.slice(0,31), { views:[{ state:'frozen', ySplit:1 }] });
+  wsWeekly.columns = [{width:12},{width:18},{width:26},{width:20},{width:16},{width:16},{width:16}];
+  styleHeaderRow(wsWeekly.addRow(['Minggu','Tanggal','Nama Konsumen','Sales / Marketing','BM','Status','Kategori']));
+  weeks.forEach(w=>{
+    const rowsInWeek = aggA.rows
+      .filter(r=>gciWeekKey(r.tanggal)===w.key)
+      .sort((a,b)=>new Date(a.tanggal)-new Date(b.tanggal));
+
+    // Baris section header per minggu (ringkasan minggu tsb)
+    const sectionRow = wsWeekly.addRow([
+      `${w.label} (${w.range})`,
+      `${w.total} Prospek • ${w.leads} Leads • ${w.booking} Booking • Konversi ${w.conversion}%`,
+      '', '', '', '', ''
+    ]);
+    wsWeekly.mergeCells(`B${sectionRow.number}:G${sectionRow.number}`);
+    sectionRow.eachCell(cell=>{
+      cell.font = { bold:true, color:{argb:COLOR.weekFont} };
+      cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.weekFill} };
+      cell.border = borderAll;
+      cell.alignment = { vertical:'middle', horizontal:'left' };
+    });
+
+    rowsInWeek.forEach((r,idx)=>{
+      const cat = classifyGciStatus(r);
+      styleBodyRow(wsWeekly.addRow([
+        w.label, r.tanggal||'-', r.nama||'-', r.marketing||'-', r.bm||'-', r.status||'-', GCI_STATUS_LABELS[cat]
+      ]), idx, true);
+    });
+  });
+
+  // Sheet 3: Leaderboard sales untuk bulan terpilih
+  const wsLeader = wb.addWorksheet(`Leaderboard ${monthLabel}`.slice(0,31), { views:[{ state:'frozen', ySplit:1 }] });
+  wsLeader.columns = [{width:6},{width:26},{width:16},{width:16},{width:10},{width:12},{width:14}];
+  styleHeaderRow(wsLeader.addRow(['#','Sales / Marketing','Username','BM','Leads','Booking','Konversi (%)']));
+  const leaderRows = Object.entries(aggA.byMarketing).sort((a,b)=>b[1].booking-a[1].booking || b[1].nominalBooking-a[1].nominalBooking);
+  leaderRows.forEach(([mk,v],idx)=>{
+    const participant = findParticipantByUsername(mk);
+    const conv = v.total ? Math.round((v.booking/v.total)*1000)/10 : 0;
+    styleBodyRow(wsLeader.addRow([idx+1, participant && participant.name ? participant.name : mk, mk, v.bm||'-', v.leads, v.booking, conv]), idx, true);
+  });
+  wsLeader.autoFilter = { from:{row:1,column:1}, to:{row:1,column:7} };
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type:'application/octet-stream' });
+  saveAs(blob, `pencapaian-${keyA}.xlsx`);
+  toast(`Export Excel Pencapaian ${monthLabel} berhasil`);
 }
 
 
@@ -4165,6 +4392,92 @@ function renderClosingSkill(){
     });
   });
 }
+// ===================== EXPORT PENINGKATAN SKILL CLOSING → EXCEL =====================
+// Format: Peserta, Nilai Teknik Closing (kuis), Nilai Trainer (manual), Nilai Rata2, Status.
+// Ikut filter Bulan/Tahun/Batch & pencarian yang lagi aktif di tab ini.
+async function exportClosingSkillExcel(){
+  if(typeof ExcelJS === 'undefined'){ toast('Modul export belum siap, coba lagi sebentar'); return; }
+  const mod = closingSkillModule();
+  if(!mod){ toast('Modul "Teknik Closing" belum ditemukan di Modul Training'); return; }
+
+  const searchEl = document.getElementById('cs-search');
+  const searchTerm = (searchEl && searchEl.value || '').trim().toLowerCase();
+  let list = getFilteredParticipants().filter(p=>{
+    if(p.trashed) return false;
+    if(!searchTerm) return true;
+    const haystack = [p.name,p.username,p.posisi].filter(Boolean).join(' ').toLowerCase();
+    return haystack.includes(searchTerm);
+  }).map(p=>({ p, d: getClosingSkillData(p, mod) }))
+    .sort((a,b)=>{
+      const na = parseInt((a.p.batch||'').replace(/\D/g,''),10);
+      const nb = parseInt((b.p.batch||'').replace(/\D/g,''),10);
+      const va = isNaN(na) ? Infinity : na;
+      const vb = isNaN(nb) ? Infinity : nb;
+      if(va!==vb) return va-vb;
+      return String(a.p.name||'').localeCompare(String(b.p.name||''),'id');
+    });
+
+  if(list.length===0){ toast('Belum ada data peserta untuk filter ini'); return; }
+
+  const COLOR = {
+    headerFill: 'FF1E293B', headerFont: 'FFFFFFFF',
+    growthFill: 'FFDCFCE7', growthFont: 'FF15803D',
+    belumFill: 'FFFEE2E2', belumFont: 'FFB91C1C',
+    kosongFill: 'FFF1F5F9', kosongFont: 'FF64748B',
+    zebra: 'FFF8FAFC', border: 'FFE2E8F0'
+  };
+  const thin = { style:'thin', color:{argb:COLOR.border} };
+  const borderAll = { top:thin, left:thin, bottom:thin, right:thin };
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'SalesPro Academy';
+  wb.created = new Date();
+  const ws = wb.addWorksheet('Peserta & Kelulusan', { views:[{ state:'frozen', ySplit:1 }] });
+  ws.columns = [{width:5},{width:24},{width:16},{width:12},{width:10},{width:18},{width:14},{width:12},{width:14}];
+
+  const headRow = ws.addRow(['No','Nama','Username','Bulan','Batch','Nilai Teknik Closing','Nilai Trainer','Nilai Rata2','Status']);
+  headRow.eachCell(cell=>{
+    cell.font = { bold:true, color:{argb:COLOR.headerFont} };
+    cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.headerFill} };
+    cell.border = borderAll;
+    cell.alignment = { vertical:'middle', horizontal:'center' };
+  });
+
+  list.forEach(({p,d}, idx)=>{
+    const statusLabel = d.status===null ? 'Belum Dinilai' : d.status==='growth' ? 'Growth' : 'Belum Growth';
+    const row = ws.addRow([
+      idx+1,
+      p.name || '(Tanpa nama)',
+      p.username || '-',
+      p.bln || '-',
+      p.batch || '-',
+      d.quizScore===null ? '-' : d.quizScore,
+      d.manualScore===null ? '-' : d.manualScore,
+      d.avg===null ? '-' : d.avg,
+      statusLabel
+    ]);
+    const zebra = idx % 2 === 1;
+    row.eachCell((cell, colNum)=>{
+      cell.border = borderAll;
+      cell.alignment = { vertical:'middle', horizontal: colNum===2 ? 'left' : 'center' };
+      if(zebra) cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.zebra} };
+    });
+    const statusCell = row.getCell(9);
+    const fillColor = d.status==='growth' ? COLOR.growthFill : d.status==='belum' ? COLOR.belumFill : COLOR.kosongFill;
+    const fontColor = d.status==='growth' ? COLOR.growthFont : d.status==='belum' ? COLOR.belumFont : COLOR.kosongFont;
+    statusCell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:fillColor} };
+    statusCell.font = { bold:true, color:{argb:fontColor} };
+  });
+
+  ws.autoFilter = { from:{row:1,column:1}, to:{row:1,column:9} };
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type:'application/octet-stream' });
+  const filterLabel = [dashboardFilterBln, dashboardFilterBatch].filter(Boolean).join('-').toLowerCase().replace(/\s+/g,'') || 'semua';
+  saveAs(blob, `skill-closing-${filterLabel}.xlsx`);
+  toast('Export Excel Peningkatan Skill Closing berhasil');
+}
+
 function isCertified(participant){
   if(participant.manualLulus) return true;
   const wm = wajibModules();
@@ -4412,6 +4725,95 @@ function scStatusBadge(status){
   if(status==='done') return '<span class="badge badge-green"><i class="fa-solid fa-check mr-1"></i>Done</span>';
   if(status==='proses') return '<span class="badge badge-amber"><i class="fa-solid fa-hourglass-half mr-1"></i>Proses</span>';
   return '<span class="badge badge-slate">Belum</span>';
+}
+async function exportSupportCoachingExcel(){
+  if(typeof ExcelJS === 'undefined'){ toast('Modul export belum siap, coba lagi sebentar'); return; }
+  const list = getSupportCoachingFiltered();
+  if(list.length===0){ toast('Belum ada data support coaching untuk filter ini'); return; }
+
+  const statusLabel = { belum:'Belum', proses:'Proses', done:'Done' };
+  const COLOR = {
+    headerFill: 'FF1E293B', headerFont: 'FFFFFFFF',
+    doneFill: 'FFDCFCE7', doneFont: 'FF15803D',
+    prosesFill: 'FFFEF3C7', prosesFont: 'FF92400E',
+    belumFill: 'FFFEE2E2', belumFont: 'FFB91C1C',
+    zebra: 'FFF8FAFC', border: 'FFE2E8F0'
+  };
+  const thin = { style:'thin', color:{argb:COLOR.border} };
+  const borderAll = { top:thin, left:thin, bottom:thin, right:thin };
+
+  const wb = new ExcelJS.Workbook();
+  const periodLabel = (scFilterBln||'Semua Bulan') + ' ' + (scFilterTahun||'Semua Tahun');
+  const ws = wb.addWorksheet('Support Coaching');
+  ws.columns = [
+    { width: 5 }, { width: 22 }, { width: 16 }, { width: 8 }, { width: 14 }, { width: 40 }
+  ];
+
+  ws.mergeCells('A1:F1');
+  const titleCell = ws.getCell('A1');
+  titleCell.value = 'Support Coaching - ' + periodLabel;
+  titleCell.font = { bold:true, size:13, color:{argb:COLOR.headerFont} };
+  titleCell.alignment = { vertical:'middle', horizontal:'left' };
+  ws.getRow(1).height = 24;
+  ws.getRow(1).eachCell(c=>{ c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.headerFill} }; });
+
+  const stats = computeSupportCoachingStats(list);
+  ws.mergeCells('A2:F2');
+  const subCell = ws.getCell('A2');
+  subCell.value = `Keterlaksanaan: ${stats.pct}% (${stats.done} dari ${stats.total} sesi)`;
+  subCell.font = { italic:true, size:10, color:{argb:'FF475569'} };
+  ws.getRow(2).height = 18;
+
+  const headerRowIdx = 4;
+  const headers = ['No','Plan Trainer','Bulan','Week','Status','Materi'];
+  const headerRow = ws.getRow(headerRowIdx);
+  headers.forEach((h,i)=>{
+    const cell = headerRow.getCell(i+1);
+    cell.value = h;
+    cell.font = { bold:true, color:{argb:COLOR.headerFont} };
+    cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.headerFill} };
+    cell.alignment = { vertical:'middle', horizontal:'left', wrapText:true };
+    cell.border = borderAll;
+  });
+  headerRow.height = 20;
+
+  list.forEach((f,idx)=>{
+    const r = ws.getRow(headerRowIdx+1+idx);
+    r.getCell(1).value = idx+1;
+    r.getCell(2).value = f.trainer || '(Belum diisi)';
+    r.getCell(3).value = (f.bln||'') + (f.tahun ? ' '+f.tahun : '');
+    r.getCell(4).value = 'W'+(f.week||1);
+    r.getCell(5).value = statusLabel[f.status] || 'Belum';
+    r.getCell(6).value = f.catatan || '';
+
+    r.eachCell(c=>{
+      c.border = borderAll;
+      c.alignment = { vertical:'top', horizontal:'left', wrapText:true };
+    });
+    if(idx % 2 === 1){
+      [1,2,3,4,5,6].forEach(ci=>{
+        r.getCell(ci).fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.zebra} };
+      });
+    }
+    const statusCell = r.getCell(5);
+    const fillMap = { done:COLOR.doneFill, proses:COLOR.prosesFill, belum:COLOR.belumFill };
+    const fontMap = { done:COLOR.doneFont, proses:COLOR.prosesFont, belum:COLOR.belumFont };
+    const key = f.status || 'belum';
+    statusCell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:fillMap[key]||COLOR.belumFill} };
+    statusCell.font = { bold:true, color:{argb:fontMap[key]||COLOR.belumFont} };
+  });
+
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type:'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Support_Coaching_${(scFilterBln||'Semua')}_${(scFilterTahun||'Semua')}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('Export berhasil');
 }
 function renderSupportCoachingFilters(){
   const blnSel = document.getElementById('sc-filter-bln');
@@ -4677,6 +5079,88 @@ function renderTasklistMarketing(){
   document.getElementById('tm-kpi-belum').innerText = terlambatCount;
   document.getElementById('tm-kpi-belum-sub').innerText = `${terlambatCount} dari ${total} task`;
 }
+// ===================== EXPORT TASKLIST MARKETING → EXCEL =====================
+// Format sama persis dengan tabel di layar (ikut filter Bulan/Tahun/Status/Cari
+// yang lagi aktif): No, Tanggal, ID Task, Employee Name, Join Date, Deadline,
+// Actual/Finish, Leadtime, % Task, % Waiting Approve, % Approve, SPV, MM, Status.
+async function exportTasklistMarketingExcel(){
+  if(typeof ExcelJS === 'undefined'){ toast('Modul export belum siap, coba lagi sebentar'); return; }
+  const list = getTasklistMarketingFiltered();
+  if(list.length===0){ toast('Belum ada task untuk filter ini'); return; }
+
+  const COLOR = {
+    headerFill: 'FF1E293B', headerFont: 'FFFFFFFF',
+    selesaiFill: 'FFDCFCE7', selesaiFont: 'FF15803D',
+    terlambatFill: 'FFFEE2E2', terlambatFont: 'FFB91C1C',
+    prosesFill: 'FFFEF3C7', prosesFont: 'FF92400E',
+    zebra: 'FFF8FAFC', border: 'FFE2E8F0'
+  };
+  const thin = { style:'thin', color:{argb:COLOR.border} };
+  const borderAll = { top:thin, left:thin, bottom:thin, right:thin };
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'SalesPro Academy';
+  wb.created = new Date();
+  const ws = wb.addWorksheet('Tasklist Marketing', { views:[{ state:'frozen', ySplit:1 }] });
+  ws.columns = [
+    {width:5},{width:14},{width:18},{width:26},{width:12},{width:10},{width:14},{width:14},{width:14},
+    {width:10},{width:9},{width:12},{width:10},{width:12},{width:12},{width:12}
+  ];
+
+  const headRow = ws.addRow(['No','Tanggal','ID Task','Employee Name','Bulan','Batch','Join Date','Deadline','Actual/Finish','Leadtime','% Task','% Waiting Approve','% Approve','SPV','MM','Status']);
+  headRow.eachCell(cell=>{
+    cell.font = { bold:true, color:{argb:COLOR.headerFont} };
+    cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.headerFill} };
+    cell.border = borderAll;
+    cell.alignment = { vertical:'middle', horizontal:'center', wrapText:true };
+  });
+
+  list.forEach((t, idx)=>{
+    const status = tmStatusOf(t);
+    const statusLabel = status==='selesai' ? 'Selesai' : status==='terlambat' ? 'Terlambat' : 'Proses';
+    const matchedP = state.participants.find(p=>normNameKey(p.name)===normNameKey(t.employeeName));
+    const bulan = monthNameFromDate(t.tanggal) || (matchedP && matchedP.bln) || '-';
+    const batch = (matchedP && matchedP.batch) || '-';
+    const row = ws.addRow([
+      idx+1,
+      fmtTmDate(t.tanggal),
+      t.idTask || '-',
+      t.employeeName || '-',
+      bulan,
+      batch,
+      fmtTmDate(t.doj),
+      fmtTmDate(t.deadline),
+      t.actual ? fmtTmDate(t.actual) : '-',
+      t.leadtime ?? '-',
+      (Number(t.pctTask)||0) + '%',
+      (Number(t.pctWaitingApprove)||0) + '%',
+      (Number(t.pctApprove)||0) + '%',
+      t.spv || '-',
+      t.mm || '-',
+      statusLabel
+    ]);
+    const zebra = idx % 2 === 1;
+    row.eachCell((cell, colNum)=>{
+      cell.border = borderAll;
+      cell.alignment = { vertical:'middle', horizontal: colNum===4 ? 'left' : 'center' };
+      if(zebra) cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.zebra} };
+    });
+    const statusCell = row.getCell(16);
+    const fillColor = status==='selesai' ? COLOR.selesaiFill : status==='terlambat' ? COLOR.terlambatFill : COLOR.prosesFill;
+    const fontColor = status==='selesai' ? COLOR.selesaiFont : status==='terlambat' ? COLOR.terlambatFont : COLOR.prosesFont;
+    statusCell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:fillColor} };
+    statusCell.font = { bold:true, color:{argb:fontColor} };
+  });
+
+  ws.autoFilter = { from:{row:1,column:1}, to:{row:1,column:16} };
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type:'application/octet-stream' });
+  const filterLabel = [tmFilterBln, tmFilterTahun].filter(Boolean).join('-').toLowerCase().replace(/\s+/g,'') || 'semua';
+  saveAs(blob, `tasklist-marketing-${filterLabel}.xlsx`);
+  toast('Export Excel Tasklist Marketing berhasil');
+}
+
 function markTasklistMarketingDone(id){
   const t = tmTasks().find(x=>x.id===id);
   if(!t) return;
@@ -9635,6 +10119,367 @@ function renderAgenda(){
     }).join('');
   }
 }
+// ===================== EXPORT AGENDA KEGIATAN → EXCEL (PER MINGGU) =====================
+// Ambil semua kegiatan (biasa + rutin) untuk bulan yang lagi ditampilkan di kalender,
+// kelompokkan per minggu kalender (Minggu 1 = tanggal 1-7, dst mengikuti baris kalender
+// yang terlihat di layar), lalu tandai status Selesai/Ditunda/Belum per kegiatan.
+function weekOfMonthForDate(dateStr, year, month){
+  const firstDay = new Date(year, month, 1);
+  const startWeekday = firstDay.getDay(); // 0=Minggu
+  const day = new Date(dateStr+'T00:00:00').getDate();
+  return Math.ceil((day + startWeekday) / 7);
+}
+async function exportAgendaWeeklyExcel(){
+  if(typeof ExcelJS === 'undefined'){ toast('Modul export belum siap, coba lagi sebentar'); return; }
+  const year = agendaViewDate.getFullYear(), month = agendaViewDate.getMonth();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+
+  const rows = []; // semua kejadian bulan ini, flat
+  for(let d=1; d<=daysInMonth; d++){
+    const dateStr = toYMD(new Date(year, month, d));
+    const events = getAgendaEventsForDate(dateStr);
+    events.forEach(e=>{
+      const status = getAgendaEffectiveStatus(e);
+      const statusLabel = status==='selesai' ? 'Selesai' : status==='tunda' ? 'Ditunda' : 'Belum';
+      const catLabel = (AGENDA_CATEGORY_META[e.category]||AGENDA_CATEGORY_META.lainnya).label;
+      const dow = WEEKDAY_NAMES_ID[new Date(dateStr+'T00:00:00').getDay()];
+      rows.push({
+        week: weekOfMonthForDate(dateStr, year, month),
+        dateStr, dow,
+        title: e.title || '(tanpa judul)',
+        cat: e.isRecurring ? 'Rutin - ' + catLabel : catLabel,
+        time: e.time || '-',
+        location: e.location || '-',
+        notes: e.notes || '-',
+        wajib: e.wajib ? 'Ya' : 'Tidak',
+        isRecurring: e.isRecurring ? 'Rutin' : 'Kegiatan',
+        statusLabel
+      });
+    });
+  }
+
+  if(rows.length===0){ toast('Belum ada kegiatan di bulan ini untuk di-export'); return; }
+
+  // Kelompokkan per minggu, urut tanggal & jam di dalam tiap minggu
+  const byWeek = {};
+  rows.forEach(r=>{ (byWeek[r.week] = byWeek[r.week] || []).push(r); });
+  Object.values(byWeek).forEach(list=>list.sort((a,b)=> (a.dateStr+(a.time==='-' ? '99:99':a.time)).localeCompare(b.dateStr+(b.time==='-'?'99:99':b.time))));
+
+  const monthLabel = MONTH_NAMES_ID[month] + ' ' + year;
+  const weekKeys = Object.keys(byWeek).map(Number).sort((a,b)=>a-b);
+
+  const COLOR = {
+    brand: 'FF0E7C63', brandLight: 'FFDCFCE7',
+    headerFill: 'FF1E293B', headerFont: 'FFFFFFFF',
+    weekFill: 'FF0E7C63', weekFont: 'FFFFFFFF',
+    selesaiFill: 'FFDCFCE7', selesaiFont: 'FF15803D',
+    tundaFill: 'FFFEF3C7', tundaFont: 'FF92400E',
+    belumFill: 'FFF1F5F9', belumFont: 'FF64748B',
+    zebra: 'FFF8FAFC', border: 'FFE2E8F0'
+  };
+  const thin = { style:'thin', color:{argb:COLOR.border} };
+  const borderAll = { top:thin, left:thin, bottom:thin, right:thin };
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'SalesPro Academy';
+  wb.created = new Date();
+
+  // ============ SHEET 1: DETAIL PER MINGGU ============
+  const ws = wb.addWorksheet('Detail Per Minggu', { views:[{ state:'frozen', ySplit:3 }] });
+  ws.columns = [
+    {width:5},{width:14},{width:10},{width:34},{width:10},{width:18},{width:8},{width:9},{width:20},{width:30},{width:12}
+  ];
+
+  const titleRow = ws.addRow(['AGENDA KEGIATAN - ' + monthLabel.toUpperCase()]);
+  ws.mergeCells(1,1,1,11);
+  titleRow.getCell(1).font = { bold:true, size:14, color:{argb:COLOR.headerFont} };
+  titleRow.getCell(1).fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.headerFill} };
+  titleRow.getCell(1).alignment = { horizontal:'center', vertical:'middle' };
+  titleRow.height = 24;
+  for(let c=1;c<=11;c++){ ws.getRow(1).getCell(c).fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.headerFill} }; }
+
+  ws.addRow([]);
+
+  const headerLabels = ['No','Tanggal','Hari','Nama Kegiatan','Jenis','Kategori','Wajib','Waktu','Lokasi','Catatan','Status'];
+
+  weekKeys.forEach(wk=>{
+    const list = byWeek[wk];
+    const doneCount = list.filter(r=>r.statusLabel==='Selesai').length;
+    const pct = Math.round(doneCount/list.length*100);
+
+    const weekRow = ws.addRow(['MINGGU ' + wk + ' — ' + list.length + ' kegiatan, ' + doneCount + ' selesai (' + pct + '%)']);
+    ws.mergeCells(weekRow.number,1,weekRow.number,11);
+    weekRow.height = 20;
+    for(let c=1;c<=11;c++){
+      const cell = weekRow.getCell(c);
+      cell.font = { bold:true, color:{argb:COLOR.weekFont} };
+      cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.weekFill} };
+      cell.alignment = { vertical:'middle' };
+    }
+
+    const headRow = ws.addRow(headerLabels);
+    headRow.eachCell(cell=>{
+      cell.font = { bold:true, color:{argb:'FF334155'} };
+      cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF1F5F9'} };
+      cell.border = borderAll;
+      cell.alignment = { vertical:'middle', horizontal:'center' };
+    });
+
+    list.forEach((r,idx)=>{
+      const dLabel = new Date(r.dateStr+'T00:00:00').toLocaleDateString('id-ID',{day:'numeric', month:'short', year:'numeric'});
+      const dataRow = ws.addRow([idx+1, dLabel, r.dow, r.title, r.isRecurring, r.cat, r.wajib, r.time, r.location, r.notes, r.statusLabel]);
+      const zebra = idx % 2 === 1;
+      dataRow.eachCell((cell, colNum)=>{
+        cell.border = borderAll;
+        cell.alignment = { vertical:'middle', horizontal: colNum===4 ? 'left' : 'center', wrapText: colNum===4||colNum===10 };
+        if(zebra) cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.zebra} };
+      });
+      dataRow.getCell(4).alignment = { vertical:'middle', horizontal:'left' };
+      const statusCell = dataRow.getCell(11);
+      const fillColor = r.statusLabel==='Selesai' ? COLOR.selesaiFill : r.statusLabel==='Ditunda' ? COLOR.tundaFill : COLOR.belumFill;
+      const fontColor = r.statusLabel==='Selesai' ? COLOR.selesaiFont : r.statusLabel==='Ditunda' ? COLOR.tundaFont : COLOR.belumFont;
+      statusCell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:fillColor} };
+      statusCell.font = { bold:true, color:{argb:fontColor} };
+    });
+
+    ws.addRow([]);
+  });
+
+  // ============ SHEET 2: RINGKASAN ============
+  const wsR = wb.addWorksheet('Ringkasan');
+  wsR.columns = [{width:12},{width:16},{width:10},{width:10},{width:10},{width:11}];
+  const rHead = wsR.addRow(['Minggu','Total Kegiatan','Selesai','Ditunda','Belum','% Selesai']);
+  rHead.eachCell(cell=>{
+    cell.font = { bold:true, color:{argb:COLOR.headerFont} };
+    cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.headerFill} };
+    cell.border = borderAll;
+    cell.alignment = { vertical:'middle', horizontal:'center' };
+  });
+  weekKeys.forEach(wk=>{
+    const list = byWeek[wk];
+    const selesai = list.filter(r=>r.statusLabel==='Selesai').length;
+    const tunda = list.filter(r=>r.statusLabel==='Ditunda').length;
+    const belum = list.filter(r=>r.statusLabel==='Belum').length;
+    const pct = Math.round(selesai/list.length*100);
+    const row = wsR.addRow(['Minggu ' + wk, list.length, selesai, tunda, belum, pct + '%']);
+    row.eachCell(cell=>{ cell.border = borderAll; cell.alignment = { vertical:'middle', horizontal:'center' }; });
+    const pctCell = row.getCell(6);
+    const fillColor = pct===100 ? COLOR.selesaiFill : pct===0 ? COLOR.belumFill : COLOR.tundaFill;
+    const fontColor = pct===100 ? COLOR.selesaiFont : pct===0 ? COLOR.belumFont : COLOR.tundaFont;
+    pctCell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:fillColor} };
+    pctCell.font = { bold:true, color:{argb:fontColor} };
+  });
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type:'application/octet-stream' });
+  const fileMonth = String(month+1).padStart(2,'0');
+  saveAs(blob, `agenda-kegiatan-${year}-${fileMonth}.xlsx`);
+  toast('Export Excel Agenda Kegiatan berhasil');
+}
+
+// ===================== EXPORT PESERTA & KELULUSAN → EXCEL =====================
+// Format sesuai template: Username, Data Diri, lalu per modul wajib ada 2 kolom
+// (Pretest & Posttest), ditutup kolom Status Peserta (Lulus/Tidak/Mundur).
+async function exportFeedbackTLExcel(){
+  if(typeof ExcelJS === 'undefined'){ toast('Modul export belum siap, coba lagi sebentar'); return; }
+  const list = getFeedbackTLFiltered();
+  if(list.length===0){ toast('Belum ada data tindak lanjut untuk filter ini'); return; }
+
+  const statusLabel = { belum:'Belum', proses:'Proses', done:'Selesai (Done)' };
+  const COLOR = {
+    headerFill: 'FF1E293B', headerFont: 'FFFFFFFF',
+    doneFill: 'FFDCFCE7', doneFont: 'FF15803D',
+    prosesFill: 'FFFEF3C7', prosesFont: 'FF92400E',
+    belumFill: 'FFFEE2E2', belumFont: 'FFB91C1C',
+    zebra: 'FFF8FAFC', border: 'FFE2E8F0'
+  };
+  const thin = { style:'thin', color:{argb:COLOR.border} };
+  const borderAll = { top:thin, left:thin, bottom:thin, right:thin };
+
+  const wb = new ExcelJS.Workbook();
+  const periodLabel = (fltlFilterBln||'Semua Bulan') + ' ' + (fltlFilterTahun||'Semua Tahun');
+  const ws = wb.addWorksheet('Tindak Lanjut Feedback');
+  ws.columns = [
+    { width: 5 }, { width: 12 }, { width: 9 }, { width: 30 }, { width: 45 }, { width: 24 }, { width: 16 }
+  ];
+
+  ws.mergeCells('A1:G1');
+  const titleCell = ws.getCell('A1');
+  titleCell.value = 'Tindak Lanjut Feedback Training - ' + periodLabel;
+  titleCell.font = { bold:true, size:13, color:{argb:COLOR.headerFont} };
+  titleCell.alignment = { vertical:'middle', horizontal:'left' };
+  ws.getRow(1).height = 24;
+  ws.getRow(1).eachCell(c=>{ c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.headerFill} }; });
+
+  const stats = computeFeedbackTLStats(list);
+  ws.mergeCells('A2:G2');
+  const subCell = ws.getCell('A2');
+  subCell.value = `Penyelesaian: ${stats.pct}% (${stats.done} dari ${stats.total} point)`;
+  subCell.font = { italic:true, size:10, color:{argb:'FF475569'} };
+  ws.getRow(2).height = 18;
+
+  const headerRowIdx = 4;
+  const headers = ['No','Bulan','Minggu','Point Perbaikan','Detail','Lampiran','Status'];
+  const headerRow = ws.getRow(headerRowIdx);
+  headers.forEach((h,i)=>{
+    const cell = headerRow.getCell(i+1);
+    cell.value = h;
+    cell.font = { bold:true, color:{argb:COLOR.headerFont} };
+    cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.headerFill} };
+    cell.alignment = { vertical:'middle', horizontal:'left', wrapText:true };
+    cell.border = borderAll;
+  });
+  headerRow.height = 20;
+
+  list.forEach((f,idx)=>{
+    const r = ws.getRow(headerRowIdx+1+idx);
+    r.getCell(1).value = idx+1;
+    r.getCell(2).value = f.bln || '';
+    r.getCell(3).value = 'W'+(f.week||1);
+    r.getCell(4).value = f.point || '(Tanpa judul)';
+    r.getCell(5).value = f.detail || '';
+    r.getCell(6).value = f.lampiran || '';
+    r.getCell(7).value = statusLabel[f.status] || 'Belum';
+
+    r.eachCell(c=>{
+      c.border = borderAll;
+      c.alignment = { vertical:'top', horizontal:'left', wrapText:true };
+    });
+    if(idx % 2 === 1){
+      [1,2,3,4,5,6,7].forEach(ci=>{
+        r.getCell(ci).fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.zebra} };
+      });
+    }
+    const statusCell = r.getCell(7);
+    const fillMap = { done:COLOR.doneFill, proses:COLOR.prosesFill, belum:COLOR.belumFill };
+    const fontMap = { done:COLOR.doneFont, proses:COLOR.prosesFont, belum:COLOR.belumFont };
+    const key = f.status || 'belum';
+    statusCell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:fillMap[key]||COLOR.belumFill} };
+    statusCell.font = { bold:true, color:{argb:fontMap[key]||COLOR.belumFont} };
+  });
+
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type:'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Tindak_Lanjut_Feedback_${(fltlFilterBln||'Semua')}_${(fltlFilterTahun||'Semua')}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('Export berhasil');
+}
+async function exportPesertaKelulusanExcel(){
+  if(typeof ExcelJS === 'undefined'){ toast('Modul export belum siap, coba lagi sebentar'); return; }
+  const participants = getFilteredParticipants().filter(p=>!p.trashed).sort((a,b)=>{
+    const na = parseInt((a.batch||'').replace(/\D/g,''),10);
+    const nb = parseInt((b.batch||'').replace(/\D/g,''),10);
+    const va = isNaN(na) ? Infinity : na;
+    const vb = isNaN(nb) ? Infinity : nb;
+    if(va!==vb) return va-vb;
+    return (a.name||'').localeCompare(b.name||'');
+  });
+  if(participants.length===0){ toast('Belum ada data peserta untuk filter ini'); return; }
+
+  const wajib = wajibModules();
+
+  const COLOR = {
+    headerFill: 'FF1E293B', headerFont: 'FFFFFFFF',
+    subHeaderFill: 'FF334155', subHeaderFont: 'FFFFFFFF',
+    lulusFill: 'FFDCFCE7', lulusFont: 'FF15803D',
+    tidakFill: 'FFFEE2E2', tidakFont: 'FFB91C1C',
+    mundurFill: 'FFF1F5F9', mundurFont: 'FF64748B',
+    zebra: 'FFF8FAFC', border: 'FFE2E8F0'
+  };
+  const thin = { style:'thin', color:{argb:COLOR.border} };
+  const borderAll = { top:thin, left:thin, bottom:thin, right:thin };
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'SalesPro Academy';
+  wb.created = new Date();
+  const ws = wb.addWorksheet('Peserta & Kelulusan', { views:[{ state:'frozen', ySplit:2, xSplit:1 }] });
+
+  const baseCols = ['Username','Nama','Posisi','Bulan','Batch','Lokasi','SPV','Branch Manager','Regional Manager','Join Date','Resign Date','Usia Join'];
+  const totalCols = baseCols.length + wajib.length*2 + 1; // +1 Status Peserta
+
+  ws.columns = [
+    ...baseCols.map(()=>({width:14})),
+    ...wajib.flatMap(()=>[{width:10},{width:10}]),
+    {width:12}
+  ];
+
+  // Baris 1: header data diri (merge vertikal 2 baris) + judul modul (merge horizontal 2 kolom)
+  const row1 = ws.getRow(1);
+  const row2 = ws.getRow(2);
+  baseCols.forEach((label, i)=>{
+    const col = i+1;
+    ws.mergeCells(1,col,2,col);
+    row1.getCell(col).value = label;
+  });
+  wajib.forEach((m, i)=>{
+    const col = baseCols.length + 1 + i*2;
+    ws.mergeCells(1,col,1,col+1);
+    row1.getCell(col).value = m.title + '\n(' + (m.day||'') + ')';
+    row2.getCell(col).value = 'Pretest';
+    row2.getCell(col+1).value = 'Posttest';
+  });
+  const statusCol = totalCols;
+  ws.mergeCells(1,statusCol,2,statusCol);
+  row1.getCell(statusCol).value = 'Status Peserta';
+
+  [row1,row2].forEach(row=>{
+    row.height = 30;
+    for(let c=1;c<=totalCols;c++){
+      const cell = row.getCell(c);
+      cell.font = { bold:true, color:{argb:COLOR.headerFont}, size:10 };
+      cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb: row===row1?COLOR.headerFill:COLOR.subHeaderFill} };
+      cell.alignment = { vertical:'middle', horizontal:'center', wrapText:true };
+      cell.border = borderAll;
+    }
+  });
+
+  // Data peserta
+  participants.forEach((p, idx)=>{
+    const usia = usiaJoinHari(p.joinDate, p.resignDate);
+    const status = p.resignDate ? 'Mundur' : (isCertified(p) ? 'Lulus' : 'Tidak');
+    const rowVals = [
+      p.username||'', p.name||'', p.posisi||'', p.bln||'', p.batch||'', p.lokasi||'',
+      p.mentor||'', p.branchManager||'', p.regionalManager||'',
+      p.joinDate ? new Date(p.joinDate).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : '-',
+      p.resignDate ? new Date(p.resignDate).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : '-',
+      usia===null ? '-' : usia + ' hari'
+    ];
+    wajib.forEach(m=>{
+      const prog = (p.progress && p.progress[m.id]) || {};
+      rowVals.push(typeof prog.pretestScore==='number' ? prog.pretestScore : '-');
+      rowVals.push(typeof prog.posttestScore==='number' ? prog.posttestScore : '-');
+    });
+    rowVals.push(status);
+
+    const row = ws.addRow(rowVals);
+    const zebra = idx % 2 === 1;
+    row.eachCell((cell, colNum)=>{
+      cell.border = borderAll;
+      cell.alignment = { vertical:'middle', horizontal: (colNum===2) ? 'left' : 'center' };
+      if(zebra) cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.zebra} };
+    });
+    const statusCell = row.getCell(statusCol);
+    const fillColor = status==='Lulus' ? COLOR.lulusFill : status==='Mundur' ? COLOR.mundurFill : COLOR.tidakFill;
+    const fontColor = status==='Lulus' ? COLOR.lulusFont : status==='Mundur' ? COLOR.mundurFont : COLOR.tidakFont;
+    statusCell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:fillColor} };
+    statusCell.font = { bold:true, color:{argb:fontColor} };
+  });
+
+  ws.autoFilter = { from:{row:2,column:1}, to:{row:2,column:totalCols} };
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type:'application/octet-stream' });
+  const filterLabel = [dashboardFilterBln, dashboardFilterBatch].filter(Boolean).join('-') || 'semua';
+  saveAs(blob, `peserta-kelulusan-${filterLabel.toLowerCase().replace(/\s+/g,'')}.xlsx`);
+  toast('Export Excel Peserta & Kelulusan berhasil (' + (dashboardFilterBln || 'Semua Bulan') + (dashboardFilterBatch ? ' · '+dashboardFilterBatch : '') + ')');
+}
+
 // Klik kegiatan: kegiatan biasa langsung buka form edit. Kegiatan rutin
 // menawarkan kelola seluruh jadwal, atau lewati (skip) tanggal itu saja.
 async function agendaItemClick(dateStr, concreteId, recurringId){
