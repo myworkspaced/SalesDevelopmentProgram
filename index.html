@@ -415,6 +415,9 @@
       <a href="#" onclick="switchTab('participants');return false" id="nav-participants" class="nav-item">
         <i class="icon fa-solid fa-users"></i><span>Peserta &amp; Progress</span>
       </a>
+      <a href="#" onclick="switchTab('salesaktif');return false" id="nav-salesaktif" class="nav-item">
+        <i class="icon fa-solid fa-user-check"></i><span>Sales Aktif</span>
+      </a>
       <a href="#" onclick="switchTab('certificates');return false" id="nav-certificates" class="nav-item">
         <i class="icon fa-solid fa-award"></i><span>Sertifikat</span>
       </a>
@@ -1166,6 +1169,140 @@
       </div>
 
       <!-- ================= TASKLIST MARKETING ================= -->
+      <!-- ===== SALES AKTIF ===== -->
+      <div id="tab-salesaktif" class="tab-hidden space-y-6">
+        <div class="card p-5">
+          <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
+            <p class="text-sm font-bold">Sales Aktif</p>
+            <div class="flex items-center gap-2 flex-wrap">
+              <label class="btn-ghost cursor-pointer">
+                <i class="fa-solid fa-file-arrow-up mr-1"></i>Impor dari Excel
+                <input type="file" accept=".xlsx,.xls" class="hidden" onchange="importSalesAktifExcel(event)">
+              </label>
+              <button class="btn-primary" onclick="openAddSalesAktif()"><i class="fa-solid fa-plus mr-1"></i>Tambah Sales</button>
+              <button class="btn-ghost" onclick="exportSalesAktifExcel()"><i class="fa-solid fa-file-excel mr-1"></i>Export Excel</button>
+              <button class="btn-ghost !text-red-600" onclick="clearSalesAktifData()"><i class="fa-solid fa-broom mr-1"></i>Bersihkan</button>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mb-4">Impor mendukung format "List Sales Aktif" (kolom Nama Karyawan, Nama Pengguna, Masa Kerja, Mentor/SPV, BM, RM). Baris dengan Nama Pengguna yang sudah ada akan diperbarui otomatis. Pencapaian dihitung dari data <b>Leads &amp; Booking</b> di Pencapaian Bulanan (dicocokkan lewat Nama Pengguna). <b>Sudah Jualan</b> = minimal 1 booking di periode terpilih.</p>
+          <div class="flex flex-wrap items-end gap-2">
+            <div class="flex-1 min-w-[160px]">
+              <label class="text-[10px] font-bold text-slate-400 uppercase">Cari</label>
+              <div class="relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
+                <input id="sa-filter-search" type="text" placeholder="Nama, username, mentor, BM, RM..." class="field pl-8" oninput="applySalesAktifFilter()">
+              </div>
+            </div>
+            <div>
+              <label class="text-[10px] font-bold text-slate-400 uppercase">Periode Pencapaian</label>
+              <select id="sa-filter-periode" class="field" onchange="applySalesAktifFilter()"></select>
+            </div>
+            <div>
+              <label class="text-[10px] font-bold text-slate-400 uppercase">BM</label>
+              <select id="sa-filter-bm" class="field" onchange="applySalesAktifFilter()"></select>
+            </div>
+            <div>
+              <label class="text-[10px] font-bold text-slate-400 uppercase">RM</label>
+              <select id="sa-filter-rm" class="field" onchange="applySalesAktifFilter()"></select>
+            </div>
+            <div>
+              <label class="text-[10px] font-bold text-slate-400 uppercase">Status Jualan</label>
+              <select id="sa-filter-status" class="field" onchange="applySalesAktifFilter()">
+                <option value="">Semua Status</option>
+                <option value="sudah">Sudah Jualan</option>
+                <option value="belum">Belum Jualan</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div id="sa-notice" class="hidden card p-3.5 text-[11px] text-slate-600 border-amber-200 bg-amber-50"></div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-5">
+          <div id="sa-card-total" class="kpi text-center cursor-pointer" onclick="saSetStatusFilter('')" title="Klik untuk tampilkan semua status">
+            <p class="text-xs font-bold text-slate-400 uppercase mb-3">Total Sales Aktif</p>
+            <p id="sa-kpi-total" class="text-4xl font-extrabold" style="color:#7c3aed">0</p>
+            <p id="sa-kpi-total-sub" class="text-xs text-slate-400 mt-2">sesuai filter</p>
+          </div>
+          <div id="sa-card-sudah" class="kpi text-center cursor-pointer" onclick="saSetStatusFilter('sudah')" title="Klik untuk filter tabel: Sudah Jualan (klik lagi untuk batal)">
+            <p class="text-xs font-bold text-slate-400 uppercase mb-3">Sudah Jualan</p>
+            <p id="sa-kpi-sudah" class="text-4xl font-extrabold" style="color:#15803d">0</p>
+            <p id="sa-kpi-sudah-sub" class="text-xs text-slate-400 mt-2">0% dari 0 sales</p>
+          </div>
+          <div id="sa-card-belum" class="kpi text-center cursor-pointer" onclick="saSetStatusFilter('belum')" title="Klik untuk filter tabel: Belum Jualan (klik lagi untuk batal)">
+            <p class="text-xs font-bold text-slate-400 uppercase mb-3">Belum Jualan</p>
+            <p id="sa-kpi-belum" class="text-4xl font-extrabold" style="color:#dc2626">0</p>
+            <p id="sa-kpi-belum-sub" class="text-xs text-slate-400 mt-2">0 dari 0 sales</p>
+          </div>
+          <div class="kpi text-center">
+            <p class="text-xs font-bold text-slate-400 uppercase mb-3">Total Booking</p>
+            <p id="sa-kpi-booking" class="text-4xl font-extrabold" style="color:#0e7c63">0</p>
+            <p id="sa-kpi-booking-sub" class="text-xs text-slate-400 mt-2">Rp 0</p>
+          </div>
+        </div>
+
+        <div class="card p-5">
+          <div class="overflow-x-auto">
+            <table class="w-full text-[11px]">
+              <thead>
+                <tr id="sa-table-head" class="text-left text-slate-400 border-b" style="border-color:var(--line)"></tr>
+              </thead>
+              <tbody id="sa-table-body"></tbody>
+            </table>
+            <p id="sa-empty" class="text-sm text-center text-slate-400 py-8 hidden">Belum ada data sales aktif. Klik "Impor dari Excel" untuk mengimpor daftar sales, atau "Tambah Sales" untuk menambah manual.</p>
+            <p id="sa-empty-filter" class="text-sm text-center text-slate-400 py-8 hidden">Tidak ada sales yang cocok dengan filter.</p>
+          </div>
+        </div>
+
+        <!-- Sales Aktif modal (tambah/edit manual) -->
+        <div id="sa-modal" class="modal-overlay hidden">
+          <div class="card p-6 w-full max-w-lg max-h-[88vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+              <p id="sa-modal-title" class="text-sm font-extrabold">Tambah Sales Aktif</p>
+              <button onclick="closeSalesAktifModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3">
+              <div>
+                <label class="text-[11px] font-bold text-slate-500">Nama Karyawan</label>
+                <input id="sa-f-nama" type="text" placeholder="Nama lengkap sales" class="field">
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="text-[11px] font-bold text-slate-500">Nama Pengguna (username)</label>
+                  <input id="sa-f-username" type="text" placeholder="mis. abdul7598" class="field">
+                </div>
+                <div>
+                  <label class="text-[11px] font-bold text-slate-500">Masa Kerja (tahun)</label>
+                  <input id="sa-f-masakerja" type="text" inputmode="decimal" placeholder="mis. 1,2" class="field">
+                </div>
+              </div>
+              <div>
+                <label class="text-[11px] font-bold text-slate-500">Mentor/SPV</label>
+                <input id="sa-f-mentor" type="text" list="sa-dl-mentor" class="field">
+                <datalist id="sa-dl-mentor"></datalist>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="text-[11px] font-bold text-slate-500">BM</label>
+                  <input id="sa-f-bm" type="text" list="sa-dl-bm" class="field">
+                  <datalist id="sa-dl-bm"></datalist>
+                </div>
+                <div>
+                  <label class="text-[11px] font-bold text-slate-500">RM</label>
+                  <input id="sa-f-rm" type="text" list="sa-dl-rm" class="field">
+                  <datalist id="sa-dl-rm"></datalist>
+                </div>
+              </div>
+              <p class="text-[10px] text-slate-400">Nama Pengguna harus sama dengan kolom Marketing di data Pencapaian Bulanan supaya leads &amp; booking-nya terbaca.</p>
+            </div>
+            <div class="flex items-center gap-2 mt-5">
+              <button id="sa-delete-btn" class="hidden btn-ghost !text-red-600" onclick="deleteSalesAktifFromModal()"><i class="fa-solid fa-trash-can mr-1"></i>Hapus</button>
+              <button class="btn-primary flex-1" onclick="saveSalesAktifModal()">Simpan Sales</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div id="tab-tasklistmarketing" class="tab-hidden space-y-6">
         <div class="card p-5">
           <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
@@ -3549,6 +3686,7 @@ function defaultState(){
     feedbackTL:[],
     supportCoaching:[],
     tasklistMarketing:{ tasks:[] },
+    salesAktif:[],
     kpiConfig:{ indicators:{} },
     kpiWeekly:{},
     kpiWeekLocks:{}
@@ -3583,6 +3721,7 @@ function normalizeState(parsed){
   if(!Array.isArray(parsed.supportCoaching)) parsed.supportCoaching = [];
   if(!parsed.tasklistMarketing || typeof parsed.tasklistMarketing!=='object' || Array.isArray(parsed.tasklistMarketing)) parsed.tasklistMarketing = { tasks:[] };
   if(!Array.isArray(parsed.tasklistMarketing.tasks)) parsed.tasklistMarketing.tasks = [];
+  if(!Array.isArray(parsed.salesAktif)) parsed.salesAktif = [];
   if(!parsed.kpiConfig || typeof parsed.kpiConfig!=='object') parsed.kpiConfig = { indicators:{} };
   if(!parsed.kpiConfig.indicators || typeof parsed.kpiConfig.indicators!=='object') parsed.kpiConfig.indicators = {};
   if(!parsed.agendaRecurringSeeded){
@@ -5505,7 +5644,7 @@ function switchTab(tab){
     modules:['Konten Training','Modul Training'], quiz:['Penilaian','Kuis & Penilaian'],
     feedbacktl:['Indikator','Tindak Lanjut Feedback'],
     tasklistmarketing:['Indikator','Tasklist Marketing'],
-    participants:['Tim','Peserta & Progress'],    certificates:['Kelulusan','Sertifikat'],
+    participants:['Tim','Peserta & Progress'], salesaktif:['Tim','Sales Aktif'],    certificates:['Kelulusan','Sertifikat'],
     agenda:['Indikator','Agenda Kegiatan'],
     supportcoaching:['Indikator','Support Coaching'],
     trash:['Sistem','Sampah'],
@@ -5530,6 +5669,7 @@ function switchTab(tab){
   if(tab==='feedbacktl') renderFeedbackTL();
   if(tab==='tasklistmarketing') renderTasklistMarketing();
   if(tab==='participants') renderParticipants();
+  if(tab==='salesaktif') renderSalesAktif();
   if(tab==='certificates') renderCertificates();
   if(tab==='agenda') renderAgenda();
   if(tab==='supportcoaching') renderSupportCoaching();
@@ -8404,10 +8544,10 @@ function purgeOldTrash(){
   if(state.trash.length !== before) saveState();
 }
 function trashTypeLabel(type){
-  return {participant:'Peserta', module:'Modul', lesson:'Materi', tmtask:'Task Marketing', tmtask_bulk:'Task Marketing (Massal)'}[type] || type;
+  return {participant:'Peserta', module:'Modul', lesson:'Materi', tmtask:'Task Marketing', tmtask_bulk:'Task Marketing (Massal)', salesaktif:'Sales Aktif', salesaktif_bulk:'Sales Aktif (Massal)'}[type] || type;
 }
 function trashTypeIcon(type){
-  return {participant:'fa-user', module:'fa-book', lesson:'fa-file-lines', tmtask:'fa-bullhorn', tmtask_bulk:'fa-bullhorn'}[type] || 'fa-box-archive';
+  return {participant:'fa-user', module:'fa-book', lesson:'fa-file-lines', tmtask:'fa-bullhorn', tmtask_bulk:'fa-bullhorn', salesaktif:'fa-user-check', salesaktif_bulk:'fa-user-check'}[type] || 'fa-box-archive';
 }
 function restoreTrashItem(trashId){
   const item = state.trash.find(t=>t.id===trashId);
@@ -8443,6 +8583,10 @@ function restoreTrashItem(trashId){
     if(!state.tasklistMarketing.tasks.some(t=>t.id===item.payload.task.id)){
       state.tasklistMarketing.tasks.push(item.payload.task);
     }
+  } else if(item.type === 'salesaktif'){
+    if(!saList().some(x=>x.id===item.payload.sales.id)) saList().push(item.payload.sales);
+  } else if(item.type === 'salesaktif_bulk'){
+    (item.payload.list||[]).forEach(x=>{ if(!saList().some(y=>y.id===x.id)) saList().push(x); });
   } else if(item.type === 'tmtask_bulk'){
     (item.payload.tasks||[]).forEach(t=>{
       if(!state.tasklistMarketing.tasks.some(x=>x.id===t.id)) state.tasklistMarketing.tasks.push(t);
@@ -11896,6 +12040,480 @@ async function generateAIFeedbackDetail(){
 }
 
 /* ===================== INIT ===================== */
+/* ===================== SALES AKTIF ===================== */
+// Daftar sales aktif disimpan di state.salesAktif: { id, nama, username, masaKerja (tahun), mentor, bm, rm }.
+// Pencapaian (Leads/Booking/Nominal) TIDAK disimpan di sini — dihitung otomatis tiap render dari data
+// Pencapaian Bulanan (gciData) dengan mencocokkan Nama Pengguna sales = kolom Marketing di data GCI.
+// "Sudah Jualan" = punya minimal 1 booking pada periode (bulan) yang dipilih.
+var saFilterPeriode = '';
+var saFilterStatus = '';
+var saFilterBm = '';
+var saFilterRm = '';
+var saFilterSearch = '';
+var saSortKey = 'booking';
+var saSortDir = 'asc';
+var saEditingId = null;
+function saList(){ if(!Array.isArray(state.salesAktif)) state.salesAktif = []; return state.salesAktif; }
+function saNorm(v){ return String(v==null?'':v).trim().toLowerCase(); }
+function saParseMasaKerja(v){
+  if(v===null || v===undefined || v==='') return null;
+  const n = parseFloat(String(v).trim().replace(',', '.'));
+  return isNaN(n) ? null : n;
+}
+function saFmtMasaKerja(n){
+  if(n===null || n===undefined || n==='' || isNaN(Number(n))) return '-';
+  return Number(n).toFixed(1).replace('.', ',');
+}
+function saPeriodOptions(){ return getGciMonths().slice().sort().reverse(); }
+function saCurrentPeriode(){
+  const opts = saPeriodOptions();
+  if(saFilterPeriode && opts.includes(saFilterPeriode)) return saFilterPeriode;
+  const now = new Date();
+  const nowKey = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  return opts.includes(nowKey) ? nowKey : (opts[0] || '');
+}
+// username (huruf kecil) -> { key: penulisan asli di data GCI, leads, booking, nominal }
+function saAchievementMap(monthKey){
+  const map = {};
+  if(!monthKey) return map;
+  const agg = aggregateGciMonth(monthKey);
+  Object.keys(agg.byMarketing).forEach(mk=>{
+    const v = agg.byMarketing[mk];
+    const k = saNorm(mk);
+    if(!map[k]) map[k] = { key: mk, leads:0, booking:0, nominal:0 };
+    map[k].leads += v.leads || 0;
+    map[k].booking += v.booking || 0;
+    map[k].nominal += v.nominalBooking || 0;
+  });
+  return map;
+}
+function saBuildRows(monthKey){
+  const ach = saAchievementMap(monthKey);
+  return saList().map(s=>{
+    const a = ach[saNorm(s.username)] || { key: s.username, leads:0, booking:0, nominal:0 };
+    return { s, mk: a.key, leads: a.leads, booking: a.booking, nominal: a.nominal, status: a.booking>0 ? 'sudah' : 'belum' };
+  });
+}
+function saMatchesBase(r){
+  const s = r.s;
+  if(saFilterBm){
+    if(saFilterBm==='__none__'){ if(String(s.bm||'').trim()) return false; }
+    else if(saNorm(s.bm)!==saNorm(saFilterBm)) return false;
+  }
+  if(saFilterRm){
+    if(saFilterRm==='__none__'){ if(String(s.rm||'').trim()) return false; }
+    else if(saNorm(s.rm)!==saNorm(saFilterRm)) return false;
+  }
+  const q = saFilterSearch.trim().toLowerCase();
+  if(q){
+    const hay = [s.nama, s.username, s.mentor, s.bm, s.rm].map(v=>String(v||'').toLowerCase()).join(' ');
+    if(!hay.includes(q)) return false;
+  }
+  return true;
+}
+function saSortRows(rows){
+  const numeric = { masaKerja:1, leads:1, booking:1, nominal:1 };
+  const dir = saSortDir==='asc' ? 1 : -1;
+  const val = r=>({ nama:r.s.nama, username:r.s.username, masaKerja:r.s.masaKerja, mentor:r.s.mentor, bm:r.s.bm, rm:r.s.rm, leads:r.leads, booking:r.booking, nominal:r.nominal })[saSortKey];
+  return rows.slice().sort((a,b)=>{
+    let c = 0;
+    if(numeric[saSortKey]){
+      const va = (val(a)==null ? -1 : Number(val(a))), vb = (val(b)==null ? -1 : Number(val(b)));
+      c = va - vb;
+    } else {
+      c = String(val(a)||'').localeCompare(String(val(b)||''), 'id');
+    }
+    if(c!==0) return c*dir;
+    return String(a.s.nama||'').localeCompare(String(b.s.nama||''), 'id');
+  });
+}
+function saSortBy(key){
+  if(saSortKey===key){ saSortDir = saSortDir==='asc' ? 'desc' : 'asc'; }
+  else { saSortKey = key; saSortDir = ({ masaKerja:1, leads:1, booking:1, nominal:1 })[key] ? 'desc' : 'asc'; }
+  renderSalesAktif();
+}
+function saUniqueValues(field){
+  const seen = {};
+  saList().forEach(s=>{ const v = String(s[field]||'').trim(); if(v && !seen[v.toLowerCase()]) seen[v.toLowerCase()] = v; });
+  return Object.values(seen).sort((a,b)=>a.localeCompare(b,'id'));
+}
+function renderSalesAktifFilters(){
+  const perSel = document.getElementById('sa-filter-periode');
+  const bmSel = document.getElementById('sa-filter-bm');
+  const rmSel = document.getElementById('sa-filter-rm');
+  if(!perSel || !bmSel || !rmSel) return;
+  const opts = saPeriodOptions();
+  const cur = saCurrentPeriode();
+  perSel.innerHTML = opts.length
+    ? opts.map(k=>`<option value="${escapeHtml(k)}" ${k===cur?'selected':''}>${escapeHtml(gciMonthLabel(k))}</option>`).join('')
+    : '<option value="">Belum ada data pencapaian</option>';
+  const optHtml = (field, allLabel, noneLabel, selected)=>{
+    const vals = saUniqueValues(field);
+    const hasNone = saList().some(s=>!String(s[field]||'').trim());
+    return `<option value="">${allLabel}</option>`
+      + vals.map(v=>`<option value="${escapeHtml(v)}" ${saNorm(v)===saNorm(selected)?'selected':''}>${escapeHtml(v)}</option>`).join('')
+      + (hasNone ? `<option value="__none__" ${selected==='__none__'?'selected':''}>${noneLabel}</option>` : '');
+  };
+  bmSel.innerHTML = optHtml('bm','Semua BM','(Tanpa BM)',saFilterBm);
+  rmSel.innerHTML = optHtml('rm','Semua RM','(Tanpa RM)',saFilterRm);
+  const stSel = document.getElementById('sa-filter-status');
+  if(stSel) stSel.value = saFilterStatus;
+}
+// Klik kartu ringkasan = set filter Status Jualan (klik kartu yang sama lagi = batal)
+function saSetStatusFilter(st){
+  saFilterStatus = (st && saFilterStatus===st) ? '' : st;
+  renderSalesAktif();
+}
+function applySalesAktifFilter(){
+  saFilterPeriode = document.getElementById('sa-filter-periode').value;
+  saFilterBm = document.getElementById('sa-filter-bm').value;
+  saFilterRm = document.getElementById('sa-filter-rm').value;
+  saFilterStatus = document.getElementById('sa-filter-status').value;
+  saFilterSearch = document.getElementById('sa-filter-search').value;
+  renderSalesAktif();
+}
+function saStatusBadge(status, hasPeriode){
+  if(!hasPeriode) return '<span class="badge badge-slate">-</span>';
+  if(status==='sudah') return '<span class="badge badge-green"><i class="fa-solid fa-circle-check"></i>Sudah Jualan</span>';
+  return '<span class="badge badge-red"><i class="fa-solid fa-circle-xmark"></i>Belum Jualan</span>';
+}
+function saTh(label, key, cls){
+  const active = saSortKey===key;
+  const icon = active ? (saSortDir==='asc' ? 'fa-sort-up' : 'fa-sort-down') : 'fa-sort';
+  return `<th class="py-2 pr-3 font-bold whitespace-nowrap cursor-pointer select-none ${cls||''}" onclick="saSortBy('${key}')">${label} <i class="fa-solid ${icon} text-[9px] ${active?'text-slate-500':'text-slate-300'}"></i></th>`;
+}
+function renderSalesAktif(){
+  const body = document.getElementById('sa-table-body');
+  if(!body) return;
+  renderSalesAktifFilters();
+  const periode = saCurrentPeriode();
+  const hasPeriode = !!periode;
+  const all = saBuildRows(periode);
+  const base = all.filter(saMatchesBase);
+  const shown = saSortRows(base.filter(r=>!saFilterStatus || r.status===saFilterStatus));
+
+  document.getElementById('sa-table-head').innerHTML =
+    '<th class="py-2 pr-3 font-bold">No</th>'
+    + saTh('Nama Karyawan','nama') + saTh('Username','username') + saTh('Masa Kerja (th)','masaKerja','text-center')
+    + saTh('Mentor/SPV','mentor') + saTh('BM','bm') + saTh('RM','rm')
+    + saTh('Leads','leads','text-center') + saTh('Booking','booking','text-center') + saTh('Nominal Booking','nominal')
+    + '<th class="py-2 pr-3 font-bold whitespace-nowrap">Status</th><th class="py-2 pr-3 font-bold whitespace-nowrap">Aksi</th>';
+
+  document.getElementById('sa-empty').classList.toggle('hidden', all.length>0);
+  document.getElementById('sa-empty-filter').classList.toggle('hidden', !(all.length>0 && shown.length===0));
+
+  body.innerHTML = shown.map((r,idx)=>{
+    const s = r.s;
+    const id = escapeHtml(s.id);
+    return `<tr class="border-b align-middle" style="border-color:var(--line)">
+      <td class="py-2 pr-3">${idx+1}</td>
+      <td class="py-2 pr-3 font-semibold whitespace-nowrap"><button class="text-left hover:underline" onclick="openSalesAktifDetail('${id}')" title="Lihat detail leads &amp; booking">${escapeHtml(s.nama||'-')}</button></td>
+      <td class="py-2 pr-3 mono whitespace-nowrap text-slate-500">${escapeHtml(s.username||'-')}</td>
+      <td class="py-2 pr-3 text-center">${escapeHtml(saFmtMasaKerja(s.masaKerja))}</td>
+      <td class="py-2 pr-3 whitespace-nowrap">${escapeHtml(s.mentor||'-')}</td>
+      <td class="py-2 pr-3 whitespace-nowrap">${escapeHtml(s.bm||'-')}</td>
+      <td class="py-2 pr-3 whitespace-nowrap">${escapeHtml(s.rm||'-')}</td>
+      <td class="py-2 pr-3 text-center mono">${hasPeriode ? r.leads : '-'}</td>
+      <td class="py-2 pr-3 text-center mono font-bold" style="color:${r.booking>0?'var(--brand-600)':'#94a3b8'}">${hasPeriode ? r.booking : '-'}</td>
+      <td class="py-2 pr-3 mono whitespace-nowrap">${hasPeriode && r.booking>0 ? formatRupiah(r.nominal) : '-'}</td>
+      <td class="py-2 pr-3 whitespace-nowrap">${saStatusBadge(r.status, hasPeriode)}</td>
+      <td class="py-2 pr-3 whitespace-nowrap">
+        <button onclick="openSalesAktifDetail('${id}')" title="Detail leads &amp; booking" class="text-base hover:opacity-70" style="color:var(--brand-600)"><i class="fa-solid fa-chart-simple"></i></button>
+        <button onclick="openEditSalesAktif('${id}')" title="Edit" class="text-base hover:opacity-70 text-slate-400 ml-2"><i class="fa-solid fa-pen"></i></button>
+        <button onclick="deleteSalesAktif('${id}')" title="Hapus" class="text-base hover:opacity-70 text-red-500 ml-2"><i class="fa-solid fa-trash-can"></i></button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // KPI dihitung dari filter Cari/BM/RM (tanpa filter Status) supaya kartu tetap menunjukkan gambaran utuh
+  const total = base.length;
+  const sudah = base.filter(r=>r.status==='sudah').length;
+  const belum = total - sudah;
+  const belumTanpaLeads = base.filter(r=>r.status==='belum' && r.leads===0).length;
+  const totalBooking = base.reduce((a,r)=>a+r.booking,0);
+  const totalNominal = base.reduce((a,r)=>a+r.nominal,0);
+  const pctSudah = total ? Math.round((sudah/total)*100) : 0;
+  const periodeLabel = hasPeriode ? gciMonthLabel(periode) : '-';
+  document.getElementById('sa-kpi-total').innerText = total;
+  document.getElementById('sa-kpi-total-sub').innerText = `Periode ${periodeLabel}`;
+  document.getElementById('sa-kpi-sudah').innerText = hasPeriode ? sudah : '-';
+  document.getElementById('sa-kpi-sudah-sub').innerText = hasPeriode ? `${pctSudah}% dari ${total} sales` : 'belum ada data pencapaian';
+  document.getElementById('sa-kpi-belum').innerText = hasPeriode ? belum : '-';
+  document.getElementById('sa-kpi-belum-sub').innerText = hasPeriode ? `${belumTanpaLeads} di antaranya belum ada leads` : 'belum ada data pencapaian';
+  document.getElementById('sa-kpi-booking').innerText = hasPeriode ? totalBooking : '-';
+  document.getElementById('sa-kpi-booking-sub').innerText = hasPeriode ? formatRupiah(totalNominal) : 'belum ada data pencapaian';
+
+  // tandai kartu yang sedang jadi filter Status
+  [['sa-card-sudah','sudah','#15803d'],['sa-card-belum','belum','#dc2626']].forEach(c=>{
+    const el = document.getElementById(c[0]);
+    if(el) el.style.boxShadow = (saFilterStatus===c[1]) ? `0 0 0 2px ${c[2]}` : '';
+  });
+
+  const notice = document.getElementById('sa-notice');
+  if(notice){
+    if(!hasPeriode && saList().length){
+      notice.classList.remove('hidden');
+      notice.innerHTML = '<i class="fa-solid fa-circle-info mr-1"></i>Belum ada data <b>Pencapaian Bulanan</b> (Leads &amp; Booking), jadi status jualan belum bisa dihitung. Impor dulu datanya di menu Pencapaian Bulanan.';
+    } else {
+      notice.classList.add('hidden');
+      notice.innerHTML = '';
+    }
+  }
+}
+// Drill-down: pakai modal detail sales yang sama dengan Leaderboard di Pencapaian Bulanan
+function openSalesAktifDetail(id){
+  const s = saList().find(x=>x.id===id);
+  if(!s) return;
+  const periode = saCurrentPeriode();
+  if(!periode){ toast('Belum ada data Pencapaian Bulanan untuk dilihat'); return; }
+  const mk = (saAchievementMap(periode)[saNorm(s.username)] || {}).key || s.username;
+  openSalesDetailModal(mk, periode);
+  const t = document.getElementById('sales-detail-title');
+  if(t && s.nama) t.innerText = s.nama;
+}
+/* ---- Modal tambah/edit manual ---- */
+function saFillDatalists(){
+  const fill = (id, field)=>{
+    const dl = document.getElementById(id);
+    if(dl) dl.innerHTML = saUniqueValues(field).map(v=>`<option value="${escapeHtml(v)}"></option>`).join('');
+  };
+  fill('sa-dl-mentor','mentor'); fill('sa-dl-bm','bm'); fill('sa-dl-rm','rm');
+}
+function openAddSalesAktif(){
+  saEditingId = null;
+  document.getElementById('sa-modal-title').innerText = 'Tambah Sales Aktif';
+  document.getElementById('sa-delete-btn').classList.add('hidden');
+  ['nama','username','masakerja','mentor','bm','rm'].forEach(f=>{ document.getElementById('sa-f-'+f).value = ''; });
+  saFillDatalists();
+  document.getElementById('sa-modal').classList.remove('hidden');
+}
+function openEditSalesAktif(id){
+  const s = saList().find(x=>x.id===id);
+  if(!s) return;
+  saEditingId = id;
+  document.getElementById('sa-modal-title').innerText = 'Edit Sales Aktif';
+  document.getElementById('sa-delete-btn').classList.remove('hidden');
+  saFillDatalists();
+  document.getElementById('sa-f-nama').value = s.nama || '';
+  document.getElementById('sa-f-username').value = s.username || '';
+  document.getElementById('sa-f-masakerja').value = (s.masaKerja===null || s.masaKerja===undefined) ? '' : saFmtMasaKerja(s.masaKerja);
+  document.getElementById('sa-f-mentor').value = s.mentor || '';
+  document.getElementById('sa-f-bm').value = s.bm || '';
+  document.getElementById('sa-f-rm').value = s.rm || '';
+  document.getElementById('sa-modal').classList.remove('hidden');
+}
+function closeSalesAktifModal(){
+  document.getElementById('sa-modal').classList.add('hidden');
+  saEditingId = null;
+}
+function saveSalesAktifModal(){
+  const nama = document.getElementById('sa-f-nama').value.trim();
+  const username = document.getElementById('sa-f-username').value.trim();
+  if(!nama){ toast('Nama Karyawan wajib diisi'); return; }
+  if(!username){ toast('Nama Pengguna (username) wajib diisi'); return; }
+  const dup = saList().find(x=>x.id!==saEditingId && saNorm(x.username)===saNorm(username));
+  if(dup){ toast(`Nama Pengguna "${username}" sudah dipakai ${dup.nama||'sales lain'}.`); return; }
+  const payload = {
+    nama, username,
+    masaKerja: saParseMasaKerja(document.getElementById('sa-f-masakerja').value),
+    mentor: document.getElementById('sa-f-mentor').value.trim(),
+    bm: document.getElementById('sa-f-bm').value.trim(),
+    rm: document.getElementById('sa-f-rm').value.trim()
+  };
+  if(saEditingId){
+    const s = saList().find(x=>x.id===saEditingId);
+    if(s) Object.assign(s, payload);
+    logActivity(`Sales aktif "${nama}" diperbarui`);
+  } else {
+    saList().push({ id:'sa_'+Date.now()+Math.floor(Math.random()*1000), ...payload });
+    logActivity(`Sales aktif "${nama}" ditambahkan`);
+  }
+  saveState();
+  closeSalesAktifModal();
+  renderSalesAktif();
+  toast('Sales aktif tersimpan');
+}
+async function deleteSalesAktif(id){
+  const s = saList().find(x=>x.id===id);
+  if(!s) return;
+  if(!await customConfirm(`Hapus sales "${s.nama||s.username}" dari daftar Sales Aktif?`)) return;
+  addToTrash('salesaktif', `${s.nama||'Sales'} (@${s.username||'-'})`, { sales: s });
+  state.salesAktif = saList().filter(x=>x.id!==id);
+  saveState();
+  renderSalesAktif();
+  toast('Sales dipindahkan ke sampah');
+}
+function deleteSalesAktifFromModal(){
+  if(!saEditingId) return;
+  const id = saEditingId;
+  closeSalesAktifModal();
+  deleteSalesAktif(id);
+}
+async function clearSalesAktifData(){
+  if(!saList().length){ toast('Belum ada data untuk dibersihkan'); return; }
+  if(!await customConfirm('Bersihkan semua data Sales Aktif? Data akan dipindahkan ke sampah.')) return;
+  addToTrash('salesaktif_bulk', `${saList().length} sales aktif`, { list: saList() });
+  state.salesAktif = [];
+  saveState();
+  renderSalesAktif();
+  toast('Data Sales Aktif dibersihkan');
+}
+/* ---- Impor Excel (format: Nama Karyawan, Nama Pengguna, Masa Kerja, Mentor/SPV, BM, RM) ---- */
+function saFindCol(headers, names){
+  const norm = headers.map(normHeaderCell);
+  for(let i=0;i<names.length;i++){
+    const idx = norm.indexOf(normHeaderCell(names[i]));
+    if(idx>-1) return idx;
+  }
+  return -1;
+}
+function importSalesAktifExcel(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  showImportLoading('Sedang mengimpor Sales Aktif...');
+  const reader = new FileReader();
+  reader.onerror = ()=>{ hideImportLoading(); toast('Gagal membaca file'); event.target.value=''; };
+  reader.onload = async e=>{
+    let summary = null;
+    try{
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+      const headerRowIdx = rows.findIndex(r=>r && r.some(c=>['nama pengguna','username'].includes(normHeaderCell(c))));
+      if(headerRowIdx===-1){
+        hideImportLoading();
+        toast('Format Excel tidak dikenali (kolom Nama Pengguna tidak ditemukan)');
+        event.target.value='';
+        return;
+      }
+      const headers = rows[headerRowIdx];
+      const idx = {
+        nama: saFindCol(headers, ['Nama Karyawan','Nama','Name']),
+        username: saFindCol(headers, ['Nama Pengguna','Username']),
+        masaKerja: saFindCol(headers, ['Masa Kerja']),
+        mentor: saFindCol(headers, ['Mentor/SPV','Mentor','SPV']),
+        bm: saFindCol(headers, ['BM','Branch Manager']),
+        rm: saFindCol(headers, ['RM','Regional Manager'])
+      };
+      const cell = (row, i)=> (i>-1 && row[i]!==null && row[i]!==undefined) ? String(row[i]).trim() : '';
+      const hadBefore = saList().length;
+      const inFile = {};
+      let created = 0, updated = 0;
+      for(let i=headerRowIdx+1; i<rows.length; i++){
+        const row = rows[i];
+        if(!row) continue;
+        const username = cell(row, idx.username);
+        if(!username) continue;
+        const key = saNorm(username);
+        inFile[key] = true;
+        let s = saList().find(x=>saNorm(x.username)===key);
+        if(!s){
+          s = { id:'sa_'+Date.now()+Math.floor(Math.random()*100000)+i, username };
+          saList().push(s);
+          created++;
+        } else {
+          s.username = username;
+          updated++;
+        }
+        if(idx.nama>-1){ const nm = cell(row, idx.nama); if(nm || !s.nama) s.nama = nm || username; }
+        else if(!s.nama) s.nama = username;
+        if(idx.masaKerja>-1) s.masaKerja = saParseMasaKerja(row[idx.masaKerja]);
+        else if(s.masaKerja===undefined) s.masaKerja = null;
+        if(idx.mentor>-1) s.mentor = cell(row, idx.mentor);
+        if(idx.bm>-1) s.bm = cell(row, idx.bm);
+        if(idx.rm>-1) s.rm = cell(row, idx.rm);
+        ['mentor','bm','rm'].forEach(f=>{ if(s[f]===undefined) s[f] = ''; });
+      }
+      if(created+updated===0){
+        hideImportLoading();
+        toast('Tidak ada baris sales yang bisa diimpor');
+        event.target.value='';
+        return;
+      }
+      saveState();
+      logActivity(`Impor Sales Aktif: ${created} baru, ${updated} diperbarui`);
+      const stale = hadBefore>0 ? saList().filter(x=>!inFile[saNorm(x.username)]) : [];
+      summary = { created, updated, stale };
+    }catch(err){
+      console.error(err);
+      hideImportLoading();
+      toast('Gagal mengimpor: ' + (err && err.message ? err.message : 'format file tidak sesuai'));
+      event.target.value='';
+      return;
+    }
+    hideImportLoading();
+    renderSalesAktif();
+    toast(`Impor selesai: ${summary.created} sales baru, ${summary.updated} diperbarui`);
+    // Daftar aktif harus sama dengan file: tawarkan memindahkan sales lama yang tidak ada di file
+    if(summary.stale.length){
+      const ok = await customConfirm(
+        `${summary.stale.length} sales di daftar tidak ada di file ini (mungkin sudah tidak aktif). Pindahkan ke sampah?`,
+        { title:'Sales tidak ada di file', okText:'Pindahkan ke sampah', cancelText:'Biarkan', danger:false }
+      );
+      if(ok){
+        const staleIds = {};
+        summary.stale.forEach(x=>{ staleIds[x.id] = true; });
+        addToTrash('salesaktif_bulk', `${summary.stale.length} sales tidak aktif`, { list: summary.stale });
+        state.salesAktif = saList().filter(x=>!staleIds[x.id]);
+        saveState();
+        renderSalesAktif();
+        toast(`${summary.stale.length} sales dipindahkan ke sampah`);
+      }
+    }
+    event.target.value='';
+  };
+  reader.readAsArrayBuffer(file);
+}
+/* ---- Export Excel (ikut filter yang aktif; kolom awal sama dengan format impor) ---- */
+async function exportSalesAktifExcel(){
+  if(typeof ExcelJS === 'undefined'){ toast('Modul export belum siap, coba lagi sebentar'); return; }
+  const periode = saCurrentPeriode();
+  const base = saBuildRows(periode).filter(saMatchesBase);
+  const rows = saSortRows(base.filter(r=>!saFilterStatus || r.status===saFilterStatus));
+  if(!rows.length){ toast('Belum ada data sales untuk di-export'); return; }
+  const periodeLabel = periode ? gciMonthLabel(periode) : '-';
+  const COLOR = { headerFill:'FF1E293B', headerFont:'FFFFFFFF', sudahFill:'FFDCFCE7', sudahFont:'FF15803D', belumFill:'FFFEE2E2', belumFont:'FFB91C1C', zebra:'FFF8FAFC', border:'FFE2E8F0' };
+  const thin = { style:'thin', color:{argb:COLOR.border} };
+  const borderAll = { top:thin, left:thin, bottom:thin, right:thin };
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'SalesPro Academy';
+  const ws = wb.addWorksheet('Sales Aktif', { views:[{ state:'frozen', ySplit:1 }] });
+  ws.columns = [{width:28},{width:18},{width:12},{width:18},{width:16},{width:16},{width:9},{width:9},{width:18},{width:16},{width:16}];
+  const headRow = ws.addRow(['Nama Karyawan','Nama Pengguna','Masa Kerja','Mentor/SPV','BM','RM','Leads','Booking','Nominal Booking','Status Jualan','Periode']);
+  headRow.eachCell(cell=>{
+    cell.font = { bold:true, color:{argb:COLOR.headerFont} };
+    cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.headerFill} };
+    cell.border = borderAll;
+    cell.alignment = { vertical:'middle', horizontal:'center' };
+  });
+  rows.forEach((r,idx)=>{
+    const s = r.s;
+    const statusLabel = !periode ? '-' : (r.status==='sudah' ? 'Sudah Jualan' : 'Belum Jualan');
+    const row = ws.addRow([
+      s.nama||'', s.username||'', saFmtMasaKerja(s.masaKerja)==='-' ? '' : saFmtMasaKerja(s.masaKerja),
+      s.mentor||'', s.bm||'', s.rm||'',
+      periode ? r.leads : '', periode ? r.booking : '', periode ? r.nominal : '', statusLabel, periodeLabel
+    ]);
+    row.eachCell((cell, colNum)=>{
+      cell.border = borderAll;
+      cell.alignment = { vertical:'middle', horizontal: colNum===1 ? 'left' : 'center' };
+      if(idx%2===1) cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.zebra} };
+    });
+    row.getCell(9).numFmt = '#,##0';
+    if(periode){
+      const sc = row.getCell(10);
+      sc.fill = { type:'pattern', pattern:'solid', fgColor:{argb: r.status==='sudah' ? COLOR.sudahFill : COLOR.belumFill} };
+      sc.font = { bold:true, color:{argb: r.status==='sudah' ? COLOR.sudahFont : COLOR.belumFont} };
+    }
+  });
+  ws.autoFilter = { from:{row:1,column:1}, to:{row:1,column:11} };
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type:'application/octet-stream' });
+  saveAs(blob, `sales-aktif-${periode || 'semua'}.xlsx`);
+  toast('Export Excel Sales Aktif berhasil');
+}
+
 function renderAll(){
   rebuildModules();
   renderDashboard();
@@ -11912,6 +12530,7 @@ function renderAll(){
   renderFeedbackTL();
   renderSupportCoaching();
   renderTasklistMarketing();
+  renderSalesAktif();
   renderTrash();
 }
 /* ===================== AUTH (FIREBASE AUTHENTICATION) ===================== */
