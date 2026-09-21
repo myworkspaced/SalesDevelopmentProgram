@@ -1560,8 +1560,9 @@ FB_PARTICIPANTS.onSnapshot(function(snap){
   renderAll();
 }, function(){});
 
-document.getElementById('admin-link').href =
-  (location.pathname.replace(/viewer\.html.*/i,'') || './') + 'index.html';
+// Link ke admin (index.html) di folder yang sama dengan halaman ini. Pakai URL relatif supaya tetap
+// benar di GitHub Pages walau alamatnya tanpa ".html" (mis. .../SalesDevelopmentProgram/viewer).
+document.getElementById('admin-link').href = new URL('./index.html', location.href).href;
 
 setInterval(function(){
   const nowBln = MONTH_NAMES_ID[new Date().getMonth()];
