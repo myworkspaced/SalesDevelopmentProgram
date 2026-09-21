@@ -231,6 +231,7 @@ function normalizeState(parsed){
   if(!Array.isArray(parsed.supportCoaching)) parsed.supportCoaching = [];
   if(!parsed.tasklistMarketing || typeof parsed.tasklistMarketing!=='object' || Array.isArray(parsed.tasklistMarketing)) parsed.tasklistMarketing = { tasks:[] };
   if(!Array.isArray(parsed.tasklistMarketing.tasks)) parsed.tasklistMarketing.tasks = [];
+  if(!Array.isArray(parsed.salesAktif)) parsed.salesAktif = [];
   if(!parsed.kpiConfig || typeof parsed.kpiConfig!=='object') parsed.kpiConfig = { indicators:{} };
   if(!parsed.kpiConfig.indicators || typeof parsed.kpiConfig.indicators!=='object') parsed.kpiConfig.indicators = {};
   if(!parsed.agendaRecurringSeeded){
@@ -693,10 +694,12 @@ function computeKpis(week){
   const monthLabel = monthKey ? gciMonthLabel(monthKey) : 'Semua Bulan';
   let gciRows = (gciData||[]).slice();
   if(monthKey) gciRows = gciRows.filter(r=>gciMonthKey(r.tanggal)===monthKey);
-  if(week) gciRows = gciRows.filter(r=>dateInWeek(r.tanggal, week));
-  const gciTotal = gciRows.length;
-  const bookingCount = gciRows.filter(r=>classifyGciStatus(r)==='booking').length;
-  const bookingPct = gciTotal ? Math.round((bookingCount/gciTotal)*1000)/10 : 0;
+  if(week) gciRows = gciRows.filter(r=>{ const wk = weekFromDateStr(r.tanggal); return wk>=1 && wk<=week; }); // kumulatif W1..Wn
+  // Dampak = sales aktif yang jualan (>=1 booking) / total sales aktif. Tanpa filter week = global.
+  const impStat = impactSalesStats(gciRows);
+  const gciTotal = impStat.total;
+  const bookingCount = impStat.soldCount;
+  const bookingPct = impStat.pct;
 
   // 3) Agenda wajib
   let agendaStats = computeRecurringMonthlyCompletionWajib(agendaYear, agendaMonth);
@@ -750,7 +753,7 @@ function computeKpis(week){
       training: `${selesaiPeserta} dari ${totalPeserta} peserta${weekTag}`,
       closing: csMod ? `${csGrowth} growth dari ${csScored} peserta dinilai${weekTag}` : 'Modul Teknik Closing belum ditemukan',
       apply: `${tmStats.people} orang · avg pengerjaan ${tmStats.pct}% · ${tmStats.done}/${tmStats.total} task (${blnName} ${tahunNum}${weekTag})`,
-      impact: `${bookingCount} booking dari ${gciTotal} data (${monthLabel}${weekTag})`,
+      impact: gciTotal ? `${bookingCount} dari ${gciTotal} sales aktif jualan (${monthLabel}${weekTag})` : 'Belum ada data Sales Aktif',
       lengkap: `${indikatorTerisi} dari ${indikatorValues.length} indikator terisi`,
       fltl: `${fltlStats.done} dari ${fltlStats.total} point selesai (${blnName} ${tahunNum}${weekTag})`,
       sc: `${scStats.done} dari ${scStats.total} sesi done (${blnName} ${tahunNum}${weekTag})`
@@ -802,9 +805,12 @@ function computeWeeklyKpiSeries(){
     }
     series.closing.push(csPct);
 
-    const gciW = gciMonthRows.filter(r=>inWeek(r.tanggal));
-    const book = gciW.filter(r=>classifyGciStatus(r)==='booking').length;
-    series.impact.push(gciW.length ? Math.round((book/gciW.length)*1000)/10 : 0);
+    // Kumulatif: sales yang sudah jualan dari awal bulan sampai akhir week ini (tiap sales dihitung 1x)
+    const gciW = gciMonthRows.filter(r=>{
+      const dd = parseInt(String(r.tanggal||'').split('-')[2],10);
+      return d1>=d0 && !isNaN(dd) && dd<=d1;
+    });
+    series.impact.push(impactSalesStats(gciW).pct);
 
     const tw = tasks.filter(t=>inWeek(t.tanggal));
     series.apply.push(computeApplyPctByPeople(tw).pct);
@@ -1328,17 +1334,41 @@ function renderClosingSkillDetailModal(){
   })() : '');
 }
 
+
+/* ===== Dampak ke aktivitas sales (berbasis Sales Aktif) =====
+   % = jumlah sales aktif yang jualan (>=1 booking) / total sales aktif.
+   Dipakai per week (rows = data GCI di week tsb) maupun global (rows = seluruh periode). */
+function impactSalesStats(rows){
+  const norm = v=>String(v==null?'':v).trim().toLowerCase();
+  const list = (typeof state!=='undefined' && state && Array.isArray(state.salesAktif)) ? state.salesAktif : [];
+  const active = {};
+  list.forEach(s=>{ const u = norm(s.username); if(u) active[u] = s; });
+  const total = Object.keys(active).length;
+  const sold = {};
+  (rows||[]).forEach(r=>{
+    const u = norm(r.marketing);
+    if(!u || !active[u]) return;
+    if(!sold[u]) sold[u] = { booking:0, leads:0 };
+    if(classifyGciStatus(r)==='booking') sold[u].booking++; else sold[u].leads++;
+  });
+  const soldCount = Object.keys(sold).filter(u=>sold[u].booking>0).length;
+  return { total, soldCount, pct: total ? Math.round((soldCount/total)*1000)/10 : 0, active, sold };
+}
+
 function renderImpactDetailModal(){
   const monthKey = dashboardGciMonthKey();
   const monthLabel = monthKey ? gciMonthLabel(monthKey) : 'Semua Bulan';
   let rows = (gciData||[]).slice();
   if(monthKey) rows = rows.filter(r=>gciMonthKey(r.tanggal)===monthKey);
-  const bookingAll = rows.filter(r=>classifyGciStatus(r)==='booking').length;
-  const convAll = rows.length ? Math.round((bookingAll/rows.length)*1000)/10 : 0;
-  setKpiDetailHeader('Detail Dampak ke Aktivitas Sales',
-    bookingAll+' booking dari '+rows.length+' data ('+convAll+'%) · '+monthLabel+'. Week 1–5 = Batch 1–5.');
+  const all = impactSalesStats(rows);
   const body = document.getElementById('kpi-detail-body');
-  if(!rows.length){ body.innerHTML = emptyMsg('Tidak ada data GCI di periode ini.'); return; }
+  if(!all.total){
+    setKpiDetailHeader('Detail Dampak ke Aktivitas Sales', 'Belum ada data Sales Aktif · '+monthLabel+'.');
+    body.innerHTML = emptyMsg('Daftar Sales Aktif belum diisi di dashboard admin.');
+    return;
+  }
+  setKpiDetailHeader('Detail Dampak ke Aktivitas Sales',
+    all.soldCount+' dari '+all.total+' sales aktif sudah jualan ('+all.pct+'%) · '+monthLabel+'. Week 1–5 = Batch 1–5.');
   const byWeek = {0:[],1:[],2:[],3:[],4:[],5:[]};
   rows.forEach(r=>{
     const w = weekFromDateStr(r.tanggal);
@@ -1350,30 +1380,29 @@ function renderImpactDetailModal(){
   body.innerHTML = [1,2,3,4,5].map(w=>{
     const items = byWeek[w]||[];
     const title = 'Week '+w+' · Batch '+w;
-    if(!items.length) return weekEmptyBlock(title, ranges[w], 'tidak ada data');
-    const booking = items.filter(r=>classifyGciStatus(r)==='booking').length;
-    const total = items.length;
-    const pct = total ? Math.round((booking/total)*1000)/10 : 0;
+    const cumItems = [];
+    for(let k=1;k<=w;k++) (byWeek[k]||[]).forEach(r=>cumItems.push(r));
+    if(!cumItems.length) return weekEmptyBlock(title, ranges[w], 'tidak ada data');
+    const st = impactSalesStats(cumItems);
+    const stw = impactSalesStats(items);
+    const pct = st.pct;
     const pctColor = pct>=50 ? '#15803d' : pct>=25 ? 'var(--brand-600)' : pct>=10 ? '#d97706' : '#dc2626';
     const barBg = pct>=50 ? '#16a34a' : pct>=25 ? 'var(--brand-500)' : pct>=10 ? '#f59e0b' : '#ef4444';
-    const byMk = {};
-    items.forEach(r=>{
-      const mk = r.marketing || '(Tanpa Marketing)';
-      if(!byMk[mk]) byMk[mk] = { total:0, booking:0, leads:0 };
-      byMk[mk].total++;
-      if(classifyGciStatus(r)==='booking') byMk[mk].booking++; else byMk[mk].leads++;
-    });
-    const mkRows = Object.keys(byMk).sort((a,b)=>byMk[b].booking-byMk[a].booking).slice(0,12).map(mk=>{
-      const s = byMk[mk];
-      const c = s.total ? Math.round((s.booking/s.total)*1000)/10 : 0;
+    const sellers = Object.keys(stw.sold).filter(u=>stw.sold[u].booking>0)
+      .sort((a,b)=>stw.sold[b].booking-stw.sold[a].booking);
+    const mkRows = sellers.map(u=>{
+      const x = stw.sold[u];
+      const nm = st.active[u].nama || st.active[u].username || u;
       return detailRow({
-        lead: avatarLead('var(--brand-600)', mk), title: escapeHtml(mk),
-        sub: s.booking+' booking · '+s.leads+' leads · '+s.total+' data',
-        badge: '<span class="text-xs font-extrabold" style="color:'+(c>=25?'#15803d':'#64748b')+'">'+c+'%</span>'
+        lead: avatarLead('var(--brand-600)', nm), title: escapeHtml(nm),
+        sub: escapeHtml(st.active[u].username||u)+' · '+x.booking+' booking · '+x.leads+' leads',
+        badge: '<span class="text-xs font-extrabold" style="color:#15803d"><i class="fa-solid fa-circle-check"></i></span>'
       });
     }).join('');
-    return weekBlock({ title, meta: ranges[w]+' · '+booking+'/'+total+' booking', pct, pctText: pct+'%', pctColor,
-      barW: Math.min(100,pct), barBg, headBg: pct>=50?'#f0fdf4':'#f8fafc', border: pct>=50?'#86efac':'var(--line)', rows: mkRows });
+    const belum = st.total - st.soldCount;
+    return weekBlock({ title, meta: ranges[w]+' · minggu ini '+stw.soldCount+' ('+stw.pct+'%) · gabungan W1–W'+w+': '+st.soldCount+'/'+st.total, pct, pctText: pct+'%', pctColor,
+      barW: Math.min(100,pct), barBg, headBg: pct>=50?'#f0fdf4':'#f8fafc', border: pct>=50?'#86efac':'var(--line)',
+      rows: mkRows + '<p class="text-[10px] text-slate-400 px-3 py-2">'+belum+' sales aktif belum jualan sampai week ini</p>' });
   }).join('');
 }
 

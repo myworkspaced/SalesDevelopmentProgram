@@ -6377,9 +6377,12 @@ function computeWeeklyKpiSeries(){
     series.closing.push(csPct);
 
     // Impact GCI
-    const gciW = gciMonthRows.filter(r=>inWeek(r.tanggal));
-    const book = gciW.filter(r=>classifyGciStatus(r)==='booking').length;
-    series.impact.push(gciW.length ? Math.round((book/gciW.length)*1000)/10 : 0);
+    // Kumulatif: sales yang sudah jualan dari awal bulan sampai akhir week ini (tiap sales dihitung 1x)
+    const gciW = gciMonthRows.filter(r=>{
+      const dd = parseInt(String(r.tanggal||'').split('-')[2],10);
+      return d1>=d0 && !isNaN(dd) && dd<=d1;
+    });
+    series.impact.push(impactSalesStats(gciW).pct);
 
     // Apply tasks: rata-rata per orang di minggu itu
     const tw = tasks.filter(t=>inWeek(t.tanggal));
@@ -6505,12 +6508,16 @@ function renderResumeKpi(){
   gciData = loadGciData();
   let gciRows = gciData.slice();
   if(monthKey) gciRows = gciRows.filter(r=>gciMonthKey(r.tanggal)===monthKey);
-  if(resumeSelectedWeek) gciRows = gciRows.filter(r=>dateInResumeWeek(r.tanggal));
-  gciTotal = gciRows.length;
-  bookingCount = gciRows.filter(r=>classifyGciStatus(r)==='booking').length;
-  bookingPct = gciTotal ? Math.round((bookingCount/gciTotal)*1000)/10 : 0;
+  if(resumeSelectedWeek) gciRows = gciRows.filter(r=>{ const wk = weekFromDateStr(r.tanggal); return wk>=1 && wk<=resumeSelectedWeek; }); // kumulatif W1..Wn
+  // Dampak = sales aktif yang jualan (>=1 booking) / total sales aktif. Tanpa filter week = global (seluruh periode).
+  const impStat = impactSalesStats(gciRows);
+  gciTotal = impStat.total;
+  bookingCount = impStat.soldCount;
+  bookingPct = impStat.pct;
   document.getElementById('resumekpi-impact-pct').innerText = bookingPct + '%';
-  document.getElementById('resumekpi-impact-sub').innerText = `${bookingCount} booking dari ${gciTotal} data (${monthLabel}${weekTag})`;
+  document.getElementById('resumekpi-impact-sub').innerText = gciTotal
+    ? `${bookingCount} dari ${gciTotal} sales aktif jualan (${monthLabel}${weekTag})`
+    : 'Belum ada data Sales Aktif';
 
   // 3) Agenda wajib (filter occurrences by week day range)
   let agendaYear, agendaMonth;
@@ -7474,6 +7481,27 @@ function renderApplyDetailModal(){
   }).join('');
 }
 
+
+/* ===== Dampak ke aktivitas sales (berbasis Sales Aktif) =====
+   % = jumlah sales aktif yang jualan (>=1 booking) / total sales aktif.
+   Dipakai per week (rows = data GCI di week tsb) maupun global (rows = seluruh periode). */
+function impactSalesStats(rows){
+  const norm = v=>String(v==null?'':v).trim().toLowerCase();
+  const list = (typeof state!=='undefined' && state && Array.isArray(state.salesAktif)) ? state.salesAktif : [];
+  const active = {};
+  list.forEach(s=>{ const u = norm(s.username); if(u) active[u] = s; });
+  const total = Object.keys(active).length;
+  const sold = {};
+  (rows||[]).forEach(r=>{
+    const u = norm(r.marketing);
+    if(!u || !active[u]) return;
+    if(!sold[u]) sold[u] = { booking:0, leads:0 };
+    if(classifyGciStatus(r)==='booking') sold[u].booking++; else sold[u].leads++;
+  });
+  const soldCount = Object.keys(sold).filter(u=>sold[u].booking>0).length;
+  return { total, soldCount, pct: total ? Math.round((soldCount/total)*1000)/10 : 0, active, sold };
+}
+
 function openImpactDetailModal(){
   renderImpactDetailModal();
   document.getElementById('impact-detail-modal').classList.remove('hidden');
@@ -7485,15 +7513,15 @@ function renderImpactDetailModal(){
   const monthLabel = monthKey ? gciMonthLabel(monthKey) : 'Semua Bulan';
   let rows = gciData.slice();
   if(monthKey) rows = rows.filter(r=>gciMonthKey(r.tanggal)===monthKey);
-  const bookingAll = rows.filter(r=>classifyGciStatus(r)==='booking').length;
-  const convAll = rows.length ? Math.round((bookingAll/rows.length)*1000)/10 : 0;
-  document.getElementById('impact-detail-subtitle').innerText =
-    `${bookingAll} booking dari ${rows.length} data (${convAll}%) · ${monthLabel}. Week 1–5 = Batch 1–5.`;
+  const all = impactSalesStats(rows);
   const body = document.getElementById('impact-detail-body');
-  if(!rows.length){
-    body.innerHTML = '<p class="text-sm text-center text-slate-400 py-6">Tidak ada data GCI di periode ini.</p>';
+  if(!all.total){
+    document.getElementById('impact-detail-subtitle').innerText = `Belum ada data Sales Aktif · ${monthLabel}.`;
+    body.innerHTML = '<p class="text-sm text-center text-slate-400 py-6">Isi daftar sales di menu Sales Aktif dulu, lalu persentase dampak akan terhitung otomatis.</p>';
     return;
   }
+  document.getElementById('impact-detail-subtitle').innerText =
+    `${all.soldCount} dari ${all.total} sales aktif sudah jualan (${all.pct}%) · ${monthLabel}. Week 1–5 = Batch 1–5.`;
   const byWeek = {0:[],1:[],2:[],3:[],4:[],5:[]};
   rows.forEach(r=>{
     const w = weekFromDateStr(r.tanggal);
@@ -7504,7 +7532,9 @@ function renderImpactDetailModal(){
     : buildWeekRangeLabels(new Date().getMonth(), new Date().getFullYear());
   body.innerHTML = [1,2,3,4,5].map(w=>{
     const items = byWeek[w]||[];
-    if(!items.length){
+    const cumItems = [];
+    for(let k=1;k<=w;k++) (byWeek[k]||[]).forEach(r=>cumItems.push(r));
+    if(!cumItems.length){
       return `<div class="mb-4 rounded-xl border border-slate-100 overflow-hidden">
         <div class="flex items-center justify-between px-3 py-2.5 bg-slate-50">
           <div><p class="text-xs font-extrabold text-slate-600">Week ${w} · Batch ${w}</p>
@@ -7512,43 +7542,39 @@ function renderImpactDetailModal(){
           <span class="text-xs font-bold text-slate-300">—</span>
         </div></div>`;
     }
-    const booking = items.filter(r=>classifyGciStatus(r)==='booking').length;
-    const total = items.length;
-    const pct = total ? Math.round((booking/total)*1000)/10 : 0;
+    const st = impactSalesStats(cumItems);
+    const stw = impactSalesStats(items);
+    const pct = st.pct;
     const pctColor = pct>=50 ? '#15803d' : pct>=25 ? 'var(--brand-600)' : pct>=10 ? '#d97706' : '#dc2626';
     const barBg = pct>=50 ? '#16a34a' : pct>=25 ? 'var(--brand-500)' : pct>=10 ? '#f59e0b' : '#ef4444';
     const headBg = pct>=50 ? '#f0fdf4' : '#f8fafc';
-    // ringkas per marketing
-    const byMk = {};
-    items.forEach(r=>{
-      const mk = r.marketing || '(Tanpa Marketing)';
-      if(!byMk[mk]) byMk[mk] = { total:0, booking:0, leads:0 };
-      byMk[mk].total++;
-      if(classifyGciStatus(r)==='booking') byMk[mk].booking++; else byMk[mk].leads++;
-    });
-    const mkRows = Object.keys(byMk).sort((a,b)=>byMk[b].booking-byMk[a].booking).slice(0,12).map(mk=>{
-      const s = byMk[mk];
-      const c = s.total ? Math.round((s.booking/s.total)*1000)/10 : 0;
+    const sellers = Object.keys(stw.sold).filter(u=>stw.sold[u].booking>0)
+      .sort((a,b)=>stw.sold[b].booking-stw.sold[a].booking);
+    const mkRows = sellers.map(u=>{
+      const v = stw.sold[u];
+      const nm = st.active[u].nama || st.active[u].username || u;
       return `<div class="lesson-row !rounded-none !border-0 !border-b !shadow-none" style="border-color:#f1f5f9!important">
-        <div class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white text-xs flex-shrink-0" style="background:var(--brand-600)">${escapeHtml(mk.charAt(0).toUpperCase())}</div>
+        <div class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white text-xs flex-shrink-0" style="background:var(--brand-600)">${escapeHtml(String(nm).charAt(0).toUpperCase())}</div>
         <div class="flex-1 min-w-0">
-          <p class="text-xs font-bold">${escapeHtml(mk)}</p>
-          <p class="text-[10px] text-slate-400">${s.booking} booking · ${s.leads} leads · ${s.total} data</p>
+          <p class="text-xs font-bold">${escapeHtml(nm)}</p>
+          <p class="text-[10px] text-slate-400">${escapeHtml(st.active[u].username||u)} · ${v.booking} booking · ${v.leads} leads</p>
         </div>
-        <span class="text-xs font-extrabold" style="color:${c>=25?'#15803d':'#64748b'}">${c}%</span>
+        <span class="text-xs font-extrabold" style="color:#15803d"><i class="fa-solid fa-circle-check"></i></span>
       </div>`;
     }).join('');
+    const belum = st.total - st.soldCount;
     return `<div class="mb-4 rounded-xl border overflow-hidden" style="border-color:${pct>=50?'#86efac':'var(--line)'}">
       <div class="flex items-center justify-between px-3 py-2.5 gap-3" style="background:${headBg}">
         <div class="min-w-0">
           <p class="text-xs font-extrabold text-slate-700">Week ${w} · Batch ${w}</p>
-          <p class="text-[10px] text-slate-400">${ranges[w]} · ${booking}/${total} booking</p>
+          <p class="text-[10px] text-slate-400">${ranges[w]} · minggu ini ${stw.soldCount} (${stw.pct}%) · gabungan W1–W${w}: ${st.soldCount}/${st.total}</p>
         </div>
         <div class="text-right flex-shrink-0 w-28">
           <p class="text-sm font-extrabold" style="color:${pctColor}">${pct}%</p>
           <div class="h-1.5 bg-slate-200 rounded-full overflow-hidden mt-1"><div class="h-full rounded-full" style="width:${Math.min(100,pct)}%;background:${barBg}"></div></div>
         </div>
-      </div><div>${mkRows}</div></div>`;
+      </div><div>${mkRows}</div>
+      <p class="text-[10px] text-slate-400 px-3 py-2">${belum} sales aktif belum jualan sampai week ini</p></div>`;
   }).join('');
 }
 
