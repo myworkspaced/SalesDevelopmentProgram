@@ -1029,23 +1029,28 @@
               </div>
             </div>
           </div>
-          <p class="text-xs text-slate-400 mb-2">Diambil khusus dari materi <b>Teknik Closing</b>: nilai kuis teknik closing dan 1 nilai manual dari trainer dirata-rata menjadi Nilai Skill Closing. Minimum nilai <b>80</b> untuk dianggap <b>Growth</b>.</p>
+          <p class="text-xs text-slate-400 mb-2">Diambil khusus dari materi <b>Teknik Closing</b>: nilai <b>Pre Roleplay Closing</b> dan <b>Post Roleplay Closing</b> diisi manual oleh trainer, lalu dirata-rata menjadi Nilai Skill Closing. <b>Growth</b> jika nilai <b>Post lebih besar dari Pre</b>; nilai <b>sama</b> = <b>Tetap</b>; Post <b>lebih kecil</b> dari Pre = tidak growth.</p>
           <p class="text-[11px] text-slate-400">Filter Bulan &amp; Tahun ini terhubung dengan filter di tab Dashboard &amp; Resume.</p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
           <div class="kpi text-center">
             <p class="text-xs font-bold text-slate-400 uppercase mb-3">Rata-rata Skill Closing</p>
             <p id="cs-kpi-avg" class="text-4xl font-extrabold" style="color:var(--brand-600)">0</p>
             <p id="cs-kpi-avg-sub" class="text-xs text-slate-400 mt-2">dari 0 peserta yang sudah dinilai</p>
           </div>
           <div class="kpi text-center">
-            <p class="text-xs font-bold text-slate-400 uppercase mb-3">Sudah Growth (&ge;80)</p>
+            <p class="text-xs font-bold text-slate-400 uppercase mb-3">Sudah Growth (Post &gt; Pre)</p>
             <p id="cs-kpi-growth" class="text-4xl font-extrabold" style="color:#15803d">0</p>
             <p id="cs-kpi-growth-sub" class="text-xs text-slate-400 mt-2">0 dari 0 peserta</p>
           </div>
           <div class="kpi text-center">
-            <p class="text-xs font-bold text-slate-400 uppercase mb-3">Belum Growth (&lt;80)</p>
+            <p class="text-xs font-bold text-slate-400 uppercase mb-3">Tetap (Post = Pre)</p>
+            <p id="cs-kpi-tetap" class="text-4xl font-extrabold" style="color:#0369a1">0</p>
+            <p id="cs-kpi-tetap-sub" class="text-xs text-slate-400 mt-2">0 dari 0 peserta</p>
+          </div>
+          <div class="kpi text-center">
+            <p class="text-xs font-bold text-slate-400 uppercase mb-3">Belum Growth (Post &lt; Pre)</p>
             <p id="cs-kpi-belum" class="text-4xl font-extrabold" style="color:#dc2626">0</p>
             <p id="cs-kpi-belum-sub" class="text-xs text-slate-400 mt-2">0 dari 0 peserta</p>
           </div>
@@ -1057,8 +1062,8 @@
               <thead>
                 <tr class="text-left text-slate-400 border-b" style="border-color:var(--line)">
                   <th class="py-2 pr-3 font-bold">Peserta</th>
-                  <th class="py-2 pr-3 font-bold">Nilai Teknik Closing (Kuis)</th>
-                  <th class="py-2 pr-3 font-bold">Nilai Manual Trainer</th>
+                  <th class="py-2 pr-3 font-bold">Nilai Pre Roleplay Closing</th>
+                  <th class="py-2 pr-3 font-bold">Nilai Post Roleplay Closing</th>
                   <th class="py-2 pr-3 font-bold">Nilai Skill Closing</th>
                   <th class="py-2 pr-3 font-bold">Status</th>
                 </tr>
@@ -1240,6 +1245,9 @@
                   <th class="py-2 pr-3 font-bold whitespace-nowrap">Deadline</th>
                   <th class="py-2 pr-3 font-bold whitespace-nowrap">Actual/Finish</th>
                   <th class="py-2 pr-3 font-bold text-center whitespace-nowrap">Leadtime</th>
+                  <th class="py-2 pr-3 font-bold text-center whitespace-nowrap">Total<br>Task</th>
+                  <th class="py-2 pr-3 font-bold text-center whitespace-nowrap">Done</th>
+                  <th class="py-2 pr-3 font-bold text-center whitespace-nowrap">Belum</th>
                   <th class="py-2 pr-3 font-bold text-center whitespace-nowrap">% Task</th>
                   <th class="py-2 pr-3 font-bold text-center whitespace-nowrap">% Waiting<br>Approve</th>
                   <th class="py-2 pr-3 font-bold text-center whitespace-nowrap">% Approve</th>
@@ -1299,11 +1307,25 @@
                 <input id="tm-f-leadtime" type="number" class="field">
               </div>
             </div>
-            <div class="grid grid-cols-3 gap-3">
+            <div class="grid grid-cols-4 gap-3">
+              <div>
+                <label class="text-[11px] font-bold text-slate-500">Total Task</label>
+                <input id="tm-f-totaltask" type="number" min="1" value="7" class="field" oninput="tmRecalcModal()">
+              </div>
+              <div>
+                <label class="text-[11px] font-bold text-slate-500">Done</label>
+                <input id="tm-f-donetask" type="number" min="0" class="field" oninput="tmRecalcModal()">
+              </div>
+              <div>
+                <label class="text-[11px] font-bold text-slate-500">Belum</label>
+                <input id="tm-f-belumtask" type="number" class="field" readonly tabindex="-1" style="background:#f1f5f9">
+              </div>
               <div>
                 <label class="text-[11px] font-bold text-slate-500">% Task</label>
-                <input id="tm-f-pcttask" type="number" min="0" max="100" class="field">
+                <input id="tm-f-pcttask" type="number" class="field" readonly tabindex="-1" style="background:#f1f5f9">
               </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
               <div>
                 <label class="text-[11px] font-bold text-slate-500">% Waiting Approve</label>
                 <input id="tm-f-pctwait" type="number" min="0" max="100" class="field">
@@ -2198,6 +2220,34 @@
     </div>
     <p id="agenda-wajib-detail-subtitle" class="text-xs text-slate-400 mb-4"></p>
     <div class="space-y-2" id="agenda-wajib-detail-body"></div>
+  </div>
+</div>
+<div id="agenda-actual-modal" class="modal-overlay hidden">
+  <div class="card p-6 w-full max-w-sm">
+    <div class="flex items-center justify-between mb-1">
+      <p class="text-sm font-extrabold">Plan &amp; Aktual Kegiatan</p>
+      <button onclick="closeAgendaActualModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <p id="agenda-actual-title" class="text-xs font-bold text-slate-600 mb-3"></p>
+    <div class="rounded-lg p-3" style="background:#f8fafc;border:1px solid var(--line)">
+      <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wide">Plan (rencana)</p>
+      <p id="agenda-actual-plan" class="text-sm font-bold text-slate-700 mt-0.5"></p>
+    </div>
+    <div class="grid grid-cols-2 gap-3 mt-3">
+      <div>
+        <label class="text-[11px] font-bold text-slate-500">Tanggal Aktual</label>
+        <input id="agenda-actual-date" type="date" class="field">
+      </div>
+      <div>
+        <label class="text-[11px] font-bold text-slate-500">Jam Aktual</label>
+        <input id="agenda-actual-time" type="time" class="field">
+      </div>
+    </div>
+    <p class="text-[10px] text-slate-400 mt-2">Menyimpan aktual otomatis menandai kegiatan ini Selesai.</p>
+    <div class="flex items-center gap-2 mt-5">
+      <button class="btn-ghost !text-red-600" onclick="clearAgendaActual()"><i class="fa-solid fa-eraser mr-1"></i>Hapus Aktual</button>
+      <button class="btn-primary flex-1" onclick="saveAgendaActual()">Simpan</button>
+    </div>
   </div>
 </div>
 
@@ -3493,6 +3543,7 @@ function defaultState(){
     agendaRecurringSkips:[],
     agendaRecurringSeeded:true,
     agendaStatus:{},
+    agendaActual:{},
     agendaColorNames:{},
     aiInsightCache:{ dashboard:null, peserta:{} },
     feedbackTL:[],
@@ -3524,6 +3575,7 @@ function normalizeState(parsed){
   if(!Array.isArray(parsed.agendaRecurring)) parsed.agendaRecurring = [];
   if(!Array.isArray(parsed.agendaRecurringSkips)) parsed.agendaRecurringSkips = [];
   if(!parsed.agendaStatus || typeof parsed.agendaStatus!=='object') parsed.agendaStatus = {};
+  if(!parsed.agendaActual || typeof parsed.agendaActual!=='object') parsed.agendaActual = {};
   if(!parsed.agendaColorNames || typeof parsed.agendaColorNames!=='object') parsed.agendaColorNames = {};
   if(!parsed.aiInsightCache || typeof parsed.aiInsightCache!=='object') parsed.aiInsightCache = { dashboard:null, peserta:{} };
   if(!parsed.aiInsightCache.peserta || typeof parsed.aiInsightCache.peserta!=='object') parsed.aiInsightCache.peserta = {};
@@ -3900,36 +3952,44 @@ function ensureProgress(participant, moduleId){
 }
 
 /* ===================== AUTO BATCH dari modul Be A Great Employee =====================
- * Perhitungan Week/Batch berbasis minggu penuh Senin–Minggu:
- *   - Week/Batch 1 = minggu Senin–Minggu PERTAMA yang penuh dalam bulan itu,
- *     dimulai dari hari Senin pertama pada/​setelah tanggal 1.
- *   - Kalau tanggal 1 BUKAN hari Senin, sisa hari sebelum Senin pertama itu
- *     (mis. tgl 1 Jumat s/d tgl 3 Minggu) TIDAK dihitung sebagai Week 1 bulan
- *     ini — hari-hari itu digabung/dianggap KELANJUTAN dari Week/Batch
- *     TERAKHIR bulan SEBELUMNYA (bukan week/batch baru, dan bukan juga
- *     "tidak terpetakan").
- *   - Week/Batch 2..5 lanjut kelipatan 7 hari setelah Senin pertama. Minggu
- *     terakhir bisa lebih pendek dari 7 hari kalau bulan sudah habis duluan.
+ * Perhitungan Week/Batch berbasis minggu Senin–Minggu (training Selasa, Rabu, Jumat):
+ *   - Kalau tanggal 1 jatuh hari SENIN atau SELASA, Week/Batch 1 mulai dari
+ *     tanggal 1 (Selasa 1 → Week 1 = tgl 1–6, lalu Senin berikutnya Week 2).
+ *   - Kalau tanggal 1 jatuh hari RABU/KAMIS/JUMAT/SABTU/MINGGU, hari-hari sebelum
+ *     Senin pertama itu TIDAK dihitung Week 1 bulan ini — digabung/dianggap
+ *     KELANJUTAN dari Week/Batch TERAKHIR bulan SEBELUMNYA. Week 1 baru mulai
+ *     di Senin pertama.
+ *   - Tiap week berakhir di hari Minggu. Minggu terakhir bisa lebih pendek dari
+ *     7 hari kalau bulan sudah habis duluan.
  * Tanggal sumber: progress[m3].doneAt → joinDate → hari ini
  */
 const BATCH_TRIGGER_MODULE_ID = 'm3';
 
 function getMonthWeekRanges(year, monthIndex){
   // monthIndex: 0=Jan ... 11=Dec
+  // Aturan (training Selasa, Rabu, Jumat): minggu Senin–Minggu "dimiliki" bulan tempat hari Selasanya jatuh.
+  //  - tgl 1 = Senin / Selasa  -> Week 1 mulai tgl 1 (minggu tsb sudah masuk bulan ini)
+  //  - tgl 1 = Rabu s/d Minggu -> tgl 1 sampai sebelum Senin pertama ikut Week TERAKHIR bulan sebelumnya,
+  //                               Week 1 baru mulai di Senin pertama.
   const daysInMonth = new Date(year, monthIndex+1, 0).getDate();
-  let firstMonday = 1;
-  for(let d=1; d<=7; d++){
-    if(new Date(year, monthIndex, d).getDay() === 1){ firstMonday = d; break; } // 1 = Senin
+  const day1Weekday = new Date(year, monthIndex, 1).getDay(); // 0=Minggu..6=Sabtu
+  let start = 1;
+  if(day1Weekday !== 1 && day1Weekday !== 2){
+    for(let d=2; d<=8; d++){
+      if(new Date(year, monthIndex, d).getDay() === 1){ start = d; break; }
+    }
   }
   const ranges = {};
-  let day = firstMonday;
   let w = 1;
-  while(day <= daysInMonth){
-    ranges[w] = [day, Math.min(day+6, daysInMonth)];
-    day += 7;
+  while(start <= daysInMonth){
+    const dow = new Date(year, monthIndex, start).getDay();
+    // tiap week berakhir di hari Minggu (atau akhir bulan kalau bulan habis duluan)
+    const end = Math.min(start + ((7 - dow) % 7), daysInMonth);
+    ranges[w] = [start, end];
+    start = end + 1;
     w++;
   }
-  return ranges; // tgl 1..firstMonday-1 sengaja tidak ada di objek ini (lihat resolveWeekPeriod)
+  return ranges; // tgl sebelum Week 1 sengaja tidak ada di objek ini (lihat resolveWeekPeriod)
 }
 
 // Tentukan Week/Batch "pemilik" sebenarnya untuk sebuah tanggal, termasuk aturan
@@ -4062,8 +4122,11 @@ function mergeParticipantInto(target, source){
       if(typeof sp.posttestScore==='number'){
         if(typeof tp.posttestScore!=='number' || sp.posttestScore>tp.posttestScore) tp.posttestScore = sp.posttestScore;
       }
-      if(typeof sp.manualClosingScore==='number'){
-        if(typeof tp.manualClosingScore!=='number') tp.manualClosingScore = sp.manualClosingScore;
+      if(typeof sp.preRoleplayScore==='number'){
+        if(typeof tp.preRoleplayScore!=='number') tp.preRoleplayScore = sp.preRoleplayScore;
+      }
+      if(typeof sp.postRoleplayScore==='number'){
+        if(typeof tp.postRoleplayScore!=='number') tp.postRoleplayScore = sp.postRoleplayScore;
       }
     });
   }
@@ -4249,13 +4312,13 @@ const CLOSING_SKILL_MIN = 80;
 function closingSkillModule(){
   return MODULES.find(m=>(m.title||'').trim().toLowerCase()==='teknik closing');
 }
-// Nilai manual dari trainer disimpan menempel di progress modul Teknik Closing
-// milik peserta, terpisah dari quizScore, supaya konsisten dengan struktur progress yang sudah ada.
-function getClosingManualScore(participant, mod){
+// Nilai Pre & Post Roleplay Closing diisi manual oleh trainer, disimpan menempel
+// di progress modul Teknik Closing milik peserta (bukan lagi dari skor kuis otomatis).
+function getClosingRoleplayScore(participant, mod, field){
   const prog = participant.progress ? participant.progress[mod.id] : null;
-  return prog && typeof prog.manualClosingScore === 'number' ? prog.manualClosingScore : null;
+  return prog && typeof prog[field] === 'number' ? prog[field] : null;
 }
-function setClosingManualScore(participantId, rawValue){
+function setClosingRoleplayScore(participantId, field, rawValue){
   const p = getParticipant(participantId);
   const mod = closingSkillModule();
   if(!mod){ toast('Modul Teknik Closing tidak ditemukan, nilai tidak tersimpan'); renderClosingSkill(); return; }
@@ -4270,29 +4333,42 @@ function setClosingManualScore(participantId, rawValue){
   const prog = ensureProgress(p, mod.id);
   const trimmed = String(rawValue).trim();
   if(trimmed===''){
-    prog.manualClosingScore = null;
+    prog[field] = null;
   } else {
     let num = Number(trimmed);
-    if(isNaN(num)){ toast('Nilai manual harus berupa angka'); renderClosingSkill(); return; }
+    if(isNaN(num)){ toast('Nilai harus berupa angka'); renderClosingSkill(); return; }
     num = Math.max(0, Math.min(100, Math.round(num)));
-    prog.manualClosingScore = num;
+    prog[field] = num;
   }
   saveState();
-  logActivity(`Nilai manual Teknik Closing untuk "${p.name||p.username||'peserta'}" diperbarui menjadi ${prog.manualClosingScore===null?'-':prog.manualClosingScore}`);
-  toast(prog.manualClosingScore===null ? 'Nilai manual dikosongkan' : `Nilai manual tersimpan: ${prog.manualClosingScore}`);
+  const label = field==='preRoleplayScore' ? 'Pre Roleplay Closing' : 'Post Roleplay Closing';
+  logActivity(`Nilai ${label} untuk "${p.name||p.username||'peserta'}" diperbarui menjadi ${prog[field]===null?'-':prog[field]}`);
+  toast(prog[field]===null ? 'Nilai dikosongkan' : `Nilai tersimpan: ${prog[field]}`);
   renderClosingSkill();
 }
-// Menghitung nilai kuis, nilai manual, rata-rata, dan status growth untuk satu peserta.
+// Menghitung nilai pre roleplay, post roleplay, rata-rata, dan status growth untuk satu peserta.
 function getClosingSkillData(participant, mod){
-  const quiz = participant.progress[mod.id]?.quizScore;
-  const quizScore = typeof quiz === 'number' ? quiz : null;
-  const manualScore = getClosingManualScore(participant, mod);
+  const preScore = getClosingRoleplayScore(participant, mod, 'preRoleplayScore');
+  const postScore = getClosingRoleplayScore(participant, mod, 'postRoleplayScore');
   let avg = null;
-  if(quizScore!==null && manualScore!==null) avg = Math.round((quizScore+manualScore)/2);
-  else if(quizScore!==null) avg = quizScore;
-  else if(manualScore!==null) avg = manualScore;
-  const status = avg===null ? null : (avg>=CLOSING_SKILL_MIN ? 'growth' : 'belum');
-  return { quizScore, manualScore, avg, status };
+  if(preScore!==null && postScore!==null) avg = Math.round((preScore+postScore)/2);
+  else if(preScore!==null) avg = preScore;
+  else if(postScore!==null) avg = postScore;
+  // Growth ditentukan dari PERBANDINGAN Post vs Pre (bukan lagi dari nilai rata-rata):
+  //   Post > Pre  -> 'growth' | Post = Pre -> 'tetap' | Post < Pre -> 'belum' (tidak growth).
+  // Perlu kedua nilai terisi; kalau salah satu masih kosong, status null (Belum Dinilai).
+  const delta = (preScore!==null && postScore!==null) ? (postScore - preScore) : null;
+  const status = delta===null ? null : (delta>0 ? 'growth' : (delta<0 ? 'belum' : 'tetap'));
+  return { preScore, postScore, avg, status, delta };
+}
+function closingStatusBadgeHtml(status){
+  if(status===null || status===undefined) return '<span class="badge badge-slate">Belum Dinilai</span>';
+  if(status==='growth') return '<span class="badge badge-green"><i class="fa-solid fa-arrow-trend-up mr-1"></i>Growth</span>';
+  if(status==='tetap') return '<span class="badge" style="background:#e0f2fe;color:#0369a1"><i class="fa-solid fa-minus mr-1"></i>Tetap</span>';
+  return '<span class="badge badge-red"><i class="fa-solid fa-arrow-trend-down mr-1"></i>Belum Growth</span>';
+}
+function closingStatusColor(status){
+  return status==='growth' ? '#15803d' : status==='tetap' ? '#0369a1' : status==='belum' ? '#dc2626' : '#94a3b8';
 }
 // Mengisi opsi dropdown Bulan/Tahun/Batch di tab Peningkatan Skill Closing,
 // menggunakan variabel filter global yang sama dengan Dashboard & Resume supaya tetap sinkron.
@@ -4349,6 +4425,9 @@ function renderClosingSkill(){
   const rataRata = nilaiValid.length ? Math.round(nilaiValid.reduce((a,b)=>a+b,0)/nilaiValid.length) : 0;
   const growthCount = list.filter(x=>x.d.status==='growth').length;
   const belumCount = list.filter(x=>x.d.status==='belum').length;
+  const tetapCount = list.filter(x=>x.d.status==='tetap').length;
+  document.getElementById('cs-kpi-tetap').innerText = tetapCount;
+  document.getElementById('cs-kpi-tetap-sub').innerText = `${tetapCount} dari ${list.length} peserta`;
   document.getElementById('cs-kpi-avg').innerText = rataRata;
   document.getElementById('cs-kpi-avg-sub').innerText = `dari ${nilaiValid.length} peserta yang sudah dinilai`;
   document.getElementById('cs-kpi-growth').innerText = growthCount;
@@ -4359,11 +4438,8 @@ function renderClosingSkill(){
   emptyEl.classList.toggle('hidden', list.length>0);
   body.innerHTML = list.map(({p,d})=>{
     const initial = (p.name||'?').charAt(0).toUpperCase();
-    const quizHtml = d.quizScore===null ? '<span class="text-slate-300">Belum kuis</span>' : `<span class="font-semibold">${d.quizScore}</span>`;
-    const avgHtml = d.avg===null ? '<span class="text-slate-300">—</span>' : `<span class="font-extrabold text-sm" style="color:${d.status==='growth'?'#15803d':'#dc2626'}">${d.avg}</span>`;
-    const statusBadge = d.status===null ? '<span class="badge badge-slate">Belum Dinilai</span>'
-      : d.status==='growth' ? '<span class="badge badge-green"><i class="fa-solid fa-arrow-trend-up mr-1"></i>Growth</span>'
-      : '<span class="badge badge-red">Belum Growth</span>';
+    const avgHtml = d.avg===null ? '<span class="text-slate-300">—</span>' : `<span class="font-extrabold text-sm" style="color:${d.status===null?'#64748b':closingStatusColor(d.status)}">${d.avg}</span>`;
+    const statusBadge = closingStatusBadgeHtml(d.status);
     return `<tr class="border-b" style="border-color:var(--line)">
       <td class="py-2 pr-3">
         <div class="flex items-center gap-2">
@@ -4374,10 +4450,13 @@ function renderClosingSkill(){
           </div>
         </div>
       </td>
-      <td class="py-2 pr-3">${quizHtml}</td>
       <td class="py-2 pr-3">
-        <input type="number" min="0" max="100" placeholder="0-100" value="${d.manualScore===null?'':d.manualScore}"
-          class="field w-24 cs-manual-input" style="margin-top:0" data-pid="${escapeHtml(String(p.id))}">
+        <input type="number" min="0" max="100" placeholder="0-100" value="${d.preScore===null?'':d.preScore}"
+          class="field w-24 cs-pre-input" style="margin-top:0" data-pid="${escapeHtml(String(p.id))}">
+      </td>
+      <td class="py-2 pr-3">
+        <input type="number" min="0" max="100" placeholder="0-100" value="${d.postScore===null?'':d.postScore}"
+          class="field w-24 cs-post-input" style="margin-top:0" data-pid="${escapeHtml(String(p.id))}">
       </td>
       <td class="py-2 pr-3">${avgHtml}</td>
       <td class="py-2 pr-3">${statusBadge}</td>
@@ -4386,14 +4465,19 @@ function renderClosingSkill(){
   // Event delegation via data-pid, bukan string interpolation langsung di atribut
   // onchange, supaya id/nama peserta apa pun (termasuk yang mengandung tanda kutip
   // atau karakter tak biasa) tidak pernah membuat handler-nya rusak/gagal diam-diam.
-  body.querySelectorAll('input.cs-manual-input').forEach(inp=>{
+  body.querySelectorAll('input.cs-pre-input').forEach(inp=>{
     inp.addEventListener('change', function(){
-      setClosingManualScore(this.dataset.pid, this.value);
+      setClosingRoleplayScore(this.dataset.pid, 'preRoleplayScore', this.value);
+    });
+  });
+  body.querySelectorAll('input.cs-post-input').forEach(inp=>{
+    inp.addEventListener('change', function(){
+      setClosingRoleplayScore(this.dataset.pid, 'postRoleplayScore', this.value);
     });
   });
 }
 // ===================== EXPORT PENINGKATAN SKILL CLOSING → EXCEL =====================
-// Format: Peserta, Nilai Teknik Closing (kuis), Nilai Trainer (manual), Nilai Rata2, Status.
+// Format: Peserta, Nilai Pre Roleplay Closing, Nilai Post Roleplay Closing, Nilai Rata2, Status.
 // Ikut filter Bulan/Tahun/Batch & pencarian yang lagi aktif di tab ini.
 async function exportClosingSkillExcel(){
   if(typeof ExcelJS === 'undefined'){ toast('Modul export belum siap, coba lagi sebentar'); return; }
@@ -4435,7 +4519,7 @@ async function exportClosingSkillExcel(){
   const ws = wb.addWorksheet('Peserta & Kelulusan', { views:[{ state:'frozen', ySplit:1 }] });
   ws.columns = [{width:5},{width:24},{width:16},{width:12},{width:10},{width:18},{width:14},{width:12},{width:14}];
 
-  const headRow = ws.addRow(['No','Nama','Username','Bulan','Batch','Nilai Teknik Closing','Nilai Trainer','Nilai Rata2','Status']);
+  const headRow = ws.addRow(['No','Nama','Username','Bulan','Batch','Nilai Pre Roleplay Closing','Nilai Post Roleplay Closing','Nilai Rata2','Status']);
   headRow.eachCell(cell=>{
     cell.font = { bold:true, color:{argb:COLOR.headerFont} };
     cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.headerFill} };
@@ -4444,15 +4528,15 @@ async function exportClosingSkillExcel(){
   });
 
   list.forEach(({p,d}, idx)=>{
-    const statusLabel = d.status===null ? 'Belum Dinilai' : d.status==='growth' ? 'Growth' : 'Belum Growth';
+    const statusLabel = d.status===null ? 'Belum Dinilai' : d.status==='growth' ? 'Growth' : d.status==='tetap' ? 'Tetap' : 'Belum Growth';
     const row = ws.addRow([
       idx+1,
       p.name || '(Tanpa nama)',
       p.username || '-',
       p.bln || '-',
       p.batch || '-',
-      d.quizScore===null ? '-' : d.quizScore,
-      d.manualScore===null ? '-' : d.manualScore,
+      d.preScore===null ? '-' : d.preScore,
+      d.postScore===null ? '-' : d.postScore,
       d.avg===null ? '-' : d.avg,
       statusLabel
     ]);
@@ -4463,8 +4547,8 @@ async function exportClosingSkillExcel(){
       if(zebra) cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.zebra} };
     });
     const statusCell = row.getCell(9);
-    const fillColor = d.status==='growth' ? COLOR.growthFill : d.status==='belum' ? COLOR.belumFill : COLOR.kosongFill;
-    const fontColor = d.status==='growth' ? COLOR.growthFont : d.status==='belum' ? COLOR.belumFont : COLOR.kosongFont;
+    const fillColor = d.status==='growth' ? COLOR.growthFill : d.status==='belum' ? COLOR.belumFill : d.status==='tetap' ? 'FFE0F2FE' : COLOR.kosongFill;
+    const fontColor = d.status==='growth' ? COLOR.growthFont : d.status==='belum' ? COLOR.belumFont : d.status==='tetap' ? 'FF0369A1' : COLOR.kosongFont;
     statusCell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:fillColor} };
     statusCell.font = { bold:true, color:{argb:fontColor} };
   });
@@ -4566,23 +4650,36 @@ function computeFeedbackTLStatsFor(blnName, tahunNum){
 // Statistik Tasklist Marketing untuk satu periode Bulan/Tahun tertentu (dipakai
 // oleh kartu Resume KPI), dihitung dari state.tasklistMarketing.tasks berdasarkan
 // kolom Tanggal tiap task.
-/** Rata-rata % pengerjaan per orang, lalu dirata-rata antar orang (bukan rata task). */
+// Hitung Total / Done / Belum / % Task per baris tasklist. Total default 7 task.
+// Data lama yang belum punya doneTask: Done diturunkan dari % Task (43% dari 7 = 3).
+function tmCounts(t){
+  const total = Number(t.totalTask)>0 ? Math.round(Number(t.totalTask)) : 7;
+  let done;
+  if(t.doneTask!==undefined && t.doneTask!==null && t.doneTask!=='') done = Number(t.doneTask)||0;
+  else done = Math.round(((Number(t.pctTask)||0)/100)*total);
+  done = Math.max(0, Math.min(total, Math.round(done)));
+  return { total, done, belum: total-done, pct: total>0 ? Math.round((done/total)*100) : 0 };
+}
+/** Persentase pengerjaan per orang = total task Done dibagi total task (default 7 per baris tasklist),
+    lalu dirata-rata antar orang untuk persentase keseluruhan. */
 function computeApplyPctByPeople(taskList){
   const list = taskList || [];
   const byPerson = {};
   list.forEach(t=>{
     const key = String(t.employeeName || t.employee || t.nama || t.pic || '(Tanpa nama)').trim().toLowerCase() || '(tanpa nama)';
     if(!byPerson[key]) byPerson[key] = [];
-    byPerson[key].push(Number(t.pctTask)||0);
+    byPerson[key].push(t);
   });
   const personKeys = Object.keys(byPerson);
+  let totalUnits = 0, doneUnits = 0;
   const personAvgs = personKeys.map(k=>{
-    const arr = byPerson[k];
-    return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0;
+    let pt = 0, pd = 0;
+    byPerson[k].forEach(t=>{ const c = tmCounts(t); pt += c.total; pd += c.done; });
+    totalUnits += pt; doneUnits += pd;
+    return pt>0 ? Math.round((pd/pt)*100) : 0;
   });
   const pct = personAvgs.length ? Math.round(personAvgs.reduce((a,b)=>a+b,0)/personAvgs.length) : 0;
-  const done = list.filter(t=>!!t.actual).length;
-  return { total: list.length, done, pct, people: personKeys.length, personAvgs };
+  return { total: totalUnits, done: doneUnits, pct, people: personKeys.length, personAvgs };
 }
 function computeTasklistMarketingStatsFor(blnName, tahunNum){
   const list = (state.tasklistMarketing.tasks||[]).filter(t=>
@@ -4989,6 +5086,14 @@ let tmFilterStatus = '';
 let tmFilterSearch = '';
 let tmEditingId = null;
 function tmTasks(){ return state.tasklistMarketing.tasks; }
+const TM_DEFAULT_TOTAL = 7;
+function tmRecalcModal(){
+  const total = Number(document.getElementById('tm-f-totaltask').value)>0 ? Number(document.getElementById('tm-f-totaltask').value) : TM_DEFAULT_TOTAL;
+  let done = Number(document.getElementById('tm-f-donetask').value)||0;
+  done = Math.max(0, Math.min(total, done));
+  document.getElementById('tm-f-belumtask').value = total - done;
+  document.getElementById('tm-f-pcttask').value = Math.round((done/total)*100);
+}
 function tmStatusOf(t){
   if(t.actual) return 'selesai';
   if(t.deadline && new Date(t.deadline) < new Date(new Date().toDateString())) return 'terlambat';
@@ -5045,7 +5150,8 @@ function renderTasklistMarketing(){
     const status = tmStatusOf(t);
     if(status==='selesai') selesaiCount++;
     if(status==='terlambat') terlambatCount++;
-    sumPct += Number(t.pctTask)||0;
+    const c = tmCounts(t);
+    sumPct += c.pct;
     return `<tr class="border-b align-middle" style="border-color:var(--line)">
       <td class="py-2 pr-3">${idx+1}</td>
       <td class="py-2 pr-3 whitespace-nowrap">${fmtTmDate(t.tanggal)}</td>
@@ -5055,7 +5161,10 @@ function renderTasklistMarketing(){
       <td class="py-2 pr-3 whitespace-nowrap">${fmtTmDate(t.deadline)}</td>
       <td class="py-2 pr-3 whitespace-nowrap">${t.actual ? fmtTmDate(t.actual) : '-'}</td>
       <td class="py-2 pr-3 text-center">${t.leadtime ?? '-'}</td>
-      <td class="py-2 pr-3 text-center font-bold">${Number(t.pctTask)||0}%</td>
+      <td class="py-2 pr-3 text-center font-semibold">${c.total}</td>
+      <td class="py-2 pr-3 text-center font-semibold" style="color:#15803d">${c.done}</td>
+      <td class="py-2 pr-3 text-center font-semibold" style="color:#dc2626">${c.belum}</td>
+      <td class="py-2 pr-3 text-center font-bold">${c.pct}%</td>
       <td class="py-2 pr-3 text-center">${Number(t.pctWaitingApprove)||0}%</td>
       <td class="py-2 pr-3 text-center">${Number(t.pctApprove)||0}%</td>
       <td class="py-2 pr-3 whitespace-nowrap">${escapeHtml(t.spv||'-')}</td>
@@ -5104,10 +5213,10 @@ async function exportTasklistMarketingExcel(){
   const ws = wb.addWorksheet('Tasklist Marketing', { views:[{ state:'frozen', ySplit:1 }] });
   ws.columns = [
     {width:5},{width:14},{width:18},{width:26},{width:12},{width:10},{width:14},{width:14},{width:14},
-    {width:10},{width:9},{width:12},{width:10},{width:12},{width:12},{width:12}
+    {width:10},{width:11},{width:8},{width:8},{width:9},{width:12},{width:10},{width:12},{width:12},{width:12}
   ];
 
-  const headRow = ws.addRow(['No','Tanggal','ID Task','Employee Name','Bulan','Batch','Join Date','Deadline','Actual/Finish','Leadtime','% Task','% Waiting Approve','% Approve','SPV','MM','Status']);
+  const headRow = ws.addRow(['No','Tanggal','ID Task','Employee Name','Bulan','Batch','Join Date','Deadline','Actual/Finish','Leadtime','Total Task','Done','Belum','% Task','% Waiting Approve','% Approve','SPV','MM','Status']);
   headRow.eachCell(cell=>{
     cell.font = { bold:true, color:{argb:COLOR.headerFont} };
     cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.headerFill} };
@@ -5132,7 +5241,10 @@ async function exportTasklistMarketingExcel(){
       fmtTmDate(t.deadline),
       t.actual ? fmtTmDate(t.actual) : '-',
       t.leadtime ?? '-',
-      (Number(t.pctTask)||0) + '%',
+      tmCounts(t).total,
+      tmCounts(t).done,
+      tmCounts(t).belum,
+      tmCounts(t).pct + '%',
       (Number(t.pctWaitingApprove)||0) + '%',
       (Number(t.pctApprove)||0) + '%',
       t.spv || '-',
@@ -5145,14 +5257,14 @@ async function exportTasklistMarketingExcel(){
       cell.alignment = { vertical:'middle', horizontal: colNum===4 ? 'left' : 'center' };
       if(zebra) cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.zebra} };
     });
-    const statusCell = row.getCell(16);
+    const statusCell = row.getCell(19);
     const fillColor = status==='selesai' ? COLOR.selesaiFill : status==='terlambat' ? COLOR.terlambatFill : COLOR.prosesFill;
     const fontColor = status==='selesai' ? COLOR.selesaiFont : status==='terlambat' ? COLOR.terlambatFont : COLOR.prosesFont;
     statusCell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:fillColor} };
     statusCell.font = { bold:true, color:{argb:fontColor} };
   });
 
-  ws.autoFilter = { from:{row:1,column:1}, to:{row:1,column:16} };
+  ws.autoFilter = { from:{row:1,column:1}, to:{row:1,column:19} };
 
   const buf = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf], { type:'application/octet-stream' });
@@ -5165,7 +5277,10 @@ function markTasklistMarketingDone(id){
   const t = tmTasks().find(x=>x.id===id);
   if(!t) return;
   t.actual = new Date().toISOString().slice(0,10);
-  if(!t.pctTask) t.pctTask = 100;
+  const c = tmCounts(t);
+  t.totalTask = c.total;
+  t.doneTask = c.total;
+  t.pctTask = 100;
   saveState();
   renderTasklistMarketing();
   toast('Task ditandai selesai');
@@ -5213,9 +5328,11 @@ function openAddTasklistMarketing(){
   tmEditingId = null;
   document.getElementById('tm-modal-title').innerText = 'Tambah Task Marketing';
   document.getElementById('tm-delete-btn').classList.add('hidden');
-  ['idtask','tanggal','employee','doj','deadline','actual','leadtime','pcttask','pctwait','pctapprove','spv','mm'].forEach(f=>{
+  ['idtask','tanggal','employee','doj','deadline','actual','leadtime','pcttask','pctwait','pctapprove','spv','mm','donetask','belumtask'].forEach(f=>{
     document.getElementById('tm-f-'+f).value = '';
   });
+  document.getElementById('tm-f-totaltask').value = TM_DEFAULT_TOTAL;
+  tmRecalcModal();
   renderTmEmployeeDatalist();
   document.getElementById('tm-modal').classList.remove('hidden');
 }
@@ -5233,7 +5350,10 @@ function openEditTasklistMarketing(id){
   document.getElementById('tm-f-deadline').value = t.deadline||'';
   document.getElementById('tm-f-actual').value = t.actual||'';
   document.getElementById('tm-f-leadtime').value = t.leadtime ?? '';
-  document.getElementById('tm-f-pcttask').value = t.pctTask ?? '';
+  const c = tmCounts(t);
+  document.getElementById('tm-f-totaltask').value = c.total;
+  document.getElementById('tm-f-donetask').value = c.done;
+  tmRecalcModal();
   document.getElementById('tm-f-pctwait').value = t.pctWaitingApprove ?? '';
   document.getElementById('tm-f-pctapprove').value = t.pctApprove ?? '';
   document.getElementById('tm-f-spv').value = t.spv||'';
@@ -5255,6 +5375,10 @@ function saveTasklistMarketingModal(){
   }
   const dup = tmTasks().find(x=>x.id!==tmEditingId && String(x.idTask||'').trim().toLowerCase()===idTask.toLowerCase());
   if(dup){ toast(`ID Task "${idTask}" sudah dipakai task lain (${dup.employeeName||'-'}). Pakai ID Task yang berbeda.`); return; }
+  const tmSaved = tmCounts({
+    totalTask: document.getElementById('tm-f-totaltask').value,
+    doneTask: document.getElementById('tm-f-donetask').value===''? 0 : document.getElementById('tm-f-donetask').value
+  });
   const payload = {
     idTask,
     tanggal: document.getElementById('tm-f-tanggal').value || '',
@@ -5263,7 +5387,9 @@ function saveTasklistMarketingModal(){
     deadline: document.getElementById('tm-f-deadline').value || '',
     actual: document.getElementById('tm-f-actual').value || '',
     leadtime: document.getElementById('tm-f-leadtime').value===''? null : Number(document.getElementById('tm-f-leadtime').value),
-    pctTask: Number(document.getElementById('tm-f-pcttask').value)||0,
+    totalTask: tmSaved.total,
+    doneTask: tmSaved.done,
+    pctTask: tmSaved.pct,
     pctWaitingApprove: Number(document.getElementById('tm-f-pctwait').value)||0,
     pctApprove: Number(document.getElementById('tm-f-pctapprove').value)||0,
     spv: document.getElementById('tm-f-spv').value.trim(),
@@ -5307,7 +5433,8 @@ function importTasklistMarketingExcel(event){
         tanggal: col('Tanggal'), idTask: col('ID Task'), employeeName: col('Employee Name'),
         doj: col('Date of Joining'), deadline: col('Deadline Date'), actual: col('Actual / Finish'),
         leadtime: col('Leadtime'), pctTask: col('% Task'), pctWaitingApprove: col('% Waiting Approve'),
-        pctApprove: col('% Approve'), spv: col('SPV'), mm: col('MM')
+        pctApprove: col('% Approve'), spv: col('SPV'), mm: col('MM'),
+        totalTask: col('Total Task'), doneTask: col('Done')
       };
       let created = 0, updated = 0;
       for(let i=headerRowIdx+1; i<rows.length; i++){
@@ -5334,7 +5461,15 @@ function importTasklistMarketingExcel(event){
         if(idx.deadline>-1) t.deadline = excelDateToYMD(row[idx.deadline]) || t.deadline || '';
         if(idx.actual>-1) t.actual = excelDateToYMD(row[idx.actual]) || '';
         if(idx.leadtime>-1 && row[idx.leadtime]!==null) t.leadtime = Number(row[idx.leadtime]);
-        if(idx.pctTask>-1 && row[idx.pctTask]!==null) t.pctTask = Number(row[idx.pctTask]);
+        if(idx.totalTask>-1 && row[idx.totalTask]!==null && Number(row[idx.totalTask])>0) t.totalTask = Number(row[idx.totalTask]);
+        if(idx.doneTask>-1 && row[idx.doneTask]!==null){
+          t.doneTask = Number(row[idx.doneTask])||0;
+          const cc = tmCounts(t); t.pctTask = cc.pct;
+        } else if(idx.pctTask>-1 && row[idx.pctTask]!==null){
+          // Tanpa kolom Done: turunkan Done dari % Task (mis. 43% dari 7 task = 3)
+          t.pctTask = Number(row[idx.pctTask]);
+          delete t.doneTask;
+        }
         if(idx.pctWaitingApprove>-1 && row[idx.pctWaitingApprove]!==null) t.pctWaitingApprove = Number(row[idx.pctWaitingApprove]);
         if(idx.pctApprove>-1 && row[idx.pctApprove]!==null) t.pctApprove = Number(row[idx.pctApprove]);
         if(idx.spv>-1 && row[idx.spv]) t.spv = String(row[idx.spv]).trim();
@@ -6093,12 +6228,13 @@ function computeWeeklyKpiSeries(){
     series.training.push(ps.length ? Math.round((psDone/ps.length)*100) : 0);
 
     // Closing
-    let csAvg = 0;
+    let csPct = 0;
     if(csMod){
-      const csRows = ps.map(p=>getClosingSkillData(p, csMod)).filter(d=>d.avg!==null);
-      csAvg = csRows.length ? Math.round(csRows.reduce((a,d)=>a+d.avg,0)/csRows.length) : 0;
+      // % Closing Skill = peserta Growth (Post > Pre) dibagi peserta yang sudah dinilai (Pre & Post terisi)
+      const csRows = ps.map(p=>getClosingSkillData(p, csMod)).filter(d=>d.status!==null);
+      csPct = csRows.length ? Math.round((csRows.filter(d=>d.status==='growth').length/csRows.length)*100) : 0;
     }
-    series.closing.push(csAvg);
+    series.closing.push(csPct);
 
     // Impact GCI
     const gciW = gciMonthRows.filter(r=>inWeek(r.tanggal));
@@ -6259,15 +6395,15 @@ function renderResumeKpi(){
   // 4) Rata-rata nilai Skill Closing (kuis Teknik Closing + nilai manual trainer,
   // dirata-rata) untuk peserta sesuai filter bulan/tahun yang dipilih.
   const csMod = closingSkillModule();
-  let csAvg = 0, csGrowth = 0, csScored = 0;
+  let csPct = 0, csGrowth = 0, csScored = 0;
   if(csMod){
     const csData = scoped.map(p=>getClosingSkillData(p, csMod));
-    const csValid = csData.map(d=>d.avg).filter(v=>v!==null);
-    csScored = csValid.length;
-    csAvg = csValid.length ? Math.round(csValid.reduce((a,b)=>a+b,0)/csValid.length) : 0;
+    csScored = csData.filter(d=>d.status!==null).length; // dinilai = Pre & Post sudah terisi
     csGrowth = csData.filter(d=>d.status==='growth').length;
+    // % Closing Skill = peserta Growth / peserta dinilai (mis. 4 dari 4 = 100%)
+    csPct = csScored ? Math.round((csGrowth/csScored)*100) : 0;
   }
-  document.getElementById('resumekpi-closing-pct').innerText = csAvg + '%';
+  document.getElementById('resumekpi-closing-pct').innerText = csPct + '%';
   document.getElementById('resumekpi-closing-sub').innerText = csMod
     ? `${csGrowth} growth dari ${csScored} peserta dinilai${weekTag}`
     : 'Modul Teknik Closing belum ditemukan';
@@ -6311,7 +6447,7 @@ function renderResumeKpi(){
   // 8) Laporan Training Lengkap: persentase kelengkapan berdasarkan berapa dari
   // 7 indikator di atas yang sudah punya nilai (>0). Semua terisi = 100%, kalau
   // ada 1 indikator yang masih 0 (belum ada data), otomatis di bawah 100%.
-  const indikatorValues = [trainingPct, bookingPct, agendaStats.pct, csAvg, fltlStats.pct, scStats.pct, tmStats.pct];
+  const indikatorValues = [trainingPct, bookingPct, agendaStats.pct, csPct, fltlStats.pct, scStats.pct, tmStats.pct];
   const indikatorTerisi = indikatorValues.filter(v=>v>0).length;
   const lengkapPct = Math.round((indikatorTerisi/indikatorValues.length)*100);
   document.getElementById('resumekpi-lengkap-pct').innerText = lengkapPct + '%';
@@ -6327,7 +6463,7 @@ function renderResumeKpi(){
   renderKpiScore({
     agenda: agendaStats.pct,
     training: trainingPct,
-    closing: csAvg,
+    closing: csPct,
     apply: applyPct,
     impact: impactPct,
     lengkap: lengkapPct,
@@ -6346,7 +6482,7 @@ function renderResumeKpi(){
   const barColor = (pct) => pct >= 80 ? 'var(--brand-500)' : pct >= 60 ? '#f59e0b' : '#f87171';
   setBar('resumekpi-agenda-bar', agendaStats.pct, barColor(agendaStats.pct));
   setBar('resumekpi-training-bar', trainingPct, barColor(trainingPct));
-  setBar('resumekpi-closing-bar', csAvg, barColor(csAvg));
+  setBar('resumekpi-closing-bar', csPct, barColor(csPct));
   setBar('resumekpi-tm-bar', applyPct, barColor(applyPct));
   setBar('resumekpi-apply-bar', applyPct, barColor(applyPct));
   setBar('resumekpi-booking-bar', impactPct, barColor(impactPct));
@@ -6363,7 +6499,7 @@ function renderResumeKpi(){
   };
   setPctColor('resumekpi-agenda-pct', agendaStats.pct);
   setPctColor('resumekpi-training-pct', trainingPct);
-  setPctColor('resumekpi-closing-pct', csAvg);
+  setPctColor('resumekpi-closing-pct', csPct);
   setPctColor('resumekpi-tm-pct', applyPct);
   setPctColor('resumekpi-apply-pct', applyPct);
   setPctColor('resumekpi-booking-pct', impactPct);
@@ -6373,7 +6509,7 @@ function renderResumeKpi(){
   setPctColor('resumekpi-sc-pct', scStats.pct);
 
   window.__lastResumeKpiMetrics = {
-    agenda: agendaStats.pct, training: trainingPct, closing: csAvg,
+    agenda: agendaStats.pct, training: trainingPct, closing: csPct,
     apply: applyPct, impact: impactPct, lengkap: lengkapPct,
     fltl: fltlStats.pct, sc: scStats.pct
   };
@@ -6910,7 +7046,8 @@ function renderAgendaWajibDetailModal(){
         <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style="background:${status==='selesai'?'#dcfce7':'#fef2f2'};color:${status==='selesai'?'#15803d':'#b91c1c'}"><i class="fa-solid ${status==='selesai'?'fa-circle-check':'fa-repeat'} text-xs"></i></div>
         <div class="flex-1 min-w-0">
           <p class="text-xs font-bold ${status==='selesai'?'text-emerald-800':''}">${escapeHtml(e.title)}</p>
-          <p class="text-[10px] text-slate-400 mt-0.5">${escapeHtml(dateLabel)}${e.time?(' · '+escapeHtml(e.time)):''}${e.location?(' · '+escapeHtml(e.location)):''}</p>
+          <p class="text-[10px] text-slate-400 mt-0.5">Plan: ${escapeHtml(dateLabel)}${e.time?(' · '+escapeHtml(e.time)):''}${e.location?(' · '+escapeHtml(e.location)):''}</p>
+          <p class="text-[10px] mt-0.5">${agendaActualLineHtml(e)}</p>
         </div>
         <span class="badge flex-shrink-0" style="background:${sMeta.bg};color:${sMeta.color}"><i class="fa-solid ${sMeta.icon} mr-1"></i>${sMeta.label}</span>
       </div>`;
@@ -7151,9 +7288,9 @@ function renderApplyDetailModal(){
           <span class="text-xs font-bold text-slate-300">—</span>
         </div></div>`;
     }
-    const dN = items.filter(t=>!!t.actual).length;
-    const tot = items.length;
     const peopleStats = computeApplyPctByPeople(items);
+    const dN = peopleStats.done;
+    const tot = peopleStats.total;
     const pct = peopleStats.pct;
     const pctColor = pct>=100 ? '#15803d' : pct>=70 ? 'var(--brand-600)' : pct>=40 ? '#d97706' : '#dc2626';
     const barBg = pct>=100 ? '#16a34a' : pct>=70 ? 'var(--brand-500)' : pct>=40 ? '#f59e0b' : '#ef4444';
@@ -7166,9 +7303,9 @@ function renderApplyDetailModal(){
     });
     const rows = Object.keys(byPerson).map(name=>{
       const personTasks = byPerson[name];
-      const personPct = Math.round(personTasks.reduce((a,t)=>a+(Number(t.pctTask)||0),0)/personTasks.length);
-      const personDone = personTasks.filter(t=>!!t.actual).length;
-      const personTot = personTasks.length;
+      let personTot = 0, personDone = 0;
+      personTasks.forEach(t=>{ const c = tmCounts(t); personTot += c.total; personDone += c.done; });
+      const personPct = personTot>0 ? Math.round((personDone / personTot) * 100) : 0;
       const ok = personDone>=personTot;
       const pColor = personPct>=100 ? '#15803d' : personPct>=70 ? 'var(--brand-600)' : personPct>=40 ? '#d97706' : '#dc2626';
       const lastDate = personTasks.map(t=>t.tanggal).filter(Boolean).sort().pop();
@@ -7297,7 +7434,7 @@ function renderClosingSkillDetailModal(){
     return;
   }
   const rows = scoped.map(p=>({ p, d: getClosingSkillData(p, mod) }));
-  const scored = rows.filter(x=>x.d.avg!==null);
+  const scored = rows.filter(x=>x.d.status!==null);
   const growth = rows.filter(x=>x.d.status==='growth').length;
   if(sub) sub.innerText = `${growth} growth dari ${scored.length} peserta dinilai · ${periodLabel}. Batch 1–5 = Week 1–5.`;
   if(!scoped.length){
@@ -7324,7 +7461,7 @@ function renderClosingSkillDetailModal(){
         </div>
       </div>`;
     }
-    const scoredItems = items.filter(x=>x.d.avg!==null);
+    const scoredItems = items.filter(x=>x.d.status!==null);
     const growthN = items.filter(x=>x.d.status==='growth').length;
     const total = scoredItems.length;
     const pct = total ? Math.round((growthN/total)*100) : 0;
@@ -7341,10 +7478,10 @@ function renderClosingSkillDetailModal(){
         <div class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white text-xs flex-shrink-0" style="background:${growthOk?'#16a34a':'var(--brand-600)'}">${escapeHtml((p.name||'?').charAt(0).toUpperCase())}</div>
         <div class="flex-1 min-w-0">
           <p class="text-xs font-bold ${growthOk?'text-emerald-800':''}">${escapeHtml(p.name)||'(Tanpa nama)'}</p>
-          <p class="text-[10px] text-slate-400">${escapeHtml(p.posisi)||'—'} · Kuis ${d.quizScore===null?'—':d.quizScore} · Manual ${d.manualScore===null?'—':d.manualScore}${p.batch?' · '+escapeHtml(p.batch):''}</p>
+          <p class="text-[10px] text-slate-400">${escapeHtml(p.posisi)||'—'} · Pre ${d.preScore===null?'—':d.preScore} · Post ${d.postScore===null?'—':d.postScore}${p.batch?' · '+escapeHtml(p.batch):''}</p>
         </div>
-        <span class="text-xs font-extrabold mr-2" style="color:${growthOk?'#15803d':(d.avg===null?'#94a3b8':'#dc2626')}">${avgShow}</span>
-        ${growthOk?'<span class="badge badge-green">Growth</span>':(d.avg===null?'<span class="badge badge-slate">Belum dinilai</span>':'<span class="badge badge-red">Belum Growth</span>')}
+        <span class="text-xs font-extrabold mr-2" style="color:${closingStatusColor(d.status)}">${avgShow}</span>
+        ${closingStatusBadgeHtml(d.status)}
       </div>`;
     }).join('');
     return `<div class="mb-4 rounded-xl border overflow-hidden" style="border-color:${pct>=100?'#86efac':'var(--line)'}">
@@ -7365,7 +7502,7 @@ function renderClosingSkillDetailModal(){
   }).join('') + ((byBatch[0]||[]).length ? (()=>{
     const items = byBatch[0];
     const growthN = items.filter(x=>x.d.status==='growth').length;
-    const scoredN = items.filter(x=>x.d.avg!==null).length;
+    const scoredN = items.filter(x=>x.d.status!==null).length;
     const pct = scoredN ? Math.round((growthN/scoredN)*100) : 0;
     const listHtml = items.map(({p,d})=>{
       const growthOk = d.status==='growth';
@@ -7375,7 +7512,7 @@ function renderClosingSkillDetailModal(){
           <p class="text-xs font-bold">${escapeHtml(p.name)||'(Tanpa nama)'}</p>
           <p class="text-[10px] text-slate-400">${p.batch?escapeHtml(p.batch):'tanpa batch'} · ${d.avg===null?'—':d.avg}</p>
         </div>
-        ${growthOk?'<span class="badge badge-green">Growth</span>':'<span class="badge badge-slate">—</span>'}
+        ${closingStatusBadgeHtml(d.status)}
       </div>`;
     }).join('');
     return `<div class="mb-4 rounded-xl border border-slate-200 overflow-hidden">
@@ -9877,6 +10014,99 @@ function agendaStatusMeta(status){
   if(status==='tunda') return { label:'Ditunda', color:'#92400e', bg:'#fef3c7', icon:'fa-clock-rotate-left' };
   return { label:'Belum', color:'#64748b', bg:'#f1f5f9', icon:'fa-circle-dot' };
 }
+// ---- Plan vs Aktual kegiatan agenda ----
+// Plan   = jadwal rencana kegiatan (e.date + e.time).
+// Aktual = kapan kegiatan benar-benar dilaksanakan, disimpan di state.agendaActual[key] = { date, time }
+//          (key sama dengan agendaStatusKey). Kalau kegiatan sudah berstatus Selesai tapi belum ada aktual
+//          tercatat (mis. auto-selesai H+1), aktual dianggap sesuai plan.
+function agendaFmtPlanActual(dateStr, timeStr){
+  const AGENDA_DOW_SHORT = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+  if(!dateStr) return '-';
+  const dt = new Date(dateStr+'T00:00:00');
+  if(isNaN(dt)) return '-';
+  return AGENDA_DOW_SHORT[dt.getDay()]+', '+dt.getDate()+' '+MONTH_NAMES_ID[dt.getMonth()].slice(0,3)+(timeStr?(' · '+timeStr):'');
+}
+function getAgendaActual(e){
+  const saved = (state.agendaActual||{})[agendaStatusKey(e)];
+  if(saved && saved.date) return { date:saved.date, time:saved.time||'', auto:false };
+  if(getAgendaEffectiveStatus(e)==='selesai') return { date:e.date, time:e.time||'', auto:true };
+  return null;
+}
+function agendaActualDiff(e, actual){
+  if(!actual || !e.date) return null;
+  const days = Math.round((new Date(actual.date+'T00:00:00') - new Date(e.date+'T00:00:00')) / 86400000);
+  if(days>0) return { label:'Mundur '+days+' hari', color:'#b45309', bg:'#fef3c7' };
+  if(days<0) return { label:'Maju '+(-days)+' hari', color:'#1d4ed8', bg:'#dbeafe' };
+  if(e.time && actual.time && e.time!==actual.time){
+    const toMin = t=>{ const p=String(t).split(':'); return (parseInt(p[0],10)||0)*60+(parseInt(p[1],10)||0); };
+    const m = toMin(actual.time) - toMin(e.time);
+    if(m>0) return { label:'Telat '+m+' mnt', color:'#b45309', bg:'#fef3c7' };
+    if(m<0) return { label:'Lebih awal '+(-m)+' mnt', color:'#1d4ed8', bg:'#dbeafe' };
+  }
+  return { label:'Sesuai plan', color:'#15803d', bg:'#dcfce7' };
+}
+function agendaActualLineHtml(e){
+  const a = getAgendaActual(e);
+  if(!a) return '<span class="text-slate-400">Aktual: belum dilaksanakan</span>';
+  const d = agendaActualDiff(e, a);
+  return '<span style="color:#15803d;font-weight:700">Aktual: '+escapeHtml(agendaFmtPlanActual(a.date, a.time))+'</span>'
+    + (d ? ' <span class="badge" style="background:'+d.bg+';color:'+d.color+'">'+d.label+'</span>' : '');
+}
+let agendaActualCtx = null;
+function findAgendaEventForCtx(ctx){
+  const events = getAgendaEventsForDate(ctx.dateStr);
+  return ctx.concreteId
+    ? events.find(x=>!x.isRecurring && x.id===ctx.concreteId)
+    : events.find(x=>x.isRecurring && x.recurringId===ctx.recurringId);
+}
+function openAgendaActualModal(dateStr, concreteId, recurringId){
+  const ctx = { dateStr, concreteId, recurringId };
+  const e = findAgendaEventForCtx(ctx);
+  if(!e) return;
+  agendaActualCtx = ctx;
+  const a = getAgendaActual(e);
+  const todayStr = toYMD(new Date());
+  document.getElementById('agenda-actual-title').innerText = e.title || '(tanpa judul)';
+  document.getElementById('agenda-actual-plan').innerText =
+    new Date(e.date+'T00:00:00').toLocaleDateString('id-ID',{weekday:'long', day:'numeric', month:'long', year:'numeric'}) + (e.time ? (' · '+e.time) : '');
+  document.getElementById('agenda-actual-date').value = a ? a.date : (e.date <= todayStr ? e.date : todayStr);
+  document.getElementById('agenda-actual-time').value = a ? (a.time||'') : (e.time||'');
+  document.getElementById('agenda-actual-modal').classList.remove('hidden');
+}
+function closeAgendaActualModal(){
+  document.getElementById('agenda-actual-modal').classList.add('hidden');
+  agendaActualCtx = null;
+}
+function saveAgendaActual(){
+  if(!agendaActualCtx) return;
+  const e = findAgendaEventForCtx(agendaActualCtx);
+  if(!e){ closeAgendaActualModal(); return; }
+  const date = document.getElementById('agenda-actual-date').value;
+  const time = document.getElementById('agenda-actual-time').value;
+  if(!date){ toast('Tanggal aktual wajib diisi'); return; }
+  if(!state.agendaActual) state.agendaActual = {};
+  if(!state.agendaStatus) state.agendaStatus = {};
+  const key = agendaStatusKey(e);
+  state.agendaActual[key] = { date, time: time||'' };
+  state.agendaStatus[key] = 'selesai'; // ada aktual = kegiatan sudah dilaksanakan
+  logActivity(`Aktual kegiatan agenda "${e.title}" dicatat: ${date}${time?(' '+time):''}`);
+  saveState();
+  closeAgendaActualModal();
+  renderAgenda();
+  toast('Plan & aktual kegiatan tersimpan');
+}
+function clearAgendaActual(){
+  if(!agendaActualCtx) return;
+  const e = findAgendaEventForCtx(agendaActualCtx);
+  if(e && state.agendaActual){
+    delete state.agendaActual[agendaStatusKey(e)];
+    logActivity(`Aktual kegiatan agenda "${e.title}" dihapus`);
+    saveState();
+  }
+  closeAgendaActualModal();
+  renderAgenda();
+  toast('Aktual dihapus');
+}
 function setAgendaStatusForEvent(dateStr, concreteId, recurringId, status){
   const events = getAgendaEventsForDate(dateStr);
   const e = concreteId ? events.find(x=>!x.isRecurring && x.id===concreteId) : events.find(x=>x.isRecurring && x.recurringId===recurringId);
@@ -9885,6 +10115,17 @@ function setAgendaStatusForEvent(dateStr, concreteId, recurringId, status){
   const key = agendaStatusKey(e);
   if(status==='pending') delete state.agendaStatus[key];
   else state.agendaStatus[key] = status;
+  // Plan vs Aktual: tandai Selesai otomatis mengisi aktual (bisa diubah lewat tombol "Ubah Aktual");
+  // Belum/Tunda menghapus aktual karena kegiatan belum terlaksana.
+  if(!state.agendaActual) state.agendaActual = {};
+  if(status==='selesai'){
+    if(!state.agendaActual[key]){
+      const todayStr = toYMD(new Date());
+      state.agendaActual[key] = { date: (e.date <= todayStr ? e.date : todayStr), time: e.time||'' };
+    }
+  } else {
+    delete state.agendaActual[key];
+  }
   const label = status==='selesai' ? 'Selesai' : status==='tunda' ? 'Ditunda' : 'Belum (direset)';
   logActivity(`Kegiatan agenda "${e.title}" ditandai ${label}`);
   saveState();
@@ -9999,6 +10240,22 @@ function agendaEventRowHtml(e){
   const btnTunda = status==='tunda'
     ? `<button onclick="event.stopPropagation();setAgendaStatusForEvent('${e.date}', ${argIds}, 'pending')" class="text-[10px] font-bold px-2 py-1 rounded-md" style="background:#fef3c7;color:#92400e"><i class="fa-solid fa-rotate-left mr-1"></i>Batalkan Tunda</button>`
     : `<button onclick="event.stopPropagation();setAgendaStatusForEvent('${e.date}', ${argIds}, 'tunda')" class="text-[10px] font-bold px-2 py-1 rounded-md btn-ghost"><i class="fa-solid fa-clock mr-1"></i>Tunda</button>`;
+  const actual = getAgendaActual(e);
+  const diff = agendaActualDiff(e, actual);
+  const btnAktual = `<button onclick="event.stopPropagation();openAgendaActualModal('${e.date}', ${argIds})" class="text-[10px] font-bold px-2 py-1 rounded-md btn-ghost"><i class="fa-solid fa-pen mr-1"></i>${actual && !actual.auto ? 'Ubah Aktual' : 'Isi Aktual'}</button>`;
+  const planActualHtml = `<div class="grid grid-cols-2 gap-2 pl-12">
+      <div class="rounded-md px-2 py-1.5" style="background:#f8fafc;border:1px solid var(--line)">
+        <p class="text-[9px] font-extrabold text-slate-400 uppercase tracking-wide">Plan</p>
+        <p class="text-[11px] font-bold text-slate-600">${escapeHtml(agendaFmtPlanActual(e.date, e.time))}</p>
+      </div>
+      <div class="rounded-md px-2 py-1.5" style="background:${actual?'#f0fdf4':'#f8fafc'};border:1px solid ${actual?'#bbf7d0':'var(--line)'}">
+        <p class="text-[9px] font-extrabold text-slate-400 uppercase tracking-wide">Aktual</p>
+        ${actual
+          ? `<p class="text-[11px] font-bold" style="color:#15803d">${escapeHtml(agendaFmtPlanActual(actual.date, actual.time))}</p>
+             ${diff ? `<span class="badge mt-1" style="background:${diff.bg};color:${diff.color}">${diff.label}</span>` : ''}`
+          : '<p class="text-[11px] font-semibold text-slate-300">Belum dilaksanakan</p>'}
+      </div>
+    </div>`;
   const rowBg = status==='selesai' ? '#f0fdf4' : (status==='tunda' ? '#fffbeb' : '#fff');
   const rowBorder = status==='selesai' ? '#86efac' : (status==='tunda' ? '#fde68a' : 'var(--line)');
   const iconBg = status==='selesai' ? '#dcfce7' : cMeta.bg;
@@ -10020,7 +10277,8 @@ function agendaEventRowHtml(e){
         ${e.notes?`<p class="text-[10px] text-slate-500 mt-1">${escapeHtml(e.notes)}</p>`:''}
       </div>
     </div>
-    <div class="flex items-center gap-2 pl-12">${btnSelesai}${btnTunda}</div>
+    ${planActualHtml}
+    <div class="flex items-center gap-2 pl-12 flex-wrap">${btnSelesai}${btnTunda}${btnAktual}</div>
   </div>`;
 }
 function renderAgenda(){
@@ -10143,7 +10401,15 @@ async function exportAgendaWeeklyExcel(){
       const statusLabel = status==='selesai' ? 'Selesai' : status==='tunda' ? 'Ditunda' : 'Belum';
       const catLabel = (AGENDA_CATEGORY_META[e.category]||AGENDA_CATEGORY_META.lainnya).label;
       const dow = WEEKDAY_NAMES_ID[new Date(dateStr+'T00:00:00').getDay()];
+      const actual = getAgendaActual(e);
+      const actDiff = agendaActualDiff(e, actual);
+      const fmtPA = (d,t)=> new Date(d+'T00:00:00').toLocaleDateString('id-ID',{day:'numeric', month:'short', year:'numeric'}) + (t ? (' · '+t) : '');
+      const ketKind = !actual ? 'none' : (actDiff && actDiff.label==='Sesuai plan' ? 'ok' : 'off');
       rows.push({
+        planText: fmtPA(e.date, e.time),
+        actText: actual ? fmtPA(actual.date, actual.time) : '-',
+        ketKind,
+        ketText: ketKind==='none' ? 'Belum Terlaksana' : (ketKind==='ok' ? 'Sesuai' : 'Tidak Sesuai (' + (actDiff ? actDiff.label : '-') + ')'),
         week: weekOfMonthForDate(dateStr, year, month),
         dateStr, dow,
         title: e.title || '(tanpa judul)',
@@ -10187,30 +10453,31 @@ async function exportAgendaWeeklyExcel(){
   // ============ SHEET 1: DETAIL PER MINGGU ============
   const ws = wb.addWorksheet('Detail Per Minggu', { views:[{ state:'frozen', ySplit:3 }] });
   ws.columns = [
-    {width:5},{width:14},{width:10},{width:34},{width:10},{width:18},{width:8},{width:9},{width:20},{width:30},{width:12}
+    {width:5},{width:14},{width:10},{width:34},{width:10},{width:18},{width:8},{width:9},{width:20},{width:30},{width:24},{width:24},{width:26},{width:12}
   ];
 
   const titleRow = ws.addRow(['AGENDA KEGIATAN - ' + monthLabel.toUpperCase()]);
-  ws.mergeCells(1,1,1,11);
+  ws.mergeCells(1,1,1,14);
   titleRow.getCell(1).font = { bold:true, size:14, color:{argb:COLOR.headerFont} };
   titleRow.getCell(1).fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.headerFill} };
   titleRow.getCell(1).alignment = { horizontal:'center', vertical:'middle' };
   titleRow.height = 24;
-  for(let c=1;c<=11;c++){ ws.getRow(1).getCell(c).fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.headerFill} }; }
+  for(let c=1;c<=14;c++){ ws.getRow(1).getCell(c).fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.headerFill} }; }
 
   ws.addRow([]);
 
-  const headerLabels = ['No','Tanggal','Hari','Nama Kegiatan','Jenis','Kategori','Wajib','Waktu','Lokasi','Catatan','Status'];
+  const headerLabels = ['No','Tanggal','Hari','Nama Kegiatan','Jenis','Kategori','Wajib','Waktu','Lokasi','Catatan','Plan','Aktual','Keterlaksanaan','Status'];
 
   weekKeys.forEach(wk=>{
     const list = byWeek[wk];
     const doneCount = list.filter(r=>r.statusLabel==='Selesai').length;
     const pct = Math.round(doneCount/list.length*100);
 
-    const weekRow = ws.addRow(['MINGGU ' + wk + ' — ' + list.length + ' kegiatan, ' + doneCount + ' selesai (' + pct + '%)']);
-    ws.mergeCells(weekRow.number,1,weekRow.number,11);
+    const sesuaiCount = list.filter(r=>r.ketKind==='ok').length;
+    const weekRow = ws.addRow(['MINGGU ' + wk + ' — ' + list.length + ' kegiatan, ' + doneCount + ' selesai (' + pct + '%), ' + sesuaiCount + ' sesuai plan']);
+    ws.mergeCells(weekRow.number,1,weekRow.number,14);
     weekRow.height = 20;
-    for(let c=1;c<=11;c++){
+    for(let c=1;c<=14;c++){
       const cell = weekRow.getCell(c);
       cell.font = { bold:true, color:{argb:COLOR.weekFont} };
       cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.weekFill} };
@@ -10227,7 +10494,7 @@ async function exportAgendaWeeklyExcel(){
 
     list.forEach((r,idx)=>{
       const dLabel = new Date(r.dateStr+'T00:00:00').toLocaleDateString('id-ID',{day:'numeric', month:'short', year:'numeric'});
-      const dataRow = ws.addRow([idx+1, dLabel, r.dow, r.title, r.isRecurring, r.cat, r.wajib, r.time, r.location, r.notes, r.statusLabel]);
+      const dataRow = ws.addRow([idx+1, dLabel, r.dow, r.title, r.isRecurring, r.cat, r.wajib, r.time, r.location, r.notes, r.planText, r.actText, r.ketText, r.statusLabel]);
       const zebra = idx % 2 === 1;
       dataRow.eachCell((cell, colNum)=>{
         cell.border = borderAll;
@@ -10235,7 +10502,10 @@ async function exportAgendaWeeklyExcel(){
         if(zebra) cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.zebra} };
       });
       dataRow.getCell(4).alignment = { vertical:'middle', horizontal:'left' };
-      const statusCell = dataRow.getCell(11);
+      const ketCell = dataRow.getCell(13);
+      ketCell.fill = { type:'pattern', pattern:'solid', fgColor:{argb: r.ketKind==='ok' ? COLOR.selesaiFill : r.ketKind==='off' ? 'FFFEE2E2' : COLOR.belumFill} };
+      ketCell.font = { bold:true, color:{argb: r.ketKind==='ok' ? COLOR.selesaiFont : r.ketKind==='off' ? 'FFB91C1C' : COLOR.belumFont} };
+      const statusCell = dataRow.getCell(14);
       const fillColor = r.statusLabel==='Selesai' ? COLOR.selesaiFill : r.statusLabel==='Ditunda' ? COLOR.tundaFill : COLOR.belumFill;
       const fontColor = r.statusLabel==='Selesai' ? COLOR.selesaiFont : r.statusLabel==='Ditunda' ? COLOR.tundaFont : COLOR.belumFont;
       statusCell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:fillColor} };
@@ -10247,8 +10517,8 @@ async function exportAgendaWeeklyExcel(){
 
   // ============ SHEET 2: RINGKASAN ============
   const wsR = wb.addWorksheet('Ringkasan');
-  wsR.columns = [{width:12},{width:16},{width:10},{width:10},{width:10},{width:11}];
-  const rHead = wsR.addRow(['Minggu','Total Kegiatan','Selesai','Ditunda','Belum','% Selesai']);
+  wsR.columns = [{width:12},{width:16},{width:10},{width:10},{width:10},{width:11},{width:13},{width:14}];
+  const rHead = wsR.addRow(['Minggu','Total Kegiatan','Selesai','Ditunda','Belum','% Selesai','Sesuai Plan','Tidak Sesuai']);
   rHead.eachCell(cell=>{
     cell.font = { bold:true, color:{argb:COLOR.headerFont} };
     cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.headerFill} };
@@ -10261,7 +10531,9 @@ async function exportAgendaWeeklyExcel(){
     const tunda = list.filter(r=>r.statusLabel==='Ditunda').length;
     const belum = list.filter(r=>r.statusLabel==='Belum').length;
     const pct = Math.round(selesai/list.length*100);
-    const row = wsR.addRow(['Minggu ' + wk, list.length, selesai, tunda, belum, pct + '%']);
+    const sesuaiPlan = list.filter(r=>r.ketKind==='ok').length;
+    const tidakSesuai = list.filter(r=>r.ketKind==='off').length;
+    const row = wsR.addRow(['Minggu ' + wk, list.length, selesai, tunda, belum, pct + '%', sesuaiPlan, tidakSesuai]);
     row.eachCell(cell=>{ cell.border = borderAll; cell.alignment = { vertical:'middle', horizontal:'center' }; });
     const pctCell = row.getCell(6);
     const fillColor = pct===100 ? COLOR.selesaiFill : pct===0 ? COLOR.belumFill : COLOR.tundaFill;
