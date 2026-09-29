@@ -487,56 +487,107 @@ function classifyGciStatus(row){
   return status === 'leads' ? 'leads' : 'booking';
 }
 
-/* ---------- Week: Senin–Minggu (training Selasa, Rabu, Jumat). Week 1 mulai dari tgl 1
-   kalau tgl 1 jatuh hari Senin/Selasa. Kalau tgl 1 jatuh Rabu/Kamis/Jumat/Sabtu/Minggu,
-   hari-hari itu ikut Week terakhir bulan sebelumnya, dan Week 1 bulan ini baru mulai
-   dari Senin berikutnya. Setiap week berakhir di hari Minggu. ---------- */
+/* ---------- Week/Batch: Senin–Minggu PENUH, satu week = satu bulan ----------
+   Aturan pemilik bulan: sebuah week (Senin–Minggu) ikut bulan tempat MAYORITAS harinya
+   jatuh, yaitu bulan tempat hari KAMIS-nya berada (sama seperti ISO 8601). Week yang
+   nyebrang bulan TIDAK dipecah dua, utuh ikut satu bulan saja.
+     Contoh 2026: Sen 28 Sep – Min 4 Okt → Kamisnya tgl 1 Okt → itu WEEK 1 OKTOBER
+     (bukan Week 5 September), jadi September hanya punya 4 week (W1–W4).
+     Sen 26 Okt – Min 1 Nov → Kamisnya tgl 29 Okt → itu WEEK 5 OKTOBER.
+   Nomor week = urutan hari pemilik di bulan itu (pertama = W1). Maksimal 5 week.
+   Ubah WEEK_OWNER_WEEKDAY kalau aturan pemilik mau diganti:
+     4 = Kamis (mayoritas hari, default)
+     0 = Minggu (week nyebrang bulan selalu ikut bulan BERIKUTNYA)
+     1 = Senin  (week nyebrang bulan selalu ikut bulan SEBELUMNYA)
+   Total per BULAN (tanpa pilih week) tetap per tanggal kalender. ---------- */
+var WEEK_OWNER_WEEKDAY = 4;
+function weekOwnerDow(){ return (typeof WEEK_OWNER_WEEKDAY === 'number') ? WEEK_OWNER_WEEKDAY : 4; }
+function weekYMD(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+// week (Senin–Minggu) yang memuat sebuah tanggal kalender → {year, month, week, start, end}
+// year/month/week = bulan PEMILIK & nomor week; start/end = Senin & Minggu week tsb (Date)
+function weekPeriodOfDate(year, monthIndex, day){
+  const dowMon = (new Date(year, monthIndex, Number(day)).getDay() + 6) % 7; // Sen=0 … Min=6
+  const start = new Date(year, monthIndex, Number(day) - dowMon);
+  const ownerOffset = (weekOwnerDow() + 6) % 7;
+  const owner = new Date(start.getFullYear(), start.getMonth(), start.getDate() + ownerOffset);
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
+  return { year: owner.getFullYear(), month: owner.getMonth(), week: Math.ceil(owner.getDate()/7), start, end };
+}
+// Week milik bulan (monthIndex 0=Jan…11=Des) → { w: [tglAwalDiBulanIni, tglAkhirDiBulanIni, 'YYYY-MM-DD Senin', 'YYYY-MM-DD Minggu'] }
+// Elemen [0],[1] = rentang tanggal DI DALAM bulan ini; [2],[3] = rentang PENUH (bisa nyebrang bulan).
 function getMonthWeekRanges(year, monthIndex){
-  // monthIndex: 0=Jan ... 11=Dec
-  // Aturan (training Selasa, Rabu, Jumat): minggu Senin–Minggu "dimiliki" bulan tempat hari Selasanya jatuh.
-  //  - tgl 1 = Senin / Selasa  -> Week 1 mulai tgl 1 (minggu tsb sudah masuk bulan ini)
-  //  - tgl 1 = Rabu s/d Minggu -> tgl 1 sampai sebelum Senin pertama ikut Week TERAKHIR bulan sebelumnya,
-  //                               Week 1 baru mulai di Senin pertama.
   const daysInMonth = new Date(year, monthIndex+1, 0).getDate();
-  const day1Weekday = new Date(year, monthIndex, 1).getDay(); // 0=Minggu..6=Sabtu
-  let start = 1;
-  if(day1Weekday !== 1 && day1Weekday !== 2){
-    for(let d=2; d<=8; d++){
-      if(new Date(year, monthIndex, d).getDay() === 1){ start = d; break; }
-    }
-  }
+  const ownerDow = weekOwnerDow();
+  const ownerOffset = (ownerDow + 6) % 7;
+  let first = 1;
+  while(new Date(year, monthIndex, first).getDay() !== ownerDow) first++;
   const ranges = {};
   let w = 1;
-  while(start <= daysInMonth){
-    const dow = new Date(year, monthIndex, start).getDay();
-    // tiap week berakhir di hari Minggu (atau akhir bulan kalau bulan habis duluan)
-    const end = Math.min(start + ((7 - dow) % 7), daysInMonth);
-    ranges[w] = [start, end];
-    start = end + 1;
-    w++;
+  for(let od = first; od <= daysInMonth; od += 7, w++){
+    const start = new Date(year, monthIndex, od - ownerOffset);
+    const end   = new Date(year, monthIndex, od - ownerOffset + 6);
+    const startIn = (start.getFullYear()===year && start.getMonth()===monthIndex);
+    const endIn   = (end.getFullYear()===year && end.getMonth()===monthIndex);
+    ranges[w] = [ startIn ? start.getDate() : 1, endIn ? end.getDate() : daysInMonth, weekYMD(start), weekYMD(end) ];
   }
-  return ranges; // tgl sebelum Week 1 sengaja tidak ada di objek ini (lihat resolveWeekPeriod)
+  return ranges;
 }
+// Bulan & week pemilik sebuah tanggal (dipakai auto-batch peserta)
 function resolveWeekPeriod(year, monthIndex, day){
-  const d = Number(day);
-  const ranges = getMonthWeekRanges(year, monthIndex);
-  const firstRange = ranges[1];
-  if(firstRange && d < firstRange[0]){
-    let prevMonth = monthIndex - 1, prevYear = year;
-    if(prevMonth < 0){ prevMonth = 11; prevYear -= 1; }
-    const prevRanges = getMonthWeekRanges(prevYear, prevMonth);
-    const prevWeeks = Object.keys(prevRanges).map(Number);
-    const lastWeek = prevWeeks.length ? Math.max(...prevWeeks) : 1;
-    return { year: prevYear, month: prevMonth, week: lastWeek };
-  }
-  for(const w in ranges){
-    const [a,b] = ranges[w];
-    if(d>=a && d<=b) return { year, month: monthIndex, week: parseInt(w,10) };
-  }
-  const weeks = Object.keys(ranges).map(Number);
-  const lastWeek = weeks.length ? Math.max(...weeks) : 1;
-  return { year, month: monthIndex, week: lastWeek };
+  const p = weekPeriodOfDate(year, monthIndex, day);
+  return { year: p.year, month: p.month, week: p.week };
 }
+function monthWeekCount(monthIndex, year){ return Object.keys(getMonthWeekRanges(year, monthIndex)).length; }
+// Jendela tanggal penuh untuk week w bulan tsb. cumulative=true → dari awal W1 sampai akhir Ww. null kalau week tsb tidak ada.
+function weekWindow(w, monthIndex, year, cumulative){
+  const r = getMonthWeekRanges(year, monthIndex);
+  const last = r[w];
+  if(!last) return null;
+  const first = cumulative ? r[1] : last;
+  return { start: first[2], end: last[3] };
+}
+function dateInWindow(dateStr, win){
+  if(!win || !dateStr) return false;
+  const ds = String(dateStr).slice(0,10);
+  return ds >= win.start && ds <= win.end;
+}
+// Bagi SEMUA item bertanggal ke week 1..N milik bulan tsb (sadar lintas bulan). Item di luar week bulan ini diabaikan.
+function groupByMonthWeek(allItems, getDate, monthIndex, year){
+  const out = {0:[],1:[],2:[],3:[],4:[],5:[]};
+  const ranges = getMonthWeekRanges(year, monthIndex);
+  const n = Object.keys(ranges).length;
+  (allItems||[]).forEach(it=>{
+    const ds = String(getDate(it)||'').slice(0,10);
+    if(!ds) return;
+    for(let w=1; w<=n; w++){ if(ds >= ranges[w][2] && ds <= ranges[w][3]){ out[w].push(it); break; } }
+  });
+  return out;
+}
+// Kejadian agenda wajib pada rentang tanggal (YYYY-MM-DD s/d YYYY-MM-DD), boleh nyebrang bulan
+function getWajibOccurrencesForRange(startYMD, endYMD){
+  const list = [];
+  const e = new Date(endYMD+'T00:00:00');
+  for(let d = new Date(startYMD+'T00:00:00'); d <= e; d = new Date(d.getFullYear(), d.getMonth(), d.getDate()+1)){
+    getRecurringOccurrencesForDate(weekYMD(d)).forEach(x=>{
+      if(x.wajib===false) return;
+      list.push(x);
+    });
+  }
+  return list.sort((a,b)=> a.date===b.date ? (a.time||'').localeCompare(b.time||'') : a.date.localeCompare(b.date));
+}
+function weekRangeText(r){
+  const s = r[2].split('-'), e = r[3].split('-');
+  const sm = parseInt(s[1],10)-1, em = parseInt(e[1],10)-1;
+  if(sm===em) return 'tgl ' + parseInt(s[2],10) + '–' + parseInt(e[2],10);
+  return parseInt(s[2],10)+' '+MONTH_NAMES_ID[sm].slice(0,3)+'–'+parseInt(e[2],10)+' '+MONTH_NAMES_ID[em].slice(0,3);
+}
+// Nomor week yang ADA di sebuah bulan (mis. September 2026 → [1,2,3,4]); tampilkan week di luar itu hanya kalau punya data
+function weeksToShow(labels, byWeek){
+  return [1,2,3,4,5].filter(w=> labels[w] !== '—' || ((byWeek && byWeek[w]) || []).length);
+}
+
 function weekNumberFromDate(day, monthIndex, year){
   return resolveWeekPeriod(year, monthIndex, day).week;
 }
@@ -554,20 +605,26 @@ function weekDayRange(w, monthIndex, year){
   return ranges[w] || [1, 0];
 }
 function buildWeekRangeLabels(monthIndex, year){
+  // Label per Week 1–5 (Senin–Minggu penuh, bisa nyebrang bulan). '—' = bulan tsb tidak punya week itu.
   const ranges = getMonthWeekRanges(year, monthIndex);
   const out = {};
   for(let w=1; w<=5; w++){
-    out[w] = ranges[w] ? ('tgl ' + ranges[w][0] + '–' + ranges[w][1]) : '—';
+    out[w] = ranges[w] ? weekRangeText(ranges[w]) : '—';
   }
   return out;
 }
-function dateInWeek(dateStr, w){
+function dateInWeek(dateStr, w, monthIndex, year){
   if(!w || !dateStr) return true;
-  const parts = String(dateStr).split('-');
-  const yy = parseInt(parts[0],10), mm = parseInt(parts[1],10)-1, day = parseInt(parts[2],10);
-  if(isNaN(day)) return true;
-  const [a,b] = weekDayRange(w, isNaN(mm)?undefined:mm, isNaN(yy)?undefined:yy);
-  return day>=a && day<=b;
+  const now = new Date();
+  const mm = (monthIndex===undefined || monthIndex===null) ? now.getMonth() : monthIndex;
+  const yy = (year===undefined || year===null) ? now.getFullYear() : year;
+  return dateInWindow(dateStr, weekWindow(w, mm, yy, false));
+}
+function availableWeeks(){
+  const my = dashboardMonthYear();
+  const n = monthWeekCount(my.month, my.year), out = [];
+  for(let w=1; w<=n; w++) out.push(w);
+  return out;
 }
 function weekFromDateStr(dateStr){
   if(!dateStr) return 0;
@@ -855,8 +912,13 @@ function computeKpis(week){
   const monthKey = dashboardGciMonthKey();
   const monthLabel = monthKey ? gciMonthLabel(monthKey) : 'Semua Bulan';
   let gciRows = (gciData||[]).slice();
-  if(monthKey) gciRows = gciRows.filter(r=>gciMonthKey(r.tanggal)===monthKey);
-  if(week) gciRows = gciRows.filter(r=>{ const wk = weekFromDateStr(r.tanggal); return wk>=1 && wk<=week; }); // kumulatif W1..Wn
+  if(monthKey && week){
+    // Mode week: kumulatif W1..Wn pakai rentang tanggal PENUH (W1 bisa mulai di akhir bulan sebelumnya)
+    const win = weekWindow(week, agendaMonth, agendaYear, true);
+    gciRows = win ? gciRows.filter(r=>dateInWindow(r.tanggal, win)) : [];
+  } else if(monthKey){
+    gciRows = gciRows.filter(r=>gciMonthKey(r.tanggal)===monthKey);
+  }
   // Dampak = sales aktif yang jualan (>=1 booking) / total sales aktif. Tanpa filter week = global.
   const impStat = impactSalesStats(gciRows);
   const gciTotal = impStat.total;
@@ -866,7 +928,8 @@ function computeKpis(week){
   // 3) Agenda wajib
   let agendaStats = computeRecurringMonthlyCompletionWajib(agendaYear, agendaMonth);
   if(week){
-    const list = getWajibOccurrencesForMonth(agendaYear, agendaMonth).filter(e=>dateInWeek(e.date, week));
+    const win = weekWindow(week, agendaMonth, agendaYear, false);
+    const list = win ? getWajibOccurrencesForRange(win.start, win.end) : [];
     const done = list.filter(e=>getAgendaEffectiveStatus(e)==='selesai').length;
     const total = list.length;
     agendaStats = { total, done, pct: total?Math.round((done/total)*100):0 };
@@ -894,10 +957,15 @@ function computeKpis(week){
   const scStats = computeSupportCoachingStats(scList);
 
   // 7) Tasklist marketing
-  let tmList = (state.tasklistMarketing.tasks||[]).filter(t=>
-    monthNameFromDate(t.tanggal)===blnName && yearFromDate(t.tanggal)===String(tahunNum)
-  );
-  if(week) tmList = tmList.filter(t=>dateInWeek(t.tanggal, week));
+  let tmList;
+  if(week){
+    const win = weekWindow(week, agendaMonth, agendaYear, false);
+    tmList = (state.tasklistMarketing.tasks||[]).filter(t=>dateInWindow(t.tanggal, win));
+  } else {
+    tmList = (state.tasklistMarketing.tasks||[]).filter(t=>
+      monthNameFromDate(t.tanggal)===blnName && yearFromDate(t.tanggal)===String(tahunNum)
+    );
+  }
   const tmStats = computeApplyPctByPeople(tmList);
 
   // 8) Laporan lengkap
@@ -935,23 +1003,17 @@ function computeWeeklyKpiSeries(){
 
   const allPeserta = getFilteredParticipants();
   const csMod = closingSkillModule();
-  const gciMonthRows = (gciData||[]).filter(r=>gciMonthKey(r.tanggal)===monthKey);
-  const wajibList = getWajibOccurrencesForMonth(agendaYear, agendaMonth);
-  const tasks = (state.tasklistMarketing.tasks||[]).filter(t=>
-    monthNameFromDate(t.tanggal)===blnName && yearFromDate(t.tanggal)===String(tahunNum)
-  );
+  const allTasks = state.tasklistMarketing.tasks||[];
   const feedbacks = state.feedbackTL.filter(f=>f.bln===blnName && Number(f.tahun)===Number(tahunNum));
   const coachings = state.supportCoaching.filter(f=>f.bln===blnName && Number(f.tahun)===Number(tahunNum));
 
   const series = { agenda:[], training:[], closing:[], impact:[], apply:[], fltl:[], sc:[] };
-  for(let w=1; w<=5; w++){
-    const [d0,d1] = weekDayRange(w, agendaMonth, agendaYear);
-    const inWeek = (dateStr)=>{
-      if(!dateStr) return false;
-      const day = parseInt(String(dateStr).split('-')[2],10);
-      return !isNaN(day) && day>=d0 && day<=d1;
-    };
-    const ag = wajibList.filter(e=>inWeek(e.date));
+  const nWeeks = monthWeekCount(agendaMonth, agendaYear); // mis. September 2026 = 4 week
+  for(let w=1; w<=nWeeks; w++){
+    const win = weekWindow(w, agendaMonth, agendaYear, false);
+    const winCum = weekWindow(w, agendaMonth, agendaYear, true);
+    const inWeek = (dateStr)=> dateInWindow(dateStr, win);
+    const ag = getWajibOccurrencesForRange(win.start, win.end);
     const agDone = ag.filter(e=>getAgendaEffectiveStatus(e)==='selesai').length;
     series.agenda.push(ag.length ? Math.round((agDone/ag.length)*100) : 0);
 
@@ -968,13 +1030,10 @@ function computeWeeklyKpiSeries(){
     series.closing.push(csPct);
 
     // Kumulatif: sales yang sudah jualan dari awal bulan sampai akhir week ini (tiap sales dihitung 1x)
-    const gciW = gciMonthRows.filter(r=>{
-      const dd = parseInt(String(r.tanggal||'').split('-')[2],10);
-      return d1>=d0 && !isNaN(dd) && dd<=d1;
-    });
+    const gciW = (gciData||[]).filter(r=>dateInWindow(r.tanggal, winCum));
     series.impact.push(impactSalesStats(gciW).pct);
 
-    const tw = tasks.filter(t=>inWeek(t.tanggal));
+    const tw = allTasks.filter(t=>inWeek(t.tanggal));
     series.apply.push(computeApplyPctByPeople(tw).pct);
 
     const fw = feedbacks.filter(f=>Number(f.week)===w);
@@ -1000,7 +1059,9 @@ function renderFilters(){
   thEl.onchange = function(){ filterTahun = thEl.value; renderAll(); };
 
   const key = resumeMonthKeyFromFilters();
-  document.getElementById('week-tabs').innerHTML = [1,2,3,4,5].map(function(w){
+  const __aw = availableWeeks();
+  if(selectedWeek && selectedWeek > __aw.length) selectedWeek = null; // bulan ini tidak punya week itu
+  document.getElementById('week-tabs').innerHTML = __aw.map(function(w){
     const active = selectedWeek===w;
     return '<div class="inline-flex items-center rounded-lg overflow-hidden border" style="border-color:'+(active?'var(--brand-500)':'var(--line)')+'">'
       + '<button type="button" onclick="selectedWeek='+(active?'null':w)+';renderAll()" class="px-2 py-1.5 text-[11px] font-bold transition" style="'+(active?'background:var(--brand-600);color:#fff':'background:#fff;color:#475569')+'" title="KPI fokus Week '+w+' / Batch '+w+'">W'+w+'</button>'
@@ -1154,8 +1215,8 @@ function renderKpiCards(m){
 /* ---------- Tren ---------- */
 function renderTrend(){
   const { series, blnName, tahunNum } = computeWeeklyKpiSeries();
-  const labels = ['W1','W2','W3','W4','W5'];
-  document.getElementById('trend-sub').textContent = 'Week 1–5 · Batch 1–5 · '+blnName+' '+tahunNum;
+  const labels = series.agenda.map(function(_,i){ return 'W'+(i+1); });
+  document.getElementById('trend-sub').textContent = 'Week 1–'+labels.length+' · Batch 1–'+labels.length+' · '+blnName+' '+tahunNum;
   const tbl = document.getElementById('trend-table');
   if(tbl){
     const rows = [
