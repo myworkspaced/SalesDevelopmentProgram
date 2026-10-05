@@ -12156,12 +12156,30 @@ function saAchievementMap(monthKey){
   });
   return map;
 }
+// Kategori usia (masa kerja) -> target booking & KPI. masaKerja disimpan dalam TAHUN, dikonversi ke bulan.
+function saKategoriUsia(masaKerjaTahun){
+  if(masaKerjaTahun===null || masaKerjaTahun===undefined || masaKerjaTahun==='' || isNaN(Number(masaKerjaTahun))) return null;
+  const bln = Math.round(Number(masaKerjaTahun)*12*100)/100;
+  if(bln < 1)  return { label:'0 s.d. < 1 Bulan',  target:1, order:1 };
+  if(bln < 3)  return { label:'1 s.d. < 3 Bulan',  target:1, order:2 };
+  if(bln < 6)  return { label:'3 s.d. < 6 Bulan',  target:2, order:3 };
+  if(bln < 12) return { label:'6 s.d. < 12 Bulan', target:3, order:4 };
+  return { label:'\u2265 12 Bulan', target:4, order:5 };
+}
 function saBuildRows(monthKey){
   const ach = saAchievementMap(monthKey);
   return saList().map(s=>{
     const a = ach[saNorm(s.username)] || { key: s.username, leads:0, booking:0, nominal:0 };
-    return { s, mk: a.key, leads: a.leads, booking: a.booking, nominal: a.nominal, status: a.booking>0 ? 'sudah' : 'belum' };
+    const kat = saKategoriUsia(s.masaKerja);
+    const kpiPct = kat ? Math.round((a.booking / kat.target) * 1000) / 10 : null; // KPI = booking / target x 100%
+    return { s, mk: a.key, leads: a.leads, booking: a.booking, nominal: a.nominal, status: a.booking>0 ? 'sudah' : 'belum',
+             kat, katLabel: kat?kat.label:'', katOrder: kat?kat.order:0, target: kat?kat.target:null, kpiPct };
   });
+}
+function saKpiBadge(r, hasPeriode){
+  if(!hasPeriode || !r.kat) return '<span class="badge badge-slate">-</span>';
+  const txt = String(r.kpiPct).replace('.', ',') + '%';
+  return `<span class="badge ${r.kpiPct>=100?'badge-green':'badge-red'}" title="Booking ${r.booking} dari target ${r.target}">${txt}</span>`;
 }
 function saMatchesBase(r){
   const s = r.s;
@@ -12181,9 +12199,9 @@ function saMatchesBase(r){
   return true;
 }
 function saSortRows(rows){
-  const numeric = { masaKerja:1, leads:1, booking:1, nominal:1 };
+  const numeric = { masaKerja:1, leads:1, booking:1, nominal:1, katOrder:1, target:1, kpiPct:1 };
   const dir = saSortDir==='asc' ? 1 : -1;
-  const val = r=>({ nama:r.s.nama, username:r.s.username, masaKerja:r.s.masaKerja, mentor:r.s.mentor, bm:r.s.bm, rm:r.s.rm, leads:r.leads, booking:r.booking, nominal:r.nominal })[saSortKey];
+  const val = r=>({ nama:r.s.nama, username:r.s.username, masaKerja:r.s.masaKerja, mentor:r.s.mentor, bm:r.s.bm, rm:r.s.rm, leads:r.leads, booking:r.booking, nominal:r.nominal, katOrder:r.katOrder, target:r.target, kpiPct:r.kpiPct })[saSortKey];
   return rows.slice().sort((a,b)=>{
     let c = 0;
     if(numeric[saSortKey]){
@@ -12198,7 +12216,7 @@ function saSortRows(rows){
 }
 function saSortBy(key){
   if(saSortKey===key){ saSortDir = saSortDir==='asc' ? 'desc' : 'asc'; }
-  else { saSortKey = key; saSortDir = ({ masaKerja:1, leads:1, booking:1, nominal:1 })[key] ? 'desc' : 'asc'; }
+  else { saSortKey = key; saSortDir = ({ masaKerja:1, leads:1, booking:1, nominal:1, katOrder:1, target:1, kpiPct:1 })[key] ? 'desc' : 'asc'; }
   renderSalesAktif();
 }
 function saUniqueValues(field){
@@ -12266,6 +12284,7 @@ function renderSalesAktif(){
     + saTh('Nama Karyawan','nama') + saTh('Username','username') + saTh('Masa Kerja (th)','masaKerja','text-center')
     + saTh('Mentor/SPV','mentor') + saTh('BM','bm') + saTh('RM','rm')
     + saTh('Leads','leads','text-center') + saTh('Booking','booking','text-center') + saTh('Nominal Booking','nominal')
+    + saTh('Kategori Usia','katOrder') + saTh('Target Booking','target','text-center') + saTh('KPI','kpiPct','text-center')
     + '<th class="py-2 pr-3 font-bold whitespace-nowrap">Status</th><th class="py-2 pr-3 font-bold whitespace-nowrap">Aksi</th>';
 
   document.getElementById('sa-empty').classList.toggle('hidden', all.length>0);
@@ -12285,6 +12304,9 @@ function renderSalesAktif(){
       <td class="py-2 pr-3 text-center mono">${hasPeriode ? r.leads : '-'}</td>
       <td class="py-2 pr-3 text-center mono font-bold" style="color:${r.booking>0?'var(--brand-600)':'#94a3b8'}">${hasPeriode ? r.booking : '-'}</td>
       <td class="py-2 pr-3 mono whitespace-nowrap">${hasPeriode && r.booking>0 ? formatRupiah(r.nominal) : '-'}</td>
+      <td class="py-2 pr-3 whitespace-nowrap">${escapeHtml(r.katLabel||'-')}</td>
+      <td class="py-2 pr-3 text-center mono">${r.kat ? r.target+' Booking' : '-'}</td>
+      <td class="py-2 pr-3 whitespace-nowrap">${saKpiBadge(r, hasPeriode)}</td>
       <td class="py-2 pr-3 whitespace-nowrap">${saStatusBadge(r.status, hasPeriode)}</td>
       <td class="py-2 pr-3 whitespace-nowrap">
         <button onclick="openSalesAktifDetail('${id}')" title="Detail leads &amp; booking" class="text-base hover:opacity-70" style="color:var(--brand-600)"><i class="fa-solid fa-chart-simple"></i></button>
@@ -12548,8 +12570,8 @@ async function exportSalesAktifExcel(){
   const wb = new ExcelJS.Workbook();
   wb.creator = 'SalesPro Academy';
   const ws = wb.addWorksheet('Sales Aktif', { views:[{ state:'frozen', ySplit:1 }] });
-  ws.columns = [{width:28},{width:18},{width:12},{width:18},{width:16},{width:16},{width:9},{width:9},{width:18},{width:16},{width:16}];
-  const headRow = ws.addRow(['Nama Karyawan','Nama Pengguna','Masa Kerja','Mentor/SPV','BM','RM','Leads','Booking','Nominal Booking','Status Jualan','Periode']);
+  ws.columns = [{width:28},{width:18},{width:12},{width:18},{width:16},{width:16},{width:9},{width:9},{width:18},{width:18},{width:15},{width:16},{width:16},{width:16}];
+  const headRow = ws.addRow(['Nama Karyawan','Nama Pengguna','Masa Kerja','Mentor/SPV','BM','RM','Leads','Booking','Nominal Booking','Kategori Usia','Target Booking','KPI','Status Jualan','Periode']);
   headRow.eachCell(cell=>{
     cell.font = { bold:true, color:{argb:COLOR.headerFont} };
     cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.headerFill} };
@@ -12562,7 +12584,7 @@ async function exportSalesAktifExcel(){
     const row = ws.addRow([
       s.nama||'', s.username||'', saFmtMasaKerja(s.masaKerja)==='-' ? '' : saFmtMasaKerja(s.masaKerja),
       s.mentor||'', s.bm||'', s.rm||'',
-      periode ? r.leads : '', periode ? r.booking : '', periode ? r.nominal : '', statusLabel, periodeLabel
+      periode ? r.leads : '', periode ? r.booking : '', periode ? r.nominal : '', r.katLabel||'', r.kat ? r.target : '', (!periode || !r.kat) ? '' : r.kpiPct/100, statusLabel, periodeLabel
     ]);
     row.eachCell((cell, colNum)=>{
       cell.border = borderAll;
@@ -12571,12 +12593,18 @@ async function exportSalesAktifExcel(){
     });
     row.getCell(9).numFmt = '#,##0';
     if(periode){
-      const sc = row.getCell(10);
+      const sc = row.getCell(13);
       sc.fill = { type:'pattern', pattern:'solid', fgColor:{argb: r.status==='sudah' ? COLOR.sudahFill : COLOR.belumFill} };
       sc.font = { bold:true, color:{argb: r.status==='sudah' ? COLOR.sudahFont : COLOR.belumFont} };
+      if(r.kat){
+        const kc = row.getCell(12);
+        kc.numFmt = '0.#%';
+        kc.fill = { type:'pattern', pattern:'solid', fgColor:{argb: r.kpiPct>=100 ? COLOR.sudahFill : COLOR.belumFill} };
+        kc.font = { bold:true, color:{argb: r.kpiPct>=100 ? COLOR.sudahFont : COLOR.belumFont} };
+      }
     }
   });
-  ws.autoFilter = { from:{row:1,column:1}, to:{row:1,column:11} };
+  ws.autoFilter = { from:{row:1,column:1}, to:{row:1,column:14} };
   const buf = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf], { type:'application/octet-stream' });
   saveAs(blob, `sales-aktif-${periode || 'semua'}.xlsx`);
