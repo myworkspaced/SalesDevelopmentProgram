@@ -1179,12 +1179,16 @@
                 <i class="fa-solid fa-file-arrow-up mr-1"></i>Impor dari Excel
                 <input type="file" accept=".xlsx,.xls" class="hidden" onchange="importSalesAktifExcel(event)">
               </label>
+              <label class="btn-ghost cursor-pointer" title="Isi Mentor/SPV, BM, RM dari file Data User. Hanya sales yang sudah ada di daftar yang diperbarui.">
+                <i class="fa-solid fa-sitemap mr-1"></i>Impor Data User (SPV/BM/RM)
+                <input type="file" accept=".xlsx,.xls" class="hidden" onchange="importDataUserSalesAktif(event)">
+              </label>
               <button class="btn-primary" onclick="openAddSalesAktif()"><i class="fa-solid fa-plus mr-1"></i>Tambah Sales</button>
               <button class="btn-ghost" onclick="exportSalesAktifExcel()"><i class="fa-solid fa-file-excel mr-1"></i>Export Excel</button>
               <button class="btn-ghost !text-red-600" onclick="clearSalesAktifData()"><i class="fa-solid fa-broom mr-1"></i>Bersihkan</button>
             </div>
           </div>
-          <p class="text-xs text-slate-400 mb-4">Impor mendukung format "List Sales Aktif" (kolom Nama Karyawan, Nama Pengguna, Masa Kerja, Mentor/SPV, BM, RM). Baris dengan Nama Pengguna yang sudah ada akan diperbarui otomatis. Pencapaian dihitung dari data <b>Leads &amp; Booking</b> di Pencapaian Bulanan (dicocokkan lewat Nama Pengguna). <b>Sudah Jualan</b> = minimal 1 booking di periode terpilih.</p>
+          <p class="text-xs text-slate-400 mb-4">Impor mendukung format "List Sales Aktif" (kolom Nama Karyawan, Nama Pengguna, Masa Kerja, Mentor/SPV, BM, RM). Baris dengan Nama Pengguna yang sudah ada akan diperbarui otomatis. Pencapaian dihitung dari data <b>Leads &amp; Booking</b> di Pencapaian Bulanan (dicocokkan lewat Nama Pengguna). <b>Sudah Jualan</b> = minimal 1 booking di periode terpilih. Atur <b>Dari Bulan</b> &amp; <b>Sampai Bulan</b> untuk rentang periode; <b>Growth</b> membandingkan booking rentang itu dengan rentang sebelumnya yang jumlah bulannya sama.</p>
           <div class="flex flex-wrap items-end gap-2">
             <div class="flex-1 min-w-[160px]">
               <label class="text-[10px] font-bold text-slate-400 uppercase">Cari</label>
@@ -1194,8 +1198,12 @@
               </div>
             </div>
             <div>
-              <label class="text-[10px] font-bold text-slate-400 uppercase">Periode Pencapaian</label>
+              <label class="text-[10px] font-bold text-slate-400 uppercase">Dari Bulan</label>
               <select id="sa-filter-periode" class="field" onchange="applySalesAktifFilter()"></select>
+            </div>
+            <div>
+              <label class="text-[10px] font-bold text-slate-400 uppercase">Sampai Bulan</label>
+              <select id="sa-filter-sampai" class="field" onchange="applySalesAktifFilter()"></select>
             </div>
             <div>
               <label class="text-[10px] font-bold text-slate-400 uppercase">BM</label>
@@ -1213,8 +1221,20 @@
                 <option value="belum">Belum Jualan</option>
               </select>
             </div>
+            <div>
+              <label class="text-[10px] font-bold text-slate-400 uppercase">Growth</label>
+              <select id="sa-filter-growth" class="field" onchange="applySalesAktifFilter()">
+                <option value="">Semua</option>
+                <option value="growth">Growth</option>
+                <option value="turun">Turun</option>
+                <option value="stabil">Stabil</option>
+                <option value="nol">Tanpa booking</option>
+              </select>
+            </div>
           </div>
         </div>
+
+        <div id="sa-range-info" class="hidden card p-3.5 text-[11px] text-slate-600"></div>
 
         <div id="sa-notice" class="hidden card p-3.5 text-[11px] text-slate-600 border-amber-200 bg-amber-50"></div>
 
@@ -12114,7 +12134,9 @@ async function generateAIFeedbackDetail(){
 // Pencapaian (Leads/Booking/Nominal) TIDAK disimpan di sini — dihitung otomatis tiap render dari data
 // Pencapaian Bulanan (gciData) dengan mencocokkan Nama Pengguna sales = kolom Marketing di data GCI.
 // "Sudah Jualan" = punya minimal 1 booking pada periode (bulan) yang dipilih.
-var saFilterPeriode = '';
+var saFilterPeriode = '';   // Dari bulan
+var saFilterSampai = '';    // Sampai bulan
+var saFilterGrowth = '';
 var saFilterStatus = '';
 var saFilterBm = '';
 var saFilterRm = '';
@@ -12133,28 +12155,63 @@ function saFmtMasaKerja(n){
   if(n===null || n===undefined || n==='' || isNaN(Number(n))) return '-';
   return Number(n).toFixed(1).replace('.', ',');
 }
-function saPeriodOptions(){ return getGciMonths().slice().sort().reverse(); }
-function saCurrentPeriode(){
+function saPeriodOptions(){ return getGciMonths().slice().sort(); }   // naik: Jan ... Des
+function saMonthAdd(key, n){
+  const p = key.split('-').map(Number);
+  const d = new Date(p[0], p[1]-1+n, 1);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+}
+function saMonthSpan(a, b){          // daftar bulan a..b (inklusif), maks 60
+  if(a>b){ const t=a; a=b; b=t; }
+  const out = []; let k = a;
+  while(k<=b && out.length<60){ out.push(k); k = saMonthAdd(k,1); }
+  return out;
+}
+function saDefaultPeriode(){
   const opts = saPeriodOptions();
-  if(saFilterPeriode && opts.includes(saFilterPeriode)) return saFilterPeriode;
   const now = new Date();
   const nowKey = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
-  return opts.includes(nowKey) ? nowKey : (opts[0] || '');
+  return opts.includes(nowKey) ? nowKey : (opts[opts.length-1] || '');
 }
-// username (huruf kecil) -> { key: penulisan asli di data GCI, leads, booking, nominal }
-function saAchievementMap(monthKey){
-  const map = {};
-  if(!monthKey) return map;
-  const agg = aggregateGciMonth(monthKey);
-  Object.keys(agg.byMarketing).forEach(mk=>{
-    const v = agg.byMarketing[mk];
-    const k = saNorm(mk);
-    if(!map[k]) map[k] = { key: mk, leads:0, booking:0, nominal:0 };
-    map[k].leads += v.leads || 0;
-    map[k].booking += v.booking || 0;
-    map[k].nominal += v.nominalBooking || 0;
+// Rentang periode terpilih + periode pembanding (jumlah bulan sama, tepat sebelum rentang)
+function saPeriodeRange(){
+  const opts = saPeriodOptions();
+  let from = (saFilterPeriode && opts.includes(saFilterPeriode)) ? saFilterPeriode : saDefaultPeriode();
+  let to = (saFilterSampai && opts.includes(saFilterSampai)) ? saFilterSampai : from;
+  if(!from) return { from:'', to:'', months:[], n:0, prevMonths:[], label:'-', prevLabel:'-' };
+  if(from>to){ const t=from; from=to; to=t; }
+  const months = saMonthSpan(from, to);
+  const n = months.length;
+  const prevFrom = saMonthAdd(from, -n), prevTo = saMonthAdd(from, -1);
+  const prevMonths = saMonthSpan(prevFrom, prevTo);
+  const lab = (a,b)=> a===b ? gciMonthLabel(a) : gciMonthLabel(a)+' \u2013 '+gciMonthLabel(b);
+  return { from, to, months, n, prevMonths, label: lab(from,to), prevLabel: lab(prevFrom,prevTo) };
+}
+function saCurrentPeriode(){ return saPeriodeRange().to; }   // bulan terakhir dari rentang
+// Satu kali lewat data GCI: username (huruf kecil) -> { key, leads, booking, nominal } untuk periode terpilih & pembanding
+function saAggregate(curMonths, prevMonths){
+  const cur = {}, prev = {};
+  const cs = new Set(curMonths), ps = new Set(prevMonths);
+  let prevRows = 0;
+  gciData.forEach(r=>{
+    const mk = gciMonthKey(r.tanggal);
+    if(!mk) return;
+    const inCur = cs.has(mk), inPrev = ps.has(mk);
+    if(!inCur && !inPrev) return;
+    const name = r.marketing || '(Tanpa Marketing)';
+    const k = saNorm(name);
+    const tgt = inCur ? cur : prev;
+    if(inPrev) prevRows++;
+    if(!tgt[k]) tgt[k] = { key:name, leads:0, booking:0, nominal:0 };
+    if(classifyGciStatus(r)==='booking'){ tgt[k].booking++; tgt[k].nominal += Number(r.nominalBookingSpr)||0; }
+    else tgt[k].leads++;
   });
-  return map;
+  return { cur, prev, prevRows };
+}
+// (dipakai modal detail: satu bulan)
+function saAchievementMap(monthKey){
+  if(!monthKey) return {};
+  return saAggregate([monthKey], []).cur;
 }
 // Kategori usia (masa kerja) -> target booking & KPI. masaKerja disimpan dalam TAHUN, dikonversi ke bulan.
 function saKategoriUsia(masaKerjaTahun){
@@ -12166,15 +12223,38 @@ function saKategoriUsia(masaKerjaTahun){
   if(bln < 12) return { label:'6 s.d. < 12 Bulan', target:3, order:4 };
   return { label:'\u2265 12 Bulan', target:4, order:5 };
 }
-function saBuildRows(monthKey){
-  const ach = saAchievementMap(monthKey);
+function saBuildRows(range){
+  const agg = saAggregate(range.months, range.prevMonths);
+  const hasPrevData = agg.prevRows>0;
   return saList().map(s=>{
-    const a = ach[saNorm(s.username)] || { key: s.username, leads:0, booking:0, nominal:0 };
+    const a = agg.cur[saNorm(s.username)] || { key: s.username, leads:0, booking:0, nominal:0 };
+    const pv = agg.prev[saNorm(s.username)];
+    const prevBooking = pv ? pv.booking : 0;
     const kat = saKategoriUsia(s.masaKerja);
-    const kpiPct = kat ? Math.round((a.booking / kat.target) * 1000) / 10 : null; // KPI = booking / target x 100%
+    const target = kat ? kat.target * Math.max(range.n,1) : null;    // target bulanan x jumlah bulan
+    const kpiPct = kat ? Math.round((a.booking / target) * 1000) / 10 : null; // KPI = booking / target x 100%
+    // Growth = booking periode terpilih dibanding periode pembanding (jumlah bulan sama, tepat sebelumnya)
+    let growth = '', growthPct = null, growthSort = null;
+    if(hasPrevData && range.months.length){
+      if(a.booking>prevBooking) growth = 'growth';
+      else if(a.booking<prevBooking) growth = 'turun';
+      else growth = a.booking>0 ? 'stabil' : 'nol';
+      growthPct = prevBooking>0 ? Math.round(((a.booking-prevBooking)/prevBooking)*1000)/10 : null;
+      growthSort = prevBooking>0 ? growthPct : (a.booking>0 ? 1e6 : 0);
+    }
     return { s, mk: a.key, leads: a.leads, booking: a.booking, nominal: a.nominal, status: a.booking>0 ? 'sudah' : 'belum',
-             kat, katLabel: kat?kat.label:'', katOrder: kat?kat.order:0, target: kat?kat.target:null, kpiPct };
+             kat, katLabel: kat?kat.label:'', katOrder: kat?kat.order:0, target, kpiPct,
+             prevBooking, growth, growthPct, growthSort };
   });
+}
+function saGrowthBadge(r, range){
+  if(!r.growth) return '<span class="badge badge-slate" title="Belum ada data pada periode pembanding ('+escapeHtml(range.prevLabel)+')">-</span>';
+  const tip = `Booking ${r.booking} vs ${r.prevBooking} pada ${escapeHtml(range.prevLabel)}`;
+  const pct = r.growthPct===null ? '' : ' ' + (r.growthPct>0?'+':'') + String(r.growthPct).replace('.', ',') + '%';
+  if(r.growth==='growth') return `<span class="badge badge-green" title="${tip}"><i class="fa-solid fa-arrow-trend-up"></i>${r.growthPct===null ? 'Growth (baru)' : 'Growth'+pct}</span>`;
+  if(r.growth==='turun')  return `<span class="badge badge-red" title="${tip}"><i class="fa-solid fa-arrow-trend-down"></i>Turun${pct}</span>`;
+  if(r.growth==='stabil') return `<span class="badge badge-amber" title="${tip}"><i class="fa-solid fa-minus"></i>Stabil</span>`;
+  return `<span class="badge badge-slate" title="${tip}">Tanpa booking</span>`;
 }
 function saKpiBadge(r, hasPeriode){
   if(!hasPeriode || !r.kat) return '<span class="badge badge-slate">-</span>';
@@ -12199,9 +12279,9 @@ function saMatchesBase(r){
   return true;
 }
 function saSortRows(rows){
-  const numeric = { masaKerja:1, leads:1, booking:1, nominal:1, katOrder:1, target:1, kpiPct:1 };
+  const numeric = { masaKerja:1, leads:1, booking:1, nominal:1, katOrder:1, target:1, kpiPct:1, growthSort:1 };
   const dir = saSortDir==='asc' ? 1 : -1;
-  const val = r=>({ nama:r.s.nama, username:r.s.username, masaKerja:r.s.masaKerja, mentor:r.s.mentor, bm:r.s.bm, rm:r.s.rm, leads:r.leads, booking:r.booking, nominal:r.nominal, katOrder:r.katOrder, target:r.target, kpiPct:r.kpiPct })[saSortKey];
+  const val = r=>({ nama:r.s.nama, username:r.s.username, masaKerja:r.s.masaKerja, mentor:r.s.mentor, bm:r.s.bm, rm:r.s.rm, leads:r.leads, booking:r.booking, nominal:r.nominal, katOrder:r.katOrder, target:r.target, kpiPct:r.kpiPct, growthSort:r.growthSort })[saSortKey];
   return rows.slice().sort((a,b)=>{
     let c = 0;
     if(numeric[saSortKey]){
@@ -12216,7 +12296,7 @@ function saSortRows(rows){
 }
 function saSortBy(key){
   if(saSortKey===key){ saSortDir = saSortDir==='asc' ? 'desc' : 'asc'; }
-  else { saSortKey = key; saSortDir = ({ masaKerja:1, leads:1, booking:1, nominal:1, katOrder:1, target:1, kpiPct:1 })[key] ? 'desc' : 'asc'; }
+  else { saSortKey = key; saSortDir = ({ masaKerja:1, leads:1, booking:1, nominal:1, katOrder:1, target:1, kpiPct:1, growthSort:1 })[key] ? 'desc' : 'asc'; }
   renderSalesAktif();
 }
 function saUniqueValues(field){
@@ -12226,14 +12306,18 @@ function saUniqueValues(field){
 }
 function renderSalesAktifFilters(){
   const perSel = document.getElementById('sa-filter-periode');
+  const sdSel = document.getElementById('sa-filter-sampai');
   const bmSel = document.getElementById('sa-filter-bm');
   const rmSel = document.getElementById('sa-filter-rm');
-  if(!perSel || !bmSel || !rmSel) return;
+  if(!perSel || !sdSel || !bmSel || !rmSel) return;
   const opts = saPeriodOptions();
-  const cur = saCurrentPeriode();
-  perSel.innerHTML = opts.length
-    ? opts.map(k=>`<option value="${escapeHtml(k)}" ${k===cur?'selected':''}>${escapeHtml(gciMonthLabel(k))}</option>`).join('')
-    : '<option value="">Belum ada data pencapaian</option>';
+  const rg = saPeriodeRange();
+  const monthOpts = sel => opts.map(k=>`<option value="${escapeHtml(k)}" ${k===sel?'selected':''}>${escapeHtml(gciMonthLabel(k))}</option>`).join('');
+  const empty = '<option value="">Belum ada data pencapaian</option>';
+  perSel.innerHTML = opts.length ? monthOpts(rg.from) : empty;
+  sdSel.innerHTML  = opts.length ? monthOpts(rg.to) : empty;
+  const grSel = document.getElementById('sa-filter-growth');
+  if(grSel) grSel.value = saFilterGrowth;
   const optHtml = (field, allLabel, noneLabel, selected)=>{
     const vals = saUniqueValues(field);
     const hasNone = saList().some(s=>!String(s[field]||'').trim());
@@ -12253,6 +12337,10 @@ function saSetStatusFilter(st){
 }
 function applySalesAktifFilter(){
   saFilterPeriode = document.getElementById('sa-filter-periode').value;
+  const sdEl = document.getElementById('sa-filter-sampai');
+  saFilterSampai = sdEl ? sdEl.value : '';
+  const grEl = document.getElementById('sa-filter-growth');
+  saFilterGrowth = grEl ? grEl.value : '';
   saFilterBm = document.getElementById('sa-filter-bm').value;
   saFilterRm = document.getElementById('sa-filter-rm').value;
   saFilterStatus = document.getElementById('sa-filter-status').value;
@@ -12273,18 +12361,18 @@ function renderSalesAktif(){
   const body = document.getElementById('sa-table-body');
   if(!body) return;
   renderSalesAktifFilters();
-  const periode = saCurrentPeriode();
-  const hasPeriode = !!periode;
-  const all = saBuildRows(periode);
+  const range = saPeriodeRange();
+  const hasPeriode = range.months.length>0;
+  const all = saBuildRows(range);
   const base = all.filter(saMatchesBase);
-  const shown = saSortRows(base.filter(r=>!saFilterStatus || r.status===saFilterStatus));
+  const shown = saSortRows(base.filter(r=>(!saFilterStatus || r.status===saFilterStatus) && (!saFilterGrowth || r.growth===saFilterGrowth)));
 
   document.getElementById('sa-table-head').innerHTML =
     '<th class="py-2 pr-3 font-bold">No</th>'
     + saTh('Nama Karyawan','nama') + saTh('Username','username') + saTh('Masa Kerja (th)','masaKerja','text-center')
     + saTh('Mentor/SPV','mentor') + saTh('BM','bm') + saTh('RM','rm')
     + saTh('Leads','leads','text-center') + saTh('Booking','booking','text-center') + saTh('Nominal Booking','nominal')
-    + saTh('Kategori Usia','katOrder') + saTh('Target Booking','target','text-center') + saTh('KPI','kpiPct','text-center')
+    + saTh('Kategori Usia','katOrder') + saTh('Target Booking','target','text-center') + saTh('KPI','kpiPct','text-center') + saTh('Growth','growthSort')
     + '<th class="py-2 pr-3 font-bold whitespace-nowrap">Status</th><th class="py-2 pr-3 font-bold whitespace-nowrap">Aksi</th>';
 
   document.getElementById('sa-empty').classList.toggle('hidden', all.length>0);
@@ -12307,6 +12395,7 @@ function renderSalesAktif(){
       <td class="py-2 pr-3 whitespace-nowrap">${escapeHtml(r.katLabel||'-')}</td>
       <td class="py-2 pr-3 text-center mono">${r.kat ? r.target+' Booking' : '-'}</td>
       <td class="py-2 pr-3 whitespace-nowrap">${saKpiBadge(r, hasPeriode)}</td>
+      <td class="py-2 pr-3 whitespace-nowrap">${hasPeriode ? saGrowthBadge(r, range) : '-'}</td>
       <td class="py-2 pr-3 whitespace-nowrap">${saStatusBadge(r.status, hasPeriode)}</td>
       <td class="py-2 pr-3 whitespace-nowrap">
         <button onclick="openSalesAktifDetail('${id}')" title="Detail leads &amp; booking" class="text-base hover:opacity-70" style="color:var(--brand-600)"><i class="fa-solid fa-chart-simple"></i></button>
@@ -12324,7 +12413,7 @@ function renderSalesAktif(){
   const totalBooking = base.reduce((a,r)=>a+r.booking,0);
   const totalNominal = base.reduce((a,r)=>a+r.nominal,0);
   const pctSudah = total ? Math.round((sudah/total)*100) : 0;
-  const periodeLabel = hasPeriode ? gciMonthLabel(periode) : '-';
+  const periodeLabel = hasPeriode ? range.label : '-';
   document.getElementById('sa-kpi-total').innerText = total;
   document.getElementById('sa-kpi-total-sub').innerText = `Periode ${periodeLabel}`;
   document.getElementById('sa-kpi-sudah').innerText = hasPeriode ? sudah : '-';
@@ -12340,6 +12429,20 @@ function renderSalesAktif(){
     if(el) el.style.boxShadow = (saFilterStatus===c[1]) ? `0 0 0 2px ${c[2]}` : '';
   });
 
+  // Ringkasan rentang periode & growth
+  const info = document.getElementById('sa-range-info');
+  if(info){
+    if(!hasPeriode){ info.classList.add('hidden'); info.innerHTML=''; }
+    else {
+      const cnt = k => base.filter(r=>r.growth===k).length;
+      const hasGrowth = base.some(r=>r.growth);
+      info.classList.remove('hidden');
+      info.innerHTML = `<i class="fa-solid fa-calendar-days mr-1"></i>Periode: <b>${escapeHtml(range.label)}</b> (${range.n} bulan) &middot; Pembanding: <b>${escapeHtml(range.prevLabel)}</b> &middot; Target &amp; KPI = target bulanan &times; ${range.n} bulan`
+        + (hasGrowth
+          ? `<br><span class="inline-block mt-1"><span class="badge badge-green mr-1"><i class="fa-solid fa-arrow-trend-up"></i>Growth ${cnt('growth')}</span><span class="badge badge-red mr-1"><i class="fa-solid fa-arrow-trend-down"></i>Turun ${cnt('turun')}</span><span class="badge badge-amber mr-1"><i class="fa-solid fa-minus"></i>Stabil ${cnt('stabil')}</span><span class="badge badge-slate">Tanpa booking ${cnt('nol')}</span></span>`
+          : '<br><span class="text-amber-700">Belum ada data Leads &amp; Booking pada periode pembanding, jadi Growth belum bisa dihitung. Impor data bulan sebelumnya di Pencapaian Bulanan.</span>');
+    }
+  }
   const notice = document.getElementById('sa-notice');
   if(notice){
     if(!hasPeriode && saList().length){
@@ -12355,8 +12458,10 @@ function renderSalesAktif(){
 function openSalesAktifDetail(id){
   const s = saList().find(x=>x.id===id);
   if(!s) return;
-  const periode = saCurrentPeriode();
+  const rg = saPeriodeRange();
+  const periode = rg.to;
   if(!periode){ toast('Belum ada data Pencapaian Bulanan untuk dilihat'); return; }
+  if(rg.n>1) toast('Detail menampilkan bulan terakhir dari rentang: ' + gciMonthLabel(periode));
   const mk = (saAchievementMap(periode)[saNorm(s.username)] || {}).key || s.username;
   openSalesDetailModal(mk, periode);
   const t = document.getElementById('sales-detail-title');
@@ -12556,22 +12661,89 @@ function importSalesAktifExcel(event){
   };
   reader.readAsArrayBuffer(file);
 }
+/* ---- Impor Data User (SPV/BM/RM) ----
+   Hanya MEMPERBARUI sales yang sudah ada di Sales Aktif (cocok lewat kolom Username / Username HR).
+   Sales yang tidak ada di daftar Sales Aktif dilewati (tidak ditambahkan).
+   Pemetaan: SPV -> Mentor/SPV, Manager -> BM, GM -> RM. Nilai penanda kosong ("Non SPV", "non_mm", "Non RM", dst) tidak menimpa data. */
+function importDataUserSalesAktif(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  if(!saList().length){ toast('Daftar Sales Aktif masih kosong'); event.target.value=''; return; }
+  showImportLoading('Memperbarui SPV/BM/RM dari Data User...');
+  const reader = new FileReader();
+  reader.onerror = ()=>{ hideImportLoading(); toast('Gagal membaca file'); event.target.value=''; };
+  reader.onload = e=>{
+    try{
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+      const headerRowIdx = rows.findIndex(r=>r && r.some(c=>normHeaderCell(c)==='username'));
+      if(headerRowIdx===-1){
+        hideImportLoading(); toast('Kolom Username tidak ditemukan di file'); event.target.value=''; return;
+      }
+      const headers = rows[headerRowIdx];
+      const iUser = saFindCol(headers, ['Username']);
+      const iUserHR = saFindCol(headers, ['Username HR']);
+      const iSpv = saFindCol(headers, ['SPV','Mentor/SPV']);
+      const iMgr = saFindCol(headers, ['Manager','BM']);
+      const iGm  = saFindCol(headers, ['GM','RM']);
+      if(iSpv===-1 && iMgr===-1 && iGm===-1){
+        hideImportLoading(); toast('Kolom SPV / Manager / GM tidak ditemukan di file'); event.target.value=''; return;
+      }
+      const cell = (row,i)=> (i>-1 && row[i]!==null && row[i]!==undefined) ? String(row[i]).trim() : '';
+      const real = v => v && !/^non[\s_]/i.test(v);   // abaikan "Non SPV", "non_mm", "Non RM", "non_leader"
+      // peta username -> baris file (Username diprioritaskan, Username HR sebagai cadangan)
+      const byUser = {}, byHR = {};
+      for(let i=headerRowIdx+1; i<rows.length; i++){
+        const row = rows[i]; if(!row) continue;
+        const u = saNorm(cell(row,iUser)), h = saNorm(cell(row,iUserHR));
+        if(u && !byUser[u]) byUser[u] = row;
+        if(h && !byHR[h]) byHR[h] = row;
+      }
+      let matched = 0, changed = 0, notFound = 0;
+      saList().forEach(sa=>{
+        const k = saNorm(sa.username);
+        const row = byUser[k] || byHR[k];
+        if(!row){ notFound++; return; }
+        matched++;
+        let ch = false;
+        [[iSpv,'mentor'],[iMgr,'bm'],[iGm,'rm']].forEach(m=>{
+          const v = cell(row, m[0]);
+          if(m[0]>-1 && real(v) && v !== (sa[m[1]]||'')){ sa[m[1]] = v; ch = true; }
+        });
+        if(ch) changed++;
+      });
+      if(changed) saveState();
+      logActivity(`Impor Data User: ${matched} sales cocok, ${changed} diperbarui, ${notFound} tidak ada di file`);
+      hideImportLoading();
+      renderSalesAktif();
+      toast(`Selesai: ${matched} sales cocok, ${changed} diperbarui, ${notFound} tidak ditemukan di file`);
+    }catch(err){
+      console.error(err);
+      hideImportLoading();
+      toast('Gagal mengimpor: ' + (err && err.message ? err.message : 'format file tidak sesuai'));
+    }
+    event.target.value='';
+  };
+  reader.readAsArrayBuffer(file);
+}
 /* ---- Export Excel (ikut filter yang aktif; kolom awal sama dengan format impor) ---- */
 async function exportSalesAktifExcel(){
   if(typeof ExcelJS === 'undefined'){ toast('Modul export belum siap, coba lagi sebentar'); return; }
-  const periode = saCurrentPeriode();
-  const base = saBuildRows(periode).filter(saMatchesBase);
-  const rows = saSortRows(base.filter(r=>!saFilterStatus || r.status===saFilterStatus));
+  const range = saPeriodeRange();
+  const periode = range.months.length ? range.to : '';
+  const base = saBuildRows(range).filter(saMatchesBase);
+  const rows = saSortRows(base.filter(r=>(!saFilterStatus || r.status===saFilterStatus) && (!saFilterGrowth || r.growth===saFilterGrowth)));
   if(!rows.length){ toast('Belum ada data sales untuk di-export'); return; }
-  const periodeLabel = periode ? gciMonthLabel(periode) : '-';
+  const periodeLabel = periode ? range.label : '-';
   const COLOR = { headerFill:'FF1E293B', headerFont:'FFFFFFFF', sudahFill:'FFDCFCE7', sudahFont:'FF15803D', belumFill:'FFFEE2E2', belumFont:'FFB91C1C', zebra:'FFF8FAFC', border:'FFE2E8F0' };
   const thin = { style:'thin', color:{argb:COLOR.border} };
   const borderAll = { top:thin, left:thin, bottom:thin, right:thin };
   const wb = new ExcelJS.Workbook();
   wb.creator = 'SalesPro Academy';
   const ws = wb.addWorksheet('Sales Aktif', { views:[{ state:'frozen', ySplit:1 }] });
-  ws.columns = [{width:28},{width:18},{width:12},{width:18},{width:16},{width:16},{width:9},{width:9},{width:18},{width:18},{width:15},{width:16},{width:16},{width:16}];
-  const headRow = ws.addRow(['Nama Karyawan','Nama Pengguna','Masa Kerja','Mentor/SPV','BM','RM','Leads','Booking','Nominal Booking','Kategori Usia','Target Booking','KPI','Status Jualan','Periode']);
+  ws.columns = [{width:28},{width:18},{width:12},{width:18},{width:16},{width:16},{width:9},{width:9},{width:18},{width:18},{width:15},{width:16},{width:20},{width:16},{width:16},{width:26},{width:26}];
+  const headRow = ws.addRow(['Nama Karyawan','Nama Pengguna','Masa Kerja','Mentor/SPV','BM','RM','Leads','Booking','Nominal Booking','Kategori Usia','Target Booking','KPI','Growth','Booking Pembanding','Status Jualan','Periode','Periode Pembanding']);
   headRow.eachCell(cell=>{
     cell.font = { bold:true, color:{argb:COLOR.headerFont} };
     cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.headerFill} };
@@ -12584,7 +12756,9 @@ async function exportSalesAktifExcel(){
     const row = ws.addRow([
       s.nama||'', s.username||'', saFmtMasaKerja(s.masaKerja)==='-' ? '' : saFmtMasaKerja(s.masaKerja),
       s.mentor||'', s.bm||'', s.rm||'',
-      periode ? r.leads : '', periode ? r.booking : '', periode ? r.nominal : '', r.katLabel||'', r.kat ? r.target : '', (!periode || !r.kat) ? '' : r.kpiPct/100, statusLabel, periodeLabel
+      periode ? r.leads : '', periode ? r.booking : '', periode ? r.nominal : '', r.katLabel||'', r.kat ? r.target : '', (!periode || !r.kat) ? '' : r.kpiPct/100,
+      (!periode || !r.growth) ? '' : ({growth:'Growth',turun:'Turun',stabil:'Stabil',nol:'Tanpa booking'})[r.growth] + (r.growthPct===null ? (r.growth==='growth'?' (baru)':'') : ' ' + (r.growthPct>0?'+':'') + String(r.growthPct).replace('.', ',') + '%'),
+      (!periode || !r.growth) ? '' : r.prevBooking, statusLabel, periodeLabel, periode ? range.prevLabel : '-'
     ]);
     row.eachCell((cell, colNum)=>{
       cell.border = borderAll;
@@ -12593,7 +12767,13 @@ async function exportSalesAktifExcel(){
     });
     row.getCell(9).numFmt = '#,##0';
     if(periode){
-      const sc = row.getCell(13);
+      if(r.growth && r.growth!=='nol'){
+        const gc = row.getCell(13);
+        const gOk = r.growth==='growth', gBad = r.growth==='turun';
+        gc.fill = { type:'pattern', pattern:'solid', fgColor:{argb: gOk ? COLOR.sudahFill : (gBad ? COLOR.belumFill : 'FFFEF3C7')} };
+        gc.font = { bold:true, color:{argb: gOk ? COLOR.sudahFont : (gBad ? COLOR.belumFont : 'FFB45309')} };
+      }
+      const sc = row.getCell(15);
       sc.fill = { type:'pattern', pattern:'solid', fgColor:{argb: r.status==='sudah' ? COLOR.sudahFill : COLOR.belumFill} };
       sc.font = { bold:true, color:{argb: r.status==='sudah' ? COLOR.sudahFont : COLOR.belumFont} };
       if(r.kat){
@@ -12604,10 +12784,10 @@ async function exportSalesAktifExcel(){
       }
     }
   });
-  ws.autoFilter = { from:{row:1,column:1}, to:{row:1,column:14} };
+  ws.autoFilter = { from:{row:1,column:1}, to:{row:1,column:17} };
   const buf = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf], { type:'application/octet-stream' });
-  saveAs(blob, `sales-aktif-${periode || 'semua'}.xlsx`);
+  saveAs(blob, `sales-aktif-${periode ? (range.from===range.to ? range.from : range.from+'_sd_'+range.to) : 'semua'}.xlsx`);
   toast('Export Excel Sales Aktif berhasil');
 }
 
