@@ -12763,111 +12763,99 @@ async function exportSalesAktifExcel(){
   const base = saBuildRows(range).filter(saMatchesBase);
   const rows = saSortRows(base.filter(r=>(!saFilterStatus || r.status===saFilterStatus) && (!saFilterGrowth || r.growth===saFilterGrowth)));
   if(!rows.length){ toast('Belum ada data sales untuk di-export'); return; }
-  const periodeLabel = periode ? range.label : '-';
   const mths = periode ? range.months : [];
   const M = mths.length;
-  const COLOR = { headerFill:'FF1E293B', headerFont:'FFFFFFFF', monthFillA:'FF0F766E', monthFillB:'FF0E7490', sudahFill:'FFDCFCE7', sudahFont:'FF15803D', belumFill:'FFFEE2E2', belumFont:'FFB91C1C', zebra:'FFF8FAFC', border:'FFE2E8F0', totalFill:'FFE2E8F0' };
+  const COLOR = { headerFill:'FF1E293B', headerFont:'FFFFFFFF', bookingFill:'FF0F766E', targetFill:'FF0E7490', kpiFill:'FF0F766E',
+                  sudahFill:'FFDCFCE7', sudahFont:'FF15803D', belumFill:'FFFEE2E2', belumFont:'FFB91C1C', zebra:'FFF8FAFC', border:'FFE2E8F0', totalFill:'FFE2E8F0' };
   const thin = { style:'thin', color:{argb:COLOR.border} };
   const borderAll = { top:thin, left:thin, bottom:thin, right:thin };
   const wb = new ExcelJS.Workbook();
   wb.creator = 'SalesPro Academy';
   const ws = wb.addWorksheet('Sales Aktif', { views:[{ state:'frozen', ySplit:1, xSplit:2 }] });
 
-  // Kolom 1-9: data utama. Lalu per bulan 4 kolom (Booking, Kategori Usia, Target, KPI). Lalu ringkasan total periode.
-  const PER = 4;
-  const C = { nominal:9, firstMonth:10 };
-  const after = 10 + PER*M;
-  C.kategori = after; C.target = after+1; C.kpi = after+2; C.growth = after+3; C.prev = after+4; C.status = after+5; C.periode = after+6; C.pembanding = after+7;
-  const monthHeaders = [];
-  mths.forEach(mk=>{ const L = gciMonthLabel(mk); monthHeaders.push('Booking '+L, 'Kategori Usia '+L, 'Target '+L, 'KPI '+L); });
-  const widths = [28,18,12,18,16,16,9,13,18].concat(mths.map(()=>[16,18,13,11]).reduce((x,y)=>x.concat(y),[]), [20,14,10,22,18,16,26,26]);
+  // Susunan kolom: A-F identitas | Booking tiap bulan | Target tiap bulan | KPI tiap bulan | Total | Growth | Status
+  const cB = i => 7 + i;            // kolom Booking bulan ke-i
+  const cT = i => 7 + M + i;        // kolom Target bulan ke-i
+  const cK = i => 7 + 2*M + i;      // kolom KPI bulan ke-i
+  const cBT = 7 + 3*M, cTT = cBT+1, cKT = cBT+2, cG = cBT+3, cS = cBT+4;
+  const widths = [28,18,12,18,16,16].concat(mths.map(()=>14), mths.map(()=>13), mths.map(()=>11), [14,13,11,22,16]);
   ws.columns = widths.map(w=>({width:w}));
-  const headers = ['Nama Karyawan','Nama Pengguna','Masa Kerja','Mentor/SPV','BM','RM','Leads','Booking Total','Nominal Booking']
-    .concat(monthHeaders, ['Kategori Usia (bln terakhir)','Target Total','KPI Total','Growth','Booking Pembanding','Status Jualan','Periode','Periode Pembanding']);
+  const labels = mths.map(gciMonthLabel);
+  const headers = ['Nama Karyawan','Nama Pengguna','Masa Kerja','Mentor/SPV','BM','RM']
+    .concat(labels.map(L=>'Booking '+L), labels.map(L=>'Target '+L), labels.map(L=>'KPI '+L),
+            ['Booking Total','Target Total','KPI Total','Growth','Status Jualan']);
   const headRow = ws.addRow(headers);
-  headRow.height = 42;
-  headRow.eachCell((cell, colNum)=>{
-    const mi = (colNum>=C.firstMonth && colNum<C.firstMonth+PER*M) ? Math.floor((colNum-C.firstMonth)/PER) : -1;
+  headRow.height = 32;
+  headRow.eachCell((cell, col)=>{
+    let fill = COLOR.headerFill;
+    if(col>=cB(0) && col<=cB(M-1)) fill = COLOR.bookingFill;
+    else if(col>=cT(0) && col<=cT(M-1)) fill = COLOR.targetFill;
+    else if(col>=cK(0) && col<=cK(M-1)) fill = COLOR.kpiFill;
     cell.font = { bold:true, color:{argb:COLOR.headerFont} };
-    cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb: mi<0 ? COLOR.headerFill : (mi%2===0 ? COLOR.monthFillA : COLOR.monthFillB)} };
+    cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:fill} };
     cell.border = borderAll;
     cell.alignment = { vertical:'middle', horizontal:'center', wrapText:true };
   });
-  const totals = { leads:0, booking:0, nominal:0, mBooking: mths.map(()=>0), mTarget: mths.map(()=>0) };
   const kpiFmt = '0.0%';
   const paintKpi = (cell, pct)=>{
     cell.numFmt = kpiFmt;
     cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb: pct>=100 ? COLOR.sudahFill : COLOR.belumFill} };
     cell.font = { bold:true, color:{argb: pct>=100 ? COLOR.sudahFont : COLOR.belumFont} };
   };
+  const totB = mths.map(()=>0), totT = mths.map(()=>0);
   rows.forEach((r,idx)=>{
     const s = r.s;
-    const statusLabel = !periode ? '-' : (r.status==='sudah' ? 'Sudah Jualan' : 'Belum Jualan');
-    const monthCells = [];
-    if(periode){
-      r.perMonth.forEach((m,i)=>{
-        monthCells.push(m.booking, m.kat ? m.kat.label : 'Belum bergabung', m.target==null ? '' : m.target, m.pct==null ? '' : m.pct/100);
-        totals.mBooking[i] += m.booking;
-        if(m.target!=null) totals.mTarget[i] += m.target;
-      });
-      totals.leads+=r.leads; totals.booking+=r.booking; totals.nominal+=r.nominal;
-    }
+    const bookings = r.perMonth.map(m=>m.booking);
+    const targets  = r.perMonth.map(m=>m.target==null ? '' : m.target);
+    const kpis     = r.perMonth.map(m=>m.pct==null ? '' : m.pct/100);
+    r.perMonth.forEach((m,i)=>{ totB[i]+=m.booking; if(m.target!=null) totT[i]+=m.target; });
     const growthTxt = !periode ? '' : (!r.growth ? '-' : ({growth:'Growth',turun:'Turun',stabil:'Stabil',nol:'Tanpa booking'})[r.growth] + (r.growthPct===null ? (r.growth==='growth'?' (baru)':'') : ' ' + (r.growthPct>0?'+':'') + String(r.growthPct).replace('.', ',') + '%'));
     const row = ws.addRow([
       s.nama||'', s.username||'', saFmtMasaKerja(s.masaKerja)==='-' ? '' : saFmtMasaKerja(s.masaKerja),
-      s.mentor||'', s.bm||'', s.rm||'',
-      periode ? r.leads : '', periode ? r.booking : '', periode ? r.nominal : ''
-    ].concat(monthCells, [
-      r.katLabel||'', (!periode || r.target==null) ? '' : r.target, (!periode || r.target==null) ? '' : r.kpiPct/100,
-      growthTxt, (!periode || !r.growth) ? '' : r.prevBooking, statusLabel, periodeLabel, periode ? range.prevLabel : '-'
+      s.mentor||'', s.bm||'', s.rm||''
+    ].concat(bookings, targets, kpis, [
+      bookings.reduce((x,y)=>x+y,0), r.target==null ? '' : r.target, r.target==null ? '' : r.kpiPct/100,
+      growthTxt, !periode ? '-' : (r.status==='sudah' ? 'Sudah Jualan' : 'Belum Jualan')
     ]));
-    row.eachCell({includeEmpty:true}, (cell, colNum)=>{
+    row.eachCell({includeEmpty:true}, (cell, col)=>{
       cell.border = borderAll;
-      cell.alignment = { vertical:'middle', horizontal: colNum===1 ? 'left' : 'center' };
+      cell.alignment = { vertical:'middle', horizontal: col===1 ? 'left' : 'center' };
       if(idx%2===1) cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.zebra} };
     });
-    row.getCell(C.nominal).numFmt = '#,##0';
+    r.perMonth.forEach((m,i)=>{
+      row.getCell(cB(i)).font = m.booking>0 ? { bold:true, color:{argb:COLOR.sudahFont} } : { color:{argb:'FF94A3B8'} };
+      if(m.pct!=null) paintKpi(row.getCell(cK(i)), m.pct);
+    });
+    if(r.target!=null) paintKpi(row.getCell(cKT), r.kpiPct);
+    if(r.growth && r.growth!=='nol'){
+      const gc = row.getCell(cG);
+      const gOk = r.growth==='growth', gBad = r.growth==='turun';
+      gc.fill = { type:'pattern', pattern:'solid', fgColor:{argb: gOk ? COLOR.sudahFill : (gBad ? COLOR.belumFill : 'FFFEF3C7')} };
+      gc.font = { bold:true, color:{argb: gOk ? COLOR.sudahFont : (gBad ? COLOR.belumFont : 'FFB45309')} };
+    }
     if(periode){
-      r.perMonth.forEach((m,i)=>{
-        const b0 = C.firstMonth + PER*i;
-        const bc = row.getCell(b0);
-        bc.font = m.booking>0 ? { bold:true, color:{argb:COLOR.sudahFont} } : { color:{argb:'FF94A3B8'} };
-        if(m.pct!=null) paintKpi(row.getCell(b0+3), m.pct);
-      });
-      if(r.growth && r.growth!=='nol'){
-        const gc = row.getCell(C.growth);
-        const gOk = r.growth==='growth', gBad = r.growth==='turun';
-        gc.fill = { type:'pattern', pattern:'solid', fgColor:{argb: gOk ? COLOR.sudahFill : (gBad ? COLOR.belumFill : 'FFFEF3C7')} };
-        gc.font = { bold:true, color:{argb: gOk ? COLOR.sudahFont : (gBad ? COLOR.belumFont : 'FFB45309')} };
-      }
-      const sc = row.getCell(C.status);
+      const sc = row.getCell(cS);
       sc.fill = { type:'pattern', pattern:'solid', fgColor:{argb: r.status==='sudah' ? COLOR.sudahFill : COLOR.belumFill} };
       sc.font = { bold:true, color:{argb: r.status==='sudah' ? COLOR.sudahFont : COLOR.belumFont} };
-      if(r.target!=null) paintKpi(row.getCell(C.kpi), r.kpiPct);
     }
   });
-  ws.autoFilter = { from:{row:1,column:1}, to:{row:1,column:C.pembanding} };
+  ws.autoFilter = { from:{row:1,column:1}, to:{row:1,column:cS} };
   // Baris total (dipisah satu baris kosong supaya tidak ikut tersortir oleh filter Excel)
   if(periode){
     ws.addRow([]);
-    const monthTot = [];
-    mths.forEach((mk,i)=>{
-      const tg = totals.mTarget[i];
-      monthTot.push(totals.mBooking[i], '', tg, tg>0 ? totals.mBooking[i]/tg : '');
-    });
-    const sumT = totals.mTarget.reduce((x,y)=>x+y,0);
-    const sumB = totals.mBooking.reduce((x,y)=>x+y,0);
-    const tot = ws.addRow(['TOTAL ('+rows.length+' sales)','','','','','', totals.leads, totals.booking, totals.nominal].concat(monthTot, ['', sumT, sumT>0 ? sumB/sumT : '']));
-    tot.eachCell({includeEmpty:true}, (cell, colNum)=>{
-      if(colNum>C.kpi) return;
+    const sumB = totB.reduce((x,y)=>x+y,0), sumT = totT.reduce((x,y)=>x+y,0);
+    const tot = ws.addRow(['TOTAL ('+rows.length+' sales)','','','','',''].concat(
+      totB, totT, totB.map((b,i)=> totT[i]>0 ? b/totT[i] : ''),
+      [sumB, sumT, sumT>0 ? sumB/sumT : '']));
+    tot.eachCell({includeEmpty:true}, (cell, col)=>{
+      if(col>cKT) return;
       cell.font = { bold:true };
       cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR.totalFill} };
       cell.border = borderAll;
-      cell.alignment = { vertical:'middle', horizontal: colNum===1 ? 'left' : 'center' };
+      cell.alignment = { vertical:'middle', horizontal: col===1 ? 'left' : 'center' };
     });
-    tot.getCell(C.nominal).numFmt = '#,##0';
-    mths.forEach((mk,i)=>{ tot.getCell(C.firstMonth + PER*i + 3).numFmt = kpiFmt; });
-    tot.getCell(C.kpi).numFmt = kpiFmt;
+    mths.forEach((mk,i)=>{ tot.getCell(cK(i)).numFmt = kpiFmt; });
+    tot.getCell(cKT).numFmt = kpiFmt;
   }
   const buf = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf], { type:'application/octet-stream' });
